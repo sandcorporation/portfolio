@@ -10,6 +10,7 @@ import { Gallery } from "./Gallery";
 import { Html } from "./Html";
 import { Kpi } from "./Kpi";
 import { MarkdownSection } from "./MarkdownSection";
+import { Steps } from "./Steps";
 import { Table } from "./Table";
 import { Video } from "./Video";
 import type { Block, BlockType } from "./types";
@@ -47,6 +48,7 @@ export const registry: Registry = {
   "case-ref": { Render: CaseRef, toc: titled(3) },
   "audio-compare": { Render: AudioCompare, toc: titled(3) },
   video: { Render: Video, toc: titled(3) },
+  steps: { Render: Steps, toc: titled(3) },
   html: {
     Render: Html,
     toc: (block) => (block.title ? { text: block.title, level: block.level ?? 2 } : null),

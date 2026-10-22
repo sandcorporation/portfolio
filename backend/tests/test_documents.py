@@ -221,3 +221,54 @@ def test_admin_stores_the_sanitized_html(admin_client: Client) -> None:
     assert response.status_code == 302
     saved: Any = SiteProfile.load().company_intro  # Any: raw JSON
     assert saved["tabs"][0]["blocks"][0]["html"] == "<b>굵게</b>"
+
+
+# --- steps block ---
+
+
+def steps_errors(block: dict[str, JSON]) -> list[tuple[str, str]]:
+    with pytest.raises(InvalidDocument) as caught:
+        validate_document({"tabs": [{"id": "t", "title": "T", "blocks": [block]}]})
+    return [(e.path, e.reason) for e in caught.value.errors]
+
+
+def step(item_id: str, title: str = "단계") -> dict[str, JSON]:
+    return {"id": item_id, "title": title}
+
+
+def steps_block(items: list[JSON]) -> dict[str, JSON]:
+    return {"id": "s", "type": "steps", "items": items}
+
+
+def test_steps_block_accepts_two_to_eight_steps_with_defaults() -> None:
+    for count in (2, 8):
+        validate_document(
+            {
+                "tabs": [
+                    {
+                        "id": "t",
+                        "title": "T",
+                        "blocks": [steps_block([step(f"a{i}") for i in range(count)])],
+                    }
+                ]
+            }
+        )
+
+
+@pytest.mark.parametrize("count", [0, 1, 9])
+def test_steps_block_rejects_too_few_or_too_many_items(count: int) -> None:
+    errors = steps_errors(steps_block([step(f"a{i}") for i in range(count)]))
+
+    assert [path for path, _ in errors] == ["tabs[0].blocks[0].items"]
+
+
+def test_steps_block_rejects_empty_title() -> None:
+    errors = steps_errors(steps_block([step("a", ""), step("b")]))
+
+    assert [path for path, _ in errors] == ["tabs[0].blocks[0].items[0].title"]
+
+
+def test_steps_block_rejects_duplicate_item_ids() -> None:
+    errors = steps_errors(steps_block([step("a"), step("b"), step("a")]))
+
+    assert errors == [("tabs[0].blocks[0].items[2].id", "단계 id 'a'가 겹칩니다")]

@@ -5,10 +5,11 @@ import { registry } from "./registry";
 import { documentOf, exampleDocument } from "./testing";
 import type { Block, Document } from "./types";
 
-test("예시 문서는 블록 타입을 모두 쓴다", () => {
+test("예시 문서는 예외용 html 말고 블록 타입을 모두 쓴다", () => {
   const used = new Set(exampleDocument.tabs.flatMap((tab) => tab.blocks.map((b) => b.type)));
 
-  expect([...used].sort()).toEqual(Object.keys(registry).sort());
+  // html is the exception block; Html.test.tsx covers it with its own document.
+  expect([...used].sort()).toEqual(Object.keys(registry).filter((t) => t !== "html").sort());
 });
 
 test("목차는 현재 탭의 블록 제목에서 만들어지고 각 제목으로 이동한다", () => {

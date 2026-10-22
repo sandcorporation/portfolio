@@ -13,6 +13,7 @@
 - **비공개 미디어**는 제안서 문서에서만 참조할 수 있다(`stored_document(allow_private_media=True)`; 공개 페이지·포트폴리오는 거부). 발행 스냅샷에는 미디어 ID만 얼리고, 고객 페이지·미리보기가 서빙할 때 10분짜리 presigned URL을 넣는다. 페이지 데이터의 `media_endpoint`(`/p/<slug>/media`, `/preview/<token>/media`)에 `GET {endpoint}/{id}`(`?download=1`이면 저장용)로 새 URL을 받는다. 렌더러는 `media.ts`의 `MediaUrlContext`(제안서 화면이 제공)·`useMediaUrls`·`usePlayback`으로, 로드가 실패하면 새 URL을 받아 그 위치·재생 상태에서 이어 간다(같은 항목은 5초에 한 번만 다시 묻는다).
 - `case-ref` 블록은 포트폴리오 항목을 **PK(`item_id`)**로 참조한다(slug는 바뀐다). 항목마다 `highlight`(제안서용 강조 문구, 요약을 대신한다)와 서버가 채우는 `case`(제목·요약·기간·태그·대표 이미지 URL)를 가진다. 같은 블록의 두 상태다: 초안에는 참조만 저장되고(`case`는 저장 때 비운다), 초안·미리보기는 서빙 때 현재 포트폴리오로 `services/case_refs.expand`가 채운다. 발행하면 `services/publishing.snapshot_document`가 같은 펼치기를 리비전에 얼린다. 렌더러는 `case`가 있는 항목만 그리고(없으면 건너뜀) 리비전은 다시 채우지 않는다. 없는 항목 참조는 저장 때 검증 오류다(숨긴 항목은 허용).
 - `html` 블록은 **예외용**이다(다른 블록으로 못 쓸 때만). 저장 때 `documents/sanitize.py`(nh3 허용 목록)가 `html` 필드를 정제한다: `<script>`·이벤트 속성·`style`/`class`/`id`·`<img>`·`<iframe>`·`<svg>`·폼과 http(s)/mailto/tel 아닌 URL(`javascript:`, `data:`, 상대·`#` 링크)을 지우고, 링크에 `rel="noopener noreferrer nofollow"`를 단다. 정제는 검증(`validate_document`)에서 한 번 하고(멱등) 초안·스냅샷 모두 정제본을 쓰므로 서빙 때 다시 하지 않는다. 렌더러(`Html.tsx`)만 `dangerouslySetInnerHTML`로 그대로 꽂는다. 허용 태그를 넓히려면 `sanitize.py`와 그 시험을 같이 고친다.
+- `steps` 블록은 2~8단계(`items[]`, 항목 id는 블록 안에서 유일)를 화살표로 잇는다. `layout`은 `horizontal`(기본)·`vertical`이고 가로는 600px 이하에서 CSS로 세로로 접힌다. 인쇄 모드는 5단계 이상이면 세로로 그린다. 예시 문서 픽스처는 예외용 `html`을 더는 쓰지 않는다(`Html.test.tsx`가 자체 블록으로 시험).
 - 이 빌드가 모르는 블록 타입(더 새 데이터)은 건너뛰고 나머지를 그린다.
 - 예시 문서 픽스처(가나다상사 견적 제안 원본 `examples/견적 제안 · 가나다상사.html`의 두 탭 전체를 옮긴 것; 미디어 1-3 이미지, 4-6·8-15 오디오, 7·16 영상은 시험이 만드는 가짜 행): 저장소 루트 `fixtures/documents/example-proposal.json`. 백엔드 검증 시험(`backend/tests/conftest.py`의 `example_document`)과 렌더러 시험(`testing.ts`의 `exampleDocument`)이 같은 파일을 읽는다. Docker 빌드도 `tsc`를 돌리므로 Dockerfile이 `fixtures/`를 복사한다.
 
@@ -24,8 +25,10 @@
 2. **생성**: `make gen` → `schema/document.schema.json`과 `frontend/src/blocks/types.gen.ts`가 바뀐다. 손으로 고치지 않는다.
 3. **렌더러**: `frontend/src/blocks/Video.tsx`에 `function Video({ block, anchor }: { block: VideoBlock; anchor: string })`. 목차에 오를 제목이 있으면 `<Heading id={anchor}>`로 단다. `registry.ts`에 `video: { Render: Video, toc: ... }`를 더한다(빠뜨리면 `tsc`가 알려 준다).
 4. **픽스처**: `fixtures/documents/example-proposal.json`에 그 블록을 하나 넣는다. `DocumentView.test.tsx`의 「예시 문서는 블록 타입을 모두 쓴다」 시험이 이를 확인하고, 백엔드 시험이 유효성을 확인한다.
-5. **시험**: `Video.test.tsx`에서 `documentOf(exampleBlock("…", "video"))`를 `DocumentView`로 그려 화면에 보이는 것을 확인한다. 검증 규칙이 있으면 `backend/tests/test_documents.py`에 잘못된 예와 기대 경로를 더한다.
-6. `make check`.
+5. **MCP 예시**: `backend/services/blocks.py`의 `EXAMPLES`에 그 타입의 유효한 예시를 더한다(`block_schema` 도구가 돌려준다; `test_mcp.py`가 모든 타입에 예시가 있고 유효한지 확인한다).
+6. **시험**: `Video.test.tsx`에서 `documentOf(exampleBlock("…", "video"))`를 `DocumentView`로 그려 화면에 보이는 것을 확인한다. 검증 규칙이 있으면 `backend/tests/test_documents.py`에 잘못된 예와 기대 경로를 더한다.
+7. 화면 모양은 `src/styles.css`(`.block-<타입>`). 인쇄 모드가 레이아웃을 바꿔야 하면 `useRenderMode().print`를 읽어 `data-*` 속성으로 내리고 CSS가 그걸 따른다(`Steps.tsx` 참고). 페이지 경계에서 잘리면 안 되는 블록은 `@media print`의 `break-inside: avoid` 목록에 넣는다.
+8. `make check`.
 
 ## 스타일
 

@@ -71,14 +71,14 @@ test("견적 제안 탭: 사전시험 세 가지가 오디오 비교로 있고 �
   );
 });
 
-test("회사소개·수행사례 탭: 사례 글, 화면 갤러리, 영상 둘, html 흐름도, 수행사례 목록", async () => {
+test("회사소개·수행사례 탭: 사례 글, 화면 갤러리, 영상 둘, steps 흐름도, 수행사례 목록", async () => {
   render(<DocumentView document={exampleDocument} />);
   await userEvent.click(screen.getByRole("tab", { name: "회사소개·수행사례" }));
 
   expect(screen.getByRole("heading", { name: "라마바유통 구축 사례" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "사례 화면" })).toBeInTheDocument();
   expect(document.querySelectorAll("video")).toHaveLength(2);
-  expect(document.querySelectorAll(".block-html ol > li")).toHaveLength(3);
+  expect(document.querySelectorAll(".block-steps .step")).toHaveLength(3);
   expect(screen.getByRole("heading", { name: "수행사례" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "견적 금액" })).toBeNull();
 });

@@ -294,6 +294,39 @@ class HtmlBlock(BlockBase):
         return sanitize_html(value)
 
 
+class StepItem(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="StepItem")
+
+    id: BlockId = Field(description="Unique within the block")
+    title: str = Field(min_length=1, description="The step's name, one short line")
+    body: str | None = Field(default=None, description="Short markdown under the title")
+    caption: str | None = Field(
+        default=None, description="Small note, e.g. who does it or how long"
+    )
+
+
+class StepsBlock(BlockBase):
+    """An ordered flow of 2-8 steps joined by arrows (e.g. script -> voice -> video). Horizontal
+    layout folds into a vertical one on narrow screens and on paper beyond four steps."""
+
+    model_config = ConfigDict(title="StepsBlock")
+
+    type: Literal["steps"]
+    title: str | None = Field(default=None, description="Listed in the table of contents")
+    layout: Literal["horizontal", "vertical"] = "horizontal"
+    numbered: bool = Field(default=True, description="Show a step number badge")
+    items: list[StepItem] = Field(min_length=2, max_length=8)
+
+    def problems(self) -> list[Problem]:
+        seen: set[str] = set()
+        out: list[Problem] = []
+        for i, item in enumerate(self.items):
+            if item.id in seen:
+                out.append((f"items[{i}].id", f"단계 id {item.id!r}가 겹칩니다"))
+            seen.add(item.id)
+        return out
+
+
 # Every block type, discriminated by `type`. Add a new block class here.
 Block = Annotated[
     CoverBlock
@@ -306,7 +339,8 @@ Block = Annotated[
     | CaseRefBlock
     | AudioCompareBlock
     | VideoBlock
-    | HtmlBlock,
+    | HtmlBlock
+    | StepsBlock,
     Field(discriminator="type"),
 ]
 

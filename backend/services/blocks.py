@@ -125,6 +125,31 @@ EXAMPLES: dict[str, dict[str, JSON]] = {
             "<li><strong>영상</strong></li></ol>"
         ),
     },
+    "steps": {
+        "id": "lecture-flow",
+        "type": "steps",
+        "title": "제작 흐름",
+        "layout": "horizontal",
+        "numbered": True,
+        "items": [
+            {
+                "id": "script",
+                "title": "강의 대본",
+                "body": "대본을 쓰고 고칩니다",
+            },
+            {
+                "id": "voice",
+                "title": "본인 목소리 음성",
+                "body": "녹음 음성을 기준으로 합성합니다",
+            },
+            {
+                "id": "video",
+                "title": "강의 영상",
+                "body": "자막과 장면을 Remotion으로 합성합니다",
+                "caption": "최종 산출물",
+            },
+        ],
+    },
     "case-ref": {
         "id": "cases",
         "type": "case-ref",

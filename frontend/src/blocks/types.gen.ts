@@ -32,6 +32,7 @@ export interface Tab {
     | AudioCompareBlock
     | VideoBlock
     | HtmlBlock
+    | StepsBlock
   )[];
 }
 /**
@@ -428,4 +429,54 @@ export interface HtmlBlock {
    * HTML limited to text, lists, tables, links and figures. Scripts, event attributes, style, images, iframes and non-http(s)/mailto/tel URLs are removed when stored.
    */
   html: string;
+}
+/**
+ * An ordered flow of 2-8 steps joined by arrows (e.g. script -> voice -> video). Horizontal
+ * layout folds into a vertical one on narrow screens and on paper beyond four steps.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "StepsBlock".
+ */
+export interface StepsBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "steps";
+  /**
+   * Listed in the table of contents
+   */
+  title?: string | null;
+  layout?: "horizontal" | "vertical";
+  /**
+   * Show a step number badge
+   */
+  numbered?: boolean;
+  /**
+   * @minItems 2
+   * @maxItems 8
+   */
+  items: StepItem[];
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "StepItem".
+ */
+export interface StepItem {
+  /**
+   * Unique within the block
+   */
+  id: string;
+  /**
+   * The step's name, one short line
+   */
+  title: string;
+  /**
+   * Short markdown under the title
+   */
+  body?: string | null;
+  /**
+   * Small note, e.g. who does it or how long
+   */
+  caption?: string | null;
 }

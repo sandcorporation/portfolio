@@ -689,10 +689,15 @@
         },
         {
           "id": "lecture-flow",
-          "type": "html",
+          "type": "steps",
           "title": "제작 흐름",
-          "level": 3,
-          "html": "<ol><li><strong>강의 대본</strong><br>대본을 쓰고 고칩니다</li><li><strong>본인 목소리 음성</strong><br>녹음 음성을 기준으로 합성합니다</li><li><strong>강의 영상</strong><br>자막과 장면을 Remotion으로 합성합니다</li></ol><p><small>강의 대본 → 본인 목소리 음성 → 강의 영상</small></p>"
+          "layout": "horizontal",
+          "numbered": true,
+          "items": [
+            { "id": "script", "title": "강의 대본", "body": "대본을 쓰고 고칩니다" },
+            { "id": "voice", "title": "본인 목소리 음성", "body": "녹음 음성을 기준으로 합성합니다" },
+            { "id": "video", "title": "강의 영상", "body": "자막과 장면을 Remotion으로 합성합니다" }
+          ]
         },
         {
           "id": "lecture-built",

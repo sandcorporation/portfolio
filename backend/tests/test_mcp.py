@@ -126,6 +126,17 @@ def test_bad_tool_arguments_are_a_tool_error(mcp: McpClient) -> None:
     assert mcp.call_tool("whoami", {"extra": 1})["isError"] is True
 
 
+def test_block_schema_returns_the_steps_schema_and_example(mcp: McpClient) -> None:
+    result = mcp.call_tool("block_schema", {"type": "steps"})["structuredContent"]
+
+    assert isinstance(result, dict) and result["type"] == "steps"
+    assert "StepsBlock" in json.dumps(result["schema"])
+    example = result["example"]
+    assert isinstance(example, dict) and example["type"] == "steps"
+    text = json.dumps(example, ensure_ascii=False)
+    assert all(title in text for title in ("강의 대본", "본인 목소리 음성", "강의 영상"))
+
+
 def test_every_block_type_has_a_valid_example() -> None:
     assert set(EXAMPLES) == BLOCK_TYPES
     blocks: list[JSON] = list(EXAMPLES.values())

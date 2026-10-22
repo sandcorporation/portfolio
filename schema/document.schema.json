@@ -667,6 +667,106 @@
       "title": "MetricsTable",
       "type": "object"
     },
+    "StepItem": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Unique within the block",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "title": {
+          "description": "The step's name, one short line",
+          "minLength": 1,
+          "type": "string"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short markdown under the title"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Small note, e.g. who does it or how long"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "title": "StepItem",
+      "type": "object"
+    },
+    "StepsBlock": {
+      "additionalProperties": false,
+      "description": "An ordered flow of 2-8 steps joined by arrows (e.g. script -> voice -> video). Horizontal\nlayout folds into a vertical one on narrow screens and on paper beyond four steps.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "steps",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Listed in the table of contents"
+        },
+        "layout": {
+          "default": "horizontal",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "type": "string"
+        },
+        "numbered": {
+          "default": true,
+          "description": "Show a step number badge",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/StepItem"
+          },
+          "maxItems": 8,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "items"
+      ],
+      "title": "StepsBlock",
+      "type": "object"
+    },
     "Tab": {
       "additionalProperties": false,
       "properties": {
@@ -692,6 +792,7 @@
                 "html": "#/$defs/HtmlBlock",
                 "kpi": "#/$defs/KpiBlock",
                 "markdown": "#/$defs/MarkdownBlock",
+                "steps": "#/$defs/StepsBlock",
                 "table": "#/$defs/TableBlock",
                 "video": "#/$defs/VideoBlock"
               },
@@ -730,6 +831,9 @@
               },
               {
                 "$ref": "#/$defs/HtmlBlock"
+              },
+              {
+                "$ref": "#/$defs/StepsBlock"
               }
             ]
           },
