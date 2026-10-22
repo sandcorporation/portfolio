@@ -1,6 +1,7 @@
 // One entry per block type. The mapped type makes `tsc` fail until every block type in the
 // generated schema has a renderer here, so a new Pydantic block cannot ship without one.
 import type { ComponentType } from "react";
+import { CaseRef } from "./CaseRef";
 import { Callout } from "./Callout";
 import { Cover } from "./Cover";
 import { Details } from "./Details";
@@ -40,6 +41,7 @@ export const registry: Registry = {
   callout: { Render: Callout },
   details: { Render: Details },
   gallery: { Render: Gallery, toc: titled(3) },
+  "case-ref": { Render: CaseRef, toc: titled(3) },
 };
 
 /** The entry for a block, or null for a type this build does not know (newer data). */

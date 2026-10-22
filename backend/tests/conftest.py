@@ -16,7 +16,7 @@ from pytest_django.fixtures import Settings
 from adapters.fake_jwks import FakeAuthServer
 from adapters.fake_notify import FakeNotifier
 from adapters.fake_storage import FakeObjectStorage
-from content.models import Media
+from content.models import Media, PortfolioItem
 from core.vite import _read_manifest
 from documents.validation import JSON
 from oauth.tokens import JwksCache
@@ -30,7 +30,8 @@ SHARED_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 def example_document(db: None) -> dict[str, JSON]:
     """The GanadaTrade proposal as a block document. The frontend renderer tests read it too.
 
-    Its gallery points at media 1-3, so they exist (finished, public) while the test runs.
+    Its gallery points at media 1-3 and its case-ref at portfolio items 1-2, so they exist
+    (finished, public media; one hidden item) while the test runs.
     """
     for media_id in (1, 2, 3):
         Media.objects.create(
@@ -41,6 +42,8 @@ def example_document(db: None) -> dict[str, JSON]:
             original_filename=f"example-{media_id}.png",
             uploaded_at=timezone.now(),
         )
+    PortfolioItem.objects.create(pk=1, slug="ramaba", title="라마바 통화 분석")
+    PortfolioItem.objects.create(pk=2, slug="hidden-case", title="비공개 사례", is_public=False)
     path = SHARED_FIXTURES / "documents" / "example-proposal.json"
     data: dict[str, JSON] = json.loads(path.read_text(encoding="utf-8"))
     return data

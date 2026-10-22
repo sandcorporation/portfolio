@@ -85,6 +85,12 @@ EXAMPLES: dict[str, dict[str, JSON]] = {
         "title": "화면",
         "images": [{"media_id": 1, "alt": "대시보드 화면", "caption": "관리자 대시보드"}],
     },
+    "case-ref": {
+        "id": "cases",
+        "type": "case-ref",
+        "title": "수행사례",
+        "items": [{"item_id": 1, "highlight": "이번 제안과 가장 닮은 사례"}],
+    },
 }
 
 

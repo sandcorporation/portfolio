@@ -46,6 +46,124 @@
       "title": "CalloutBlock",
       "type": "object"
     },
+    "CaseRefBlock": {
+      "additionalProperties": false,
+      "description": "Portfolio cases cited by reference, in the given order. A published revision carries the\ncases as they read at publish time.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "case-ref",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Listed in the table of contents"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/CaseRefItem"
+          },
+          "maxItems": 20,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "items"
+      ],
+      "title": "CaseRefBlock",
+      "type": "object"
+    },
+    "CaseRefItem": {
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "description": "Id of a portfolio item (hidden items allowed). Not the slug: slugs change.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "highlight": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Emphasis line for this proposal; replaces the item's summary when set."
+        },
+        "case": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CaseSnapshot"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The item's content. Never stored in a draft: the server fills it from the current portfolio when serving a draft or preview, and freezes it into a published revision."
+        }
+      },
+      "required": [
+        "item_id"
+      ],
+      "title": "CaseRefItem",
+      "type": "object"
+    },
+    "CaseSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "slug": {
+          "description": "The portfolio item's address when this was filled in",
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "default": "",
+          "type": "string"
+        },
+        "period": {
+          "default": "",
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cover_url": {
+          "default": "",
+          "description": "Public URL of the cover image; empty if none",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "title"
+      ],
+      "title": "CaseSnapshot",
+      "type": "object"
+    },
     "CoverBlock": {
       "additionalProperties": false,
       "description": "Opening of a document: who it is for, its title and a short subtitle.",
@@ -351,6 +469,7 @@
             "discriminator": {
               "mapping": {
                 "callout": "#/$defs/CalloutBlock",
+                "case-ref": "#/$defs/CaseRefBlock",
                 "cover": "#/$defs/CoverBlock",
                 "details": "#/$defs/DetailsBlock",
                 "gallery": "#/$defs/GalleryBlock",
@@ -381,6 +500,9 @@
               },
               {
                 "$ref": "#/$defs/GalleryBlock"
+              },
+              {
+                "$ref": "#/$defs/CaseRefBlock"
               }
             ]
           },

@@ -10,6 +10,7 @@
 - `registry.ts`가 블록 타입마다 렌더러와 목차 줄(`toc`)을 하나씩 묶는다. 매핑 타입이라 스키마에 있는 타입이 여기 빠지면 `tsc`가 실패한다.
 - 목차는 저장하지 않는다. `toc.ts`가 렌더링할 때 블록 제목에서 계산한다(markdown은 `level`대로, kpi·table 제목은 3수준).
 - `gallery` 블록은 `media_id`로 미디어를 가리킨다. 저장된 문서에는 `url`이 없고, 서버가 문서를 내보낼 때(`services/media.resolve_document`) 공개 URL을 채운다. `url`이 없는 이미지는 그리지 않는다.
+- `case-ref` 블록은 포트폴리오 항목을 **PK(`item_id`)**로 참조한다(slug는 바뀐다). 항목마다 `highlight`(제안서용 강조 문구, 요약을 대신한다)와 서버가 채우는 `case`(제목·요약·기간·태그·대표 이미지 URL)를 가진다. 같은 블록의 두 상태다: 초안에는 참조만 저장되고(`case`는 저장 때 비운다), 초안·미리보기는 서빙 때 현재 포트폴리오로 `services/case_refs.expand`가 채운다. 발행하면 `services/publishing.snapshot_document`가 같은 펼치기를 리비전에 얼린다. 렌더러는 `case`가 있는 항목만 그리고(없으면 건너뜀) 리비전은 다시 채우지 않는다. 없는 항목 참조는 저장 때 검증 오류다(숨긴 항목은 허용).
 - 이 빌드가 모르는 블록 타입(더 새 데이터)은 건너뛰고 나머지를 그린다.
 - 예시 문서 픽스처: 저장소 루트 `fixtures/documents/example-proposal.json`. 백엔드 검증 시험(`backend/tests/conftest.py`의 `example_document`)과 렌더러 시험(`testing.ts`의 `exampleDocument`)이 같은 파일을 읽는다. Docker 빌드도 `tsc`를 돌리므로 Dockerfile이 `fixtures/`를 복사한다.
 

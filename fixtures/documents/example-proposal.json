@@ -109,6 +109,26 @@
             { "media_id": 2, "alt": "녹취 검수 화면", "url": "https://public.example/gallery-2.png" },
             { "media_id": 3, "alt": "아직 올리는 중인 화면" }
           ]
+        },
+        {
+          "id": "case-refs",
+          "type": "case-ref",
+          "title": "수행사례",
+          "items": [
+            {
+              "item_id": 1,
+              "highlight": "주문·재고를 한 화면으로 옮긴 사례",
+              "case": {
+                "slug": "ramaba",
+                "title": "라마바 통화 분석",
+                "summary": "통화 녹취를 분석합니다.",
+                "period": "2025.03 ~ 2025.08",
+                "tags": ["분석", "웹"],
+                "cover_url": "https://public.example/case-1.png"
+              }
+            },
+            { "item_id": 2 }
+          ]
         }
       ]
     }

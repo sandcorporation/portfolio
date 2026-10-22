@@ -112,6 +112,8 @@ def test_detail_shell_carries_item_og_meta_and_body(
     expected: Any = normalized(validate_document(example_document))  # Any: test pokes into JSON
     for image in expected["tabs"][1]["blocks"][3]["images"]:
         image["url"] = None
+    for ref in expected["tabs"][1]["blocks"][4]["items"]:
+        ref["case"] = None  # a stored document keeps references only
     assert data["body"] == expected
 
 

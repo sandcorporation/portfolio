@@ -24,12 +24,14 @@ from content.models import (
     Proposal,
     ProposalRevision,
     SiteProfile,
+    default_proposal_document,
     new_proposal_slug,
     stored_document,
 )
 from documents.validation import JSON, DocumentError, InvalidDocument
-from services import media
+from services import case_refs, media
 from services.errors import Conflict, NotFound, Rejected
+from services.profile import get_profile
 
 PREVIEW_SALT = "proposal-preview"
 
@@ -193,6 +195,27 @@ def get_proposal(slug: str) -> ProposalOut:
     return proposal_out(_proposal_or_404(slug))
 
 
+def _starting_document() -> dict[str, JSON]:
+    """The two default tabs. 회사소개·수행사례 starts with the site profile's company intro, copied
+    now (the draft is then the author's to edit; a published revision freezes it anyway), then an
+    empty `case-ref` block for the author to fill."""
+    document = default_proposal_document()
+    blocks: list[JSON] = []
+    tabs_of_intro = get_profile().company_intro.get("tabs")
+    for tab in tabs_of_intro if isinstance(tabs_of_intro, list) else []:
+        tab_blocks = tab.get("blocks") if isinstance(tab, dict) else None
+        for block in tab_blocks if isinstance(tab_blocks, list) else []:
+            if isinstance(block, dict):
+                blocks.append({**block, "id": f"intro-{block.get('id')}"})
+    blocks.append({"id": "cases", "type": "case-ref", "title": "수행사례", "items": []})
+    tabs = document["tabs"]
+    assert isinstance(tabs, list)
+    company = tabs[1]
+    assert isinstance(company, dict)
+    company["blocks"] = blocks
+    return _document(document)
+
+
 def create_proposal(new: NewProposal) -> ProposalOut:
     """A draft with a fresh random slug, for an existing client."""
     client = _client_or_404(new.client_code)
@@ -203,8 +226,7 @@ def create_proposal(new: NewProposal) -> ProposalOut:
         quote_date=new.quote_date,
         valid_until=new.valid_until,
     )
-    if new.document is not None:
-        p.document = _document(new.document)
+    p.document = _document(new.document) if new.document is not None else _starting_document()
     p.save()
     return proposal_out(p)
 
@@ -466,5 +488,5 @@ def page_data(p: Proposal, *, preview: bool) -> ProposalPageData:
         quote_date=p.quote_date,
         valid_until=p.valid_until,
         supplier=supplier(),
-        document=media.resolve_document(p.document),
+        document=case_refs.expand(media.resolve_document(p.document)),
     )

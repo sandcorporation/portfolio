@@ -146,9 +146,68 @@ class GalleryBlock(BlockBase):
     images: list[GalleryImage] = Field(min_length=1, max_length=30)
 
 
+class CaseSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="CaseSnapshot")
+
+    slug: str = Field(description="The portfolio item's address when this was filled in")
+    title: str
+    summary: str = ""
+    period: str = ""
+    tags: list[str] = Field(default_factory=list)
+    cover_url: str = Field(default="", description="Public URL of the cover image; empty if none")
+
+
+class CaseRefItem(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="CaseRefItem")
+
+    item_id: int = Field(
+        ge=1,
+        description="Id of a portfolio item (hidden items allowed). Not the slug: slugs change.",
+    )
+    highlight: str | None = Field(
+        default=None,
+        max_length=300,
+        description="Emphasis line for this proposal; replaces the item's summary when set.",
+    )
+    case: CaseSnapshot | None = Field(
+        default=None,
+        description=(
+            "The item's content. Never stored in a draft: the server fills it from the current "
+            "portfolio when serving a draft or preview, and freezes it into a published revision."
+        ),
+    )
+
+
+class CaseRefBlock(BlockBase):
+    """Portfolio cases cited by reference, in the given order. A published revision carries the
+    cases as they read at publish time."""
+
+    model_config = ConfigDict(title="CaseRefBlock")
+
+    type: Literal["case-ref"]
+    title: str | None = Field(default=None, description="Listed in the table of contents")
+    items: list[CaseRefItem] = Field(max_length=20)
+
+    def problems(self) -> list[Problem]:
+        seen: set[int] = set()
+        out: list[Problem] = []
+        for i, item in enumerate(self.items):
+            if item.item_id in seen:
+                out.append((f"items[{i}].item_id", f"항목 {item.item_id}가 겹칩니다"))
+            seen.add(item.item_id)
+        return out
+
+
 # Every block type, discriminated by `type`. Add a new block class here.
 Block = Annotated[
-    CoverBlock | KpiBlock | MarkdownBlock | TableBlock | CalloutBlock | DetailsBlock | GalleryBlock,
+    CoverBlock
+    | KpiBlock
+    | MarkdownBlock
+    | TableBlock
+    | CalloutBlock
+    | DetailsBlock
+    | GalleryBlock
+    | CaseRefBlock,
     Field(discriminator="type"),
 ]
 

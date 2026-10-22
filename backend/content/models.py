@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
-from documents.blocks import Document, GalleryBlock
+from documents.blocks import CaseRefBlock, Document, GalleryBlock
 from documents.validation import (
     JSON,
     DocumentError,
@@ -69,10 +69,28 @@ def media_problems(document: Document) -> list[DocumentError]:
     return errors
 
 
+def case_ref_problems(document: Document) -> list[DocumentError]:
+    """Cited portfolio items must exist (hidden ones are fine)."""
+    wanted: list[tuple[str, int]] = []
+    for t, tab in enumerate(document.tabs):
+        for b, block in enumerate(tab.blocks):
+            if isinstance(block, CaseRefBlock):
+                for i, item in enumerate(block.items):
+                    wanted.append((f"tabs[{t}].blocks[{b}].items[{i}].item_id", item.item_id))
+    found = set(
+        PortfolioItem.objects.filter(pk__in={pk for _, pk in wanted}).values_list("pk", flat=True)
+    )
+    return [
+        DocumentError(path, f"포트폴리오 항목 {pk}가 없습니다")
+        for path, pk in wanted
+        if pk not in found
+    ]
+
+
 def stored_document(data: object) -> dict[str, JSON]:
     """Validate a document for storage: schema, media references, then the normalized form."""
     document = validate_document(data)
-    errors = media_problems(document)
+    errors = media_problems(document) + case_ref_problems(document)
     if errors:
         raise InvalidDocument(errors)
     # Resolved URLs are computed when serving; a stored one would go stale.
@@ -81,6 +99,10 @@ def stored_document(data: object) -> dict[str, JSON]:
             if isinstance(block, GalleryBlock):
                 for image in block.images:
                     image.url = None
+            if isinstance(block, CaseRefBlock):
+                # Case content is filled when serving: drafts always read the current portfolio.
+                for item in block.items:
+                    item.case = None
     return normalized(document)
 
 

@@ -9,7 +9,6 @@ reissue, which also invalidates every customer session. The plain code exists on
 value of those two functions; the database keeps a Django password hash.
 """
 
-import copy
 import secrets
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -22,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from content.models import Client, Proposal, ProposalRevision
 from documents.validation import JSON
+from services import case_refs
 from services.errors import Conflict, NotFound
 from services.proposals import ProposalSummary, proposal_summary
 
@@ -83,10 +83,11 @@ def document_number(day: date, client_code: str, serial: int) -> str:
 def snapshot_document(document: dict[str, JSON]) -> dict[str, JSON]:
     """The document as frozen into a revision.
 
-    #13: expand `case-ref` blocks here into the referenced case as it reads at publish time, so a
-    later edit of the case does not change what the customer was sent.
+    `case-ref` items are expanded into the cited case as it reads now, so a later edit or delete
+    of the portfolio item does not change what the customer was sent. Other blocks are copied
+    as they are; media urls are still resolved when serving (#14 decides for private media).
     """
-    return copy.deepcopy(document)
+    return case_refs.expand(document)
 
 
 def _revision_summary(r: ProposalRevision) -> RevisionSummary:

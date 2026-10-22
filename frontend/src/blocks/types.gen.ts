@@ -21,7 +21,14 @@ export interface Tab {
   id: string;
   title: string;
   blocks: (
-    CoverBlock | KpiBlock | MarkdownBlock | TableBlock | CalloutBlock | DetailsBlock | GalleryBlock
+    | CoverBlock
+    | KpiBlock
+    | MarkdownBlock
+    | TableBlock
+    | CalloutBlock
+    | DetailsBlock
+    | GalleryBlock
+    | CaseRefBlock
   )[];
 }
 /**
@@ -221,4 +228,62 @@ export interface GalleryImage {
    * Filled in by the server when the document is served; never stored.
    */
   url?: string | null;
+}
+/**
+ * Portfolio cases cited by reference, in the given order. A published revision carries the
+ * cases as they read at publish time.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CaseRefBlock".
+ */
+export interface CaseRefBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "case-ref";
+  /**
+   * Listed in the table of contents
+   */
+  title?: string | null;
+  /**
+   * @maxItems 20
+   */
+  items: CaseRefItem[];
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CaseRefItem".
+ */
+export interface CaseRefItem {
+  /**
+   * Id of a portfolio item (hidden items allowed). Not the slug: slugs change.
+   */
+  item_id: number;
+  /**
+   * Emphasis line for this proposal; replaces the item's summary when set.
+   */
+  highlight?: string | null;
+  /**
+   * The item's content. Never stored in a draft: the server fills it from the current portfolio when serving a draft or preview, and freezes it into a published revision.
+   */
+  case?: CaseSnapshot | null;
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CaseSnapshot".
+ */
+export interface CaseSnapshot {
+  /**
+   * The portfolio item's address when this was filled in
+   */
+  slug: string;
+  title: string;
+  summary?: string;
+  period?: string;
+  tags?: string[];
+  /**
+   * Public URL of the cover image; empty if none
+   */
+  cover_url?: string;
 }
