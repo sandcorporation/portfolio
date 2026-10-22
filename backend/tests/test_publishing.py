@@ -239,17 +239,48 @@ def test_too_many_wrong_codes_block_even_the_right_one(monkeypatch: pytest.Monke
     assert unlock(HttpClient(), slug, code, ip="198.51.100.9").status_code == 302
 
 
-def test_an_expired_proposal_shows_whom_to_contact_even_with_the_code() -> None:
+def test_an_expired_proposal_looks_like_any_other_until_the_code_is_right() -> None:
+    slug, code = published(valid_until=date(2020, 1, 31))
+    live = svc.create_proposal(svc.NewProposal(client_code="NEXT", title="다른 제안")).slug
+    publishing.publish(live)
+    client = HttpClient()
+
+    first = client.get(url(slug))
+    other = client.get(url(live))
+    html = first.content.decode()
+    data = page_data(html)
+
+    assert first.status_code == other.status_code == 200
+    assert data.keys() == page_data(other.content.decode()).keys()
+    assert data["screen"] == "code" and data["error"] is None
+    assert [h for h in first.headers if h.lower() != "set-cookie"] == [
+        h for h in other.headers if h.lower() != "set-cookie"
+    ]
+    for leak in ("만료", "유효", "2020", "supplier", "valid_until", "연락"):
+        assert leak not in html
+    assert "샌드코프" not in str(data)
+
+    response = unlock(client, slug, code)
+    notice = page_data(response.content.decode())
+
+    assert response.status_code == 200 and f"proposal_{slug}" not in response.cookies
+    assert notice["screen"] == "expired" and notice["valid_until"] == "2020-01-31"
+    assert notice["supplier"]["name"] == "샌드코프"
+    assert "title" not in notice and "document" not in notice
+    assert page_data(client.get(url(slug)).content.decode())["screen"] == "code"  # no session
+
+
+def test_an_expired_proposal_counts_wrong_codes_like_any_other() -> None:
     slug, code = published(valid_until=date(2020, 1, 31))
     client = HttpClient()
 
-    response = unlock(client, slug, code)
-    data = screen(client, slug)
+    statuses = [unlock(client, slug, "WRONG234").status_code for _ in range(5)]
+    refused = unlock(client, slug, code)
 
-    assert response.status_code == 302 and f"proposal_{slug}" not in response.cookies
-    assert data["screen"] == "expired" and data["valid_until"] == "2020-01-31"
-    assert data["supplier"]["name"] == "샌드코프"
-    assert "title" not in data and "document" not in data
+    assert statuses == [400, 400, 400, 400, 429]
+    assert refused.status_code == 429
+    assert page_data(refused.content.decode())["screen"] == "code"
+    assert screen(client, slug)["error"] == "blocked"
 
 
 def test_a_revoked_proposal_answers_like_one_that_never_existed() -> None:

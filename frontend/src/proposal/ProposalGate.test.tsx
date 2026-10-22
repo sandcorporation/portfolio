@@ -18,6 +18,8 @@ test("코드 입력 화면은 같은 주소로 코드와 CSRF 토큰을 보낸�
   expect(container.querySelector('input[name="csrfmiddlewaretoken"]')).toHaveValue("tok");
   expect(screen.getByRole("button", { name: "열기" })).toBeInTheDocument();
   expect(screen.queryByRole("alert")).toBeNull();
+  // 만료된 제안서도 같은 데이터를 받으므로, 이 화면은 만료·연락처를 알 수 없다.
+  expect(screen.queryByText(/유효|만료|연락/)).toBeNull();
 });
 
 test("틀린 코드와 차단을 각각 알린다", () => {

@@ -14,7 +14,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import BaseModel
 
-from content.models import Proposal
+from content.models import Proposal, ProposalRevision
 from core.clientip import client_ip
 from core.vite import entry_assets
 from services import proposal_access as access
@@ -82,9 +82,19 @@ def _private(response: HttpResponse) -> HttpResponse:
     return response
 
 
+def _expired_screen(revision: ProposalRevision) -> proposals.ExpiredScreenData:
+    assert revision.valid_until is not None
+    return proposals.ExpiredScreenData(
+        valid_until=revision.valid_until, supplier=proposals.supplier()
+    )
+
+
 @require_http_methods(["GET", "HEAD", "POST"])
 def proposal(request: HttpRequest, slug: str) -> HttpResponse:
-    """The customer page: code form -> (session) -> latest revision, or the expiry notice.
+    """The customer page: code form -> (session) -> latest revision.
+
+    Past its validity date the page is the same code form; only the right code shows the expiry
+    notice (no session), so a leaked link says nothing about the proposal.
 
     A draft, a revoked proposal and an unknown slug are the same 404. POST is the code form; a
     right code sets the session cookie and redirects back here.
@@ -93,16 +103,11 @@ def proposal(request: HttpRequest, slug: str) -> HttpResponse:
     revision = publishing.latest_revision(found) if found else None
     if found is None or revision is None:
         raise Http404
-    if publishing.is_expired(revision):
-        if request.method == "POST":
-            return _private(HttpResponseRedirect(request.path))
-        assert revision.valid_until is not None
-        expired = proposals.ExpiredScreenData(
-            valid_until=revision.valid_until, supplier=proposals.supplier()
-        )
-        return _customer_page(request, expired)
     if request.method == "POST":
         attempt = access.try_code(found, request.POST.get("code", ""), client_ip(request))
+        if attempt is access.Attempt.OPENED and publishing.is_expired(revision):
+            # The right code is what unlocks the notice; nothing to keep a session for.
+            return _customer_page(request, _expired_screen(revision))
         if attempt is access.Attempt.OPENED:
             response = _private(HttpResponseRedirect(request.path))
             access.start_customer_session(response, found)
@@ -110,7 +115,7 @@ def proposal(request: HttpRequest, slug: str) -> HttpResponse:
             return response
         form = proposals.CodeScreenData(error=attempt.value, csrf_token=get_token(request))
         return _customer_page(request, form, 429 if attempt is access.Attempt.BLOCKED else 400)
-    if access.has_customer_session(request, found):
+    if not publishing.is_expired(revision) and access.has_customer_session(request, found):
         data = proposals.revision_page_data(revision, csrf_token=get_token(request))
         return _customer_page(request, data)
     blocked = access.is_blocked(found, client_ip(request))
