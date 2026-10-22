@@ -8,6 +8,8 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
+# Renderer tests import the shared example document; `tsc` in the build type-checks them too.
+COPY fixtures/ /app/fixtures/
 RUN pnpm build
 
 FROM python:3.13-slim AS runtime

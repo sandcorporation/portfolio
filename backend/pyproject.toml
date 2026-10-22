@@ -8,6 +8,7 @@ dependencies = [
     "django-ninja>=1.7.1",
     "gunicorn>=26.2.0",
     "psycopg[binary]>=3.3.6",
+    "pydantic>=2.12",
     "whitenoise>=6.12.0",
 ]
 

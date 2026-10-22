@@ -1,0 +1,410 @@
+{
+  "$defs": {
+    "CalloutBlock": {
+      "additionalProperties": false,
+      "description": "A boxed note: information, a warning, or a condition the reader must accept.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "callout",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "info",
+            "warning",
+            "condition"
+          ],
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "body": {
+          "description": "Markdown (GFM)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "kind",
+        "body"
+      ],
+      "title": "CalloutBlock",
+      "type": "object"
+    },
+    "CoverBlock": {
+      "additionalProperties": false,
+      "description": "Opening of a document: who it is for, its title and a short subtitle.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "cover",
+          "type": "string"
+        },
+        "recipient": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "받는 사람, e.g. '홍길순 대표님께'"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "title"
+      ],
+      "title": "CoverBlock",
+      "type": "object"
+    },
+    "DetailsBlock": {
+      "additionalProperties": false,
+      "description": "Supplementary explanation, collapsed until the reader opens it.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "details",
+          "type": "string"
+        },
+        "summary": {
+          "description": "Always-visible line that opens the body",
+          "minLength": 1,
+          "type": "string"
+        },
+        "body": {
+          "description": "Markdown (GFM)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "summary",
+        "body"
+      ],
+      "title": "DetailsBlock",
+      "type": "object"
+    },
+    "KpiBlock": {
+      "additionalProperties": false,
+      "description": "Two to four headline figures shown as cards.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "kpi",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Listed in the table of contents"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/KpiItem"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "items"
+      ],
+      "title": "KpiBlock",
+      "type": "object"
+    },
+    "KpiItem": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "description": "Shown as written, e.g. '5,950만원'",
+          "minLength": 1,
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "보조 문구 under the value"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "title": "KpiItem",
+      "type": "object"
+    },
+    "MarkdownBlock": {
+      "additionalProperties": false,
+      "description": "Prose. Its title (with a heading level) is what the table of contents is built from.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "markdown",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Section heading, listed in the TOC"
+        },
+        "level": {
+          "default": 2,
+          "description": "Heading level of the title",
+          "enum": [
+            2,
+            3
+          ],
+          "type": "integer"
+        },
+        "body": {
+          "default": "",
+          "description": "Markdown (GFM). Raw HTML is not rendered.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "title": "MarkdownBlock",
+      "type": "object"
+    },
+    "Tab": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "blocks": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "callout": "#/$defs/CalloutBlock",
+                "cover": "#/$defs/CoverBlock",
+                "details": "#/$defs/DetailsBlock",
+                "kpi": "#/$defs/KpiBlock",
+                "markdown": "#/$defs/MarkdownBlock",
+                "table": "#/$defs/TableBlock"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/CoverBlock"
+              },
+              {
+                "$ref": "#/$defs/KpiBlock"
+              },
+              {
+                "$ref": "#/$defs/MarkdownBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/CalloutBlock"
+              },
+              {
+                "$ref": "#/$defs/DetailsBlock"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "blocks"
+      ],
+      "title": "Tab",
+      "type": "object"
+    },
+    "TableBlock": {
+      "additionalProperties": false,
+      "description": "A header row and data rows, with an optional highlighted column, unit and footnotes.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "table",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Listed in the table of contents"
+        },
+        "columns": {
+          "description": "Header row",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "rows": {
+          "description": "Each row has exactly one cell per column",
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "highlight_column": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Zero-based index of the emphasised column"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit note, e.g. '단위: 만원'"
+        },
+        "footnotes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "columns",
+        "rows"
+      ],
+      "title": "TableBlock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A block document: tabs of blocks. Shared by public pages, portfolio and proposals.",
+  "properties": {
+    "tabs": {
+      "items": {
+        "$ref": "#/$defs/Tab"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "tabs"
+  ],
+  "title": "Document",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

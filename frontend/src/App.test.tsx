@@ -1,8 +1,42 @@
 import { render, screen } from "@testing-library/react";
 import { App } from "./App";
+import { exampleDocument } from "./blocks/testing";
+import type { HomeData } from "./home/types";
 
-test("홈은 준비 중 안내를 보여 준다", () => {
-  render(<App />);
+const home: HomeData = {
+  company_intro: exampleDocument,
+  ceo_intro: {
+    tabs: [
+      {
+        id: "ceo",
+        title: "대표",
+        blocks: [{ id: "bio", type: "markdown", title: "한상진", body: "음성 처리 개발자" }],
+      },
+    ],
+  },
+  contact: { email: "hello@sandcorp.co.kr", phone: "010-1234-5678", address: "" },
+};
+
+test("홈은 셸에 심긴 프로필로 회사 소개, 대표 소개, 연락처를 보여 준다", () => {
+  render(<App path="/" data={home} />);
+
+  expect(screen.getByRole("region", { name: "회사 소개" })).toHaveTextContent(
+    "채권추심 녹취 분석 시스템 구축 제안",
+  );
+  expect(screen.getByRole("region", { name: "대표 소개" })).toHaveTextContent("음성 처리 개발자");
+  expect(screen.getByRole("link", { name: "hello@sandcorp.co.kr" })).toHaveAttribute(
+    "href",
+    "mailto:hello@sandcorp.co.kr",
+  );
+  expect(screen.getByRole("link", { name: "010-1234-5678" })).toHaveAttribute(
+    "href",
+    "tel:01012345678",
+  );
+  expect(screen.queryByText("주소")).toBeNull();
+});
+
+test("홈 데이터가 없는 경로는 준비 중 안내를 보여 준다", () => {
+  render(<App path="/p/abc" data={null} />);
 
   expect(screen.getByRole("heading", { name: "Sandcorp" })).toBeInTheDocument();
   expect(screen.getByText("사이트를 준비하고 있습니다.")).toBeInTheDocument();

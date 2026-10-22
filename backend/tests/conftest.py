@@ -3,6 +3,7 @@
 Static fixture files live in tests/fixtures/. Fake adapters get registered here as they appear.
 """
 
+import json
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -10,8 +11,19 @@ import pytest
 from django.test import override_settings
 
 from core.vite import _read_manifest
+from documents.validation import JSON
 
 FIXTURES = Path(__file__).parent / "fixtures"
+# Fixtures shared with the frontend renderer tests live at the repo root.
+SHARED_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
+
+
+@pytest.fixture
+def example_document() -> dict[str, JSON]:
+    """The GanadaTrade proposal as a block document. The frontend renderer tests read it too."""
+    path = SHARED_FIXTURES / "documents" / "example-proposal.json"
+    data: dict[str, JSON] = json.loads(path.read_text(encoding="utf-8"))
+    return data
 
 
 @pytest.fixture(autouse=True)

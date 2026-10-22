@@ -10,6 +10,9 @@
   <meta property="og:title" content="{{ meta.title }}">
   <meta property="og:description" content="{{ meta.description }}">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta property="og:site_name" content="{{ site_name }}">
+  <meta property="og:locale" content="ko_KR">
   {% for href in assets.styles %}<link rel="stylesheet" href="{{ href }}">
   {% endfor %}
   {% if assets.dev_server %}<script type="module">
@@ -24,5 +27,6 @@
 </head>
 <body>
   <div id="root"></div>
+  {% if data is not None %}{{ data|json_script:"page-data" }}{% endif %}
 </body>
 </html>

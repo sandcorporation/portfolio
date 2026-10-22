@@ -1,5 +1,5 @@
 # 한 줄 명령 모음. 자세한 것은 CLAUDE.md 「명령」 절.
-.PHONY: db test test-backend test-frontend lint typecheck check dev-backend dev-frontend prod-local prod-local-down
+.PHONY: gen gen-check db test test-backend test-frontend lint typecheck check dev-backend dev-frontend prod-local prod-local-down
 
 db:  ## 로컬 시험·개발용 Postgres (127.0.0.1:15442, 프로젝트 portfolio-dev)
 	docker compose up -d --wait db
@@ -20,7 +20,15 @@ typecheck:
 	cd backend && uv run mypy .
 	cd frontend && pnpm typecheck
 
-check: lint typecheck test
+gen:  ## 블록 스키마(Pydantic) → schema/document.schema.json → frontend/src/blocks/types.gen.ts
+	cd backend && uv run python -m documents.schema_export
+	cd frontend && pnpm gen:types
+
+gen-check:  ## 생성물이 Pydantic 모델과 같은지(다르면 make gen 후 커밋)
+	cd backend && uv run python -m documents.schema_export --check
+	cd frontend && pnpm gen:types --check
+
+check: gen-check lint typecheck test
 
 dev-backend: db  ## http://localhost:8000 (프론트는 dev-frontend로 따로 띄운다)
 	cd backend && DJANGO_DEBUG=1 VITE_DEV_SERVER_URL=http://localhost:5173 uv run python manage.py migrate --noinput
