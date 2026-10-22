@@ -1,6 +1,7 @@
 """TEMPORARY (issue #25): rate limit for the Django admin password login.
 
-Everything for this lives here plus three hooks that #7 removes together with this file:
+Everything for this lives here plus three hooks, all deleted with this file when the
+temporary login goes (follow-up to #7, once sandcorp-auth is live):
   - `core.admin_ratelimit.AdminLoginRateLimitMiddleware` in settings.MIDDLEWARE
   - `ADMIN_LOGIN_*` and `CACHES` in settings.py
   - `createcachetable` in deploy/deploy.sh (and tests/test_admin_ratelimit.py)

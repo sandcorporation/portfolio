@@ -1,0 +1,13 @@
+{% extends "admin/login.html" %}
+{% comment %}
+Admin login page: sandcorp-auth first, the temporary password form (#25) under it.
+The password form goes away with the temporary login (follow-up ticket).
+{% endcomment %}
+{% block content %}
+<div class="submit-row" style="margin-bottom: 1.5em;">
+  <a class="button default" id="oauth-login" style="display: block; text-align: center; padding: 10px;"
+     href="{% url 'admin_oauth_start' %}{% if next %}?next={{ next|urlencode }}{% endif %}">sandcorp-auth로 로그인</a>
+</div>
+<p class="help" style="margin-bottom: 1em;">임시 비밀번호 로그인(sandcorp-auth 배포 전까지)</p>
+{{ block.super }}
+{% endblock %}

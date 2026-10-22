@@ -40,7 +40,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "core.admin_ratelimit.AdminLoginRateLimitMiddleware",  # temporary, removed by #7
+    "core.admin_ratelimit.AdminLoginRateLimitMiddleware",  # temporary (#25)
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -97,7 +97,8 @@ CACHES = {
     }
 }
 
-# Temporary admin password login limit (issue #25, removed by #7). See core/admin_ratelimit.py.
+# Temporary admin password login limit (issue #25), next to the sandcorp-auth login until a
+# follow-up to #7 removes it. See core/admin_ratelimit.py.
 ADMIN_LOGIN_MAX_FAILURES = 5
 ADMIN_LOGIN_WINDOW_SECONDS = 15 * 60
 # Proxies in front of Django that append to X-Forwarded-For (NPMplus = 1).
@@ -116,6 +117,11 @@ SITE_URL = env("SITE_URL", "https://sandcorp.co.kr").rstrip("/")
 # sandcorp-auth: the owner's username, the only `sub` this site accepts (empty -> /mcp is 503).
 AUTH_OWNER_SUB = env("AUTH_OWNER_SUB").strip()
 ADMIN_PATH = env("DJANGO_ADMIN_PATH", "admin/").strip("/") + "/"
+# sandcorp-auth confidential client for the admin login (oauth/login.py). Registered at
+# sandcorp-auth with redirect URI `{SITE_URL}/{ADMIN_PATH}oauth/callback/`.
+# Empty -> only the sandcorp-auth admin login is off (503); the site runs.
+AUTH_CLIENT_ID = env("AUTH_CLIENT_ID").strip()
+AUTH_CLIENT_SECRET = env("AUTH_CLIENT_SECRET").strip()
 
 # Static files: whitenoise serves collectstatic output, which includes the Vite build.
 STATIC_URL = "/static/"

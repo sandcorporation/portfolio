@@ -5,9 +5,18 @@ from django.urls import path
 from core import shell
 from core.api import api
 from mcpserver.views import mcp_endpoint
+from oauth import login as oauth_login
 from oauth.bearer import protected_resource_metadata
 
+# Login page: sandcorp-auth button above the temporary password form (#25).
+admin.site.login_template = "admin/sandcorp_login.html"
+
 urlpatterns = [
+    # sandcorp-auth login for the admin (before admin.site.urls, whose catch-all would 404 them).
+    path(f"{settings.ADMIN_PATH}oauth/login/", oauth_login.start, name="admin_oauth_start"),
+    path(
+        f"{settings.ADMIN_PATH}oauth/callback/", oauth_login.callback, name="admin_oauth_callback"
+    ),
     path(settings.ADMIN_PATH, admin.site.urls),
     path("api/", api.urls),
     # Remote MCP (resource server for sandcorp-auth). RFC 9728 clients may also ask the

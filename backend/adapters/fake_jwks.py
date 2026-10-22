@@ -1,10 +1,15 @@
 """Fake sandcorp-auth for tests: an Ed25519 signing key, its JWKS and a frozen clock.
 
+It also plays the admin login (section 7): `authorize(url)` approves an `/authorize` request
+the way the owner would and returns the callback path; `exchange_code` is the `/token` call,
+checking the client secret, the one-time code, `redirect_uri` and the PKCE verifier.
+
 `FakeAuthServer.issue()` signs an access token the way sandcorp-auth does (EdDSA, `kid`
 header, all eight claims); keyword arguments override or drop claims. `fetch_jwks` serves
 the published keys and counts calls, so tests can see when the cache went to the network.
 """
 
+import urllib.parse
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -15,7 +20,9 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from jwt.algorithms import OKPAlgorithm
 
+from adapters.auth_client import CodeGrant, TokenExchangeError
 from oauth.bearer import RESOURCE
+from oauth.login import AUTHORIZE_URL, code_challenge
 from oauth.tokens import ISSUER, Jwk, JwkSet
 
 type Claim = str | int | list[str] | None
@@ -30,6 +37,17 @@ class FrozenClock:
 
     def advance(self, seconds: float) -> None:
         self.moment += timedelta(seconds=seconds)
+
+
+@dataclass(frozen=True)
+class IssuedCode:
+    challenge: str
+    redirect_uri: str
+    client_id: str
+    scope: str
+    resource: str
+    claims: Mapping[str, Claim]
+    signing_key: Ed25519PrivateKey | None
 
 
 def public_jwk(private_key: Ed25519PrivateKey, kid: str) -> Jwk:
@@ -49,6 +67,10 @@ class FakeAuthServer:
     published: list[Jwk] = field(default_factory=list)
     fetches: int = 0
     failing: bool = False
+    client_id: str = "portfolio-admin"
+    client_secret: str = "test-client-secret"
+    codes: dict[str, IssuedCode] = field(default_factory=dict)
+    grants: list[CodeGrant] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.published.append(public_jwk(self.private_key, self.kid))
@@ -105,3 +127,53 @@ class FakeAuthServer:
     def bearer(self, token: str | None = None, **claims: Claim) -> dict[str, str]:
         """Test-client `headers=` carrying `token` (or a fresh one with these claims)."""
         return {"Authorization": f"Bearer {token or self.issue_with(claims)}"}
+
+    def authorize(
+        self,
+        url: str,
+        claims: Mapping[str, Claim] | None = None,
+        *,
+        signing_key: Ed25519PrivateKey | None = None,
+    ) -> str:
+        """Approve this `/authorize` URL; return the callback path with `code` and `state`.
+
+        `claims` override the access token the code will be exchanged for (e.g. `sub=`).
+        """
+        base, _, query = url.partition("?")
+        assert base == AUTHORIZE_URL, base
+        params = dict(urllib.parse.parse_qsl(query, strict_parsing=True))
+        assert params["response_type"] == "code"
+        assert params["client_id"] == self.client_id
+        assert params["code_challenge_method"] == "S256"
+        code = uuid.uuid4().hex
+        self.codes[code] = IssuedCode(
+            challenge=params["code_challenge"],
+            redirect_uri=params["redirect_uri"],
+            client_id=params["client_id"],
+            scope=params["scope"],
+            resource=params["resource"],
+            claims=dict(claims or {}),
+            signing_key=signing_key,
+        )
+        back = urllib.parse.urlsplit(params["redirect_uri"])
+        return f"{back.path}?{urllib.parse.urlencode({'code': code, 'state': params['state']})}"
+
+    def exchange_code(self, grant: CodeGrant) -> str:
+        """`POST /token`: the access token for a code, or TokenExchangeError (invalid_grant)."""
+        self.grants.append(grant)
+        if (grant.client_id, grant.client_secret) != (self.client_id, self.client_secret):
+            raise TokenExchangeError("invalid_client")
+        issued = self.codes.pop(grant.code, None)  # one-time
+        if issued is None or issued.client_id != grant.client_id:
+            raise TokenExchangeError("invalid_grant: unknown code")
+        if issued.redirect_uri != grant.redirect_uri:
+            raise TokenExchangeError("invalid_grant: redirect_uri mismatch")
+        if code_challenge(grant.code_verifier) != issued.challenge:
+            raise TokenExchangeError("invalid_grant: code_verifier mismatch")
+        claims: dict[str, Claim] = {
+            "aud": issued.resource,
+            "scope": issued.scope,
+            "client_id": issued.client_id,
+            **issued.claims,
+        }
+        return self.issue_with(claims, signing_key=issued.signing_key)

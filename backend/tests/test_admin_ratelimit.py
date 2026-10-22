@@ -1,4 +1,7 @@
-"""Temporary admin login rate limit (issue #25). Removed with core/admin_ratelimit.py by #7."""
+"""Temporary admin login rate limit (issue #25).
+
+Removed with core/admin_ratelimit.py once sandcorp-auth login is live (follow-up to #7).
+"""
 
 from collections.abc import Iterator
 

@@ -69,11 +69,15 @@ def fake_storage(monkeypatch: pytest.MonkeyPatch) -> FakeObjectStorage:
 def auth_server(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> FakeAuthServer:
     """A fake sandcorp-auth: sign tokens with `auth_server.issue()` / `.bearer()`.
 
-    Its JWKS and frozen clock replace the real ones, and `AUTH_OWNER_SUB` is its owner.
+    Its JWKS, frozen clock and token endpoint replace the real ones; `AUTH_OWNER_SUB` is its
+    owner and `AUTH_CLIENT_ID`/`AUTH_CLIENT_SECRET` its registered admin-login client.
     """
     server = FakeAuthServer()
     cache = JwksCache(server.fetch_jwks, server.clock)
     settings.AUTH_OWNER_SUB = server.owner_sub
+    settings.AUTH_CLIENT_ID = server.client_id
+    settings.AUTH_CLIENT_SECRET = server.client_secret
+    monkeypatch.setattr("oauth.login.get_exchange_code", lambda: server.exchange_code)
     monkeypatch.setattr("oauth.bearer.get_jwks_cache", lambda: cache)
     monkeypatch.setattr("oauth.bearer.get_clock", lambda: server.clock)
     return server

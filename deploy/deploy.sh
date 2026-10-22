@@ -38,7 +38,7 @@ wait_healthy postgres
 
 echo "== migrate"
 compose run --rm --no-deps web python manage.py migrate --noinput
-# 임시 admin 로그인 제한(#25)의 공유 카운터 테이블. #7에서 이 줄도 제거한다.
+# 임시 admin 로그인 제한(#25)의 공유 카운터 테이블. 임시 로그인을 없애는 후속 티켓(#7 뒤)에서 이 줄도 제거한다.
 compose run --rm --no-deps web python manage.py createcachetable
 
 echo "== web 교체"
