@@ -26,6 +26,9 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 - 시험: `make test` (= `make test-backend` + `make test-frontend`). 백엔드 시험은 Postgres를 쓴다 — `make db`가 `portfolio-dev` 프로젝트로 `127.0.0.1:15442`에 띄운다(`make test-backend`가 알아서 부른다).
 - 린트: `make lint` (ruff format --check, ruff check, eslint). 고치기: `cd backend && uv run ruff format . && uv run ruff check --fix .`
 - 타입: `make typecheck` (mypy strict + django-stubs, `tsc --noEmit`).
+- 생성: `make gen` — 백엔드 블록 스키마(Pydantic)에서 JSON Schema와 `frontend/src/blocks/types.gen.ts`를 다시 만든다. `make gen-check`는 차이가 없는지 본다(`make check`에 포함).
 - 전부: `make check`.
+- 새 블록 추가 절차: `frontend/src/blocks/README.md`.
+- 작업자는 이 「명령」 절을 명령이 바뀌는 티켓에서 함께 고친다.
 - 로컬 실행: `make dev-frontend`(Vite, :5173)와 `make dev-backend`(Django, :8000)를 따로 띄우고 http://localhost:8000 을 연다. Django가 HTML 셸을 내리고 Vite dev 서버의 스크립트를 붙인다.
 - 운영 compose 로컬 확인: `.env.example`을 `.env`로 복사해 값을 채우고(`DJANGO_ALLOWED_HOSTS`에 `localhost`) `COMPOSE_PROJECT_NAME=portfolio-local COMPOSE_FILE=docker-compose.prod.yml bash deploy/deploy.sh` → http://127.0.0.1:18091 . 끝나면 `make prod-local-down`.
