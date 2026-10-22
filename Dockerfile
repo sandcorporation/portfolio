@@ -13,6 +13,10 @@ COPY fixtures/ /app/fixtures/
 RUN pnpm build
 
 FROM python:3.13-slim AS runtime
+# pg_dump/pg_restore for the daily backup (#19); major 17 matches the postgres:17 server.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-client-17 \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_COMPILE_BYTECODE=1 \

@@ -51,6 +51,10 @@ echo "== PDF 렌더러·워커"
 compose up -d --no-deps renderer
 compose up -d --no-deps --force-recreate worker
 
+echo "== DB 백업 사이드카"
+# 재시작해도 하루에 두 번 돌지 않는다(버킷의 마지막 백업 시각을 본다).
+compose up -d --no-deps --force-recreate backup
+
 echo "== 헬스 확인"
 compose exec -T web python -c "
 import os, urllib.request as u

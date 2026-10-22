@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 from urllib.parse import quote
 
@@ -59,6 +60,16 @@ class ObjectStorage(Protocol):
         ...
 
     def delete(self, bucket: Bucket, key: str) -> None: ...
+
+    def list_keys(self, bucket: Bucket, prefix: str) -> list[str]:
+        """Every key that starts with `prefix` (all pages), in key order."""
+        ...
+
+    def upload_file(self, bucket: Bucket, key: str, path: Path, content_type: str) -> None:
+        """Upload a local file without reading it all into memory (multipart when large)."""
+        ...
+
+    def download_file(self, bucket: Bucket, key: str, path: Path) -> None: ...
 
     def public_url(self, key: str) -> str:
         """Where a public-bucket object is served from. No network call."""
@@ -136,6 +147,21 @@ class S3ObjectStorage:
 
     def delete(self, bucket: Bucket, key: str) -> None:
         self._client.delete_object(Bucket=self._buckets[bucket], Key=key)
+
+    def list_keys(self, bucket: Bucket, prefix: str) -> list[str]:
+        keys: list[str] = []
+        paginator = self._client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self._buckets[bucket], Prefix=prefix):
+            keys.extend(item["Key"] for item in page.get("Contents", []))
+        return keys
+
+    def upload_file(self, bucket: Bucket, key: str, path: Path, content_type: str) -> None:
+        self._client.upload_file(
+            str(path), self._buckets[bucket], key, ExtraArgs={"ContentType": content_type}
+        )
+
+    def download_file(self, bucket: Bucket, key: str, path: Path) -> None:
+        self._client.download_file(self._buckets[bucket], key, str(path))
 
     def public_url(self, key: str) -> str:
         return self._public_base_url + key

@@ -2,9 +2,10 @@
 # (COMPOSE_PROJECT_NAME=portfolio). Secrets come from ./.env in the Jenkins workspace, never the repo.
 #
 # Resource budget on the shared oracle host (caps, not reservations):
-#   web 0.8 CPU / 640m, postgres 0.5 CPU / 512m, renderer 0.5 CPU / 512m, worker 0.25 CPU / 256m
-#   = 2.05 CPU / 1.9 GB at most. The renderer and worker sit idle except for a few seconds per
-#   publication (one PDF at a time), so the steady load stays near web + postgres.
+#   web 0.8 CPU / 640m, postgres 0.5 CPU / 512m, renderer 0.5 CPU / 512m, worker 0.25 CPU / 256m,
+#   backup 0.25 CPU / 256m = 2.3 CPU / 2.2 GB at most. The renderer, worker and backup sit idle
+#   except for a few seconds per publication (one PDF at a time) or per day (the dump), so the
+#   steady load stays near web + postgres.
 name: portfolio
 
 services:
@@ -70,6 +71,26 @@ services:
       postgres:
         condition: service_healthy
     stop_grace_period: 2m  # SIGTERM lets the current PDF finish
+    cpus: 0.25
+    mem_limit: 256m
+    restart: unless-stopped
+
+  # Daily DB backup (#19): same image (it carries pg_dump 17), wakes every few minutes and dumps
+  # once per 04:00 KST to the private bucket's `backups/`, then drops copies older than 30 days.
+  # Idle almost always; pg_dump of this small DB takes seconds. Restore: docs/ops/backup-restore.md.
+  backup:
+    image: portfolio-web:latest
+    pull_policy: never  # built by `compose build web`
+    command: ["python", "manage.py", "db_backup"]
+    env_file: [.env]
+    environment:
+      DJANGO_DEBUG: "0"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 1m
     cpus: 0.25
     mem_limit: 256m
     restart: unless-stopped

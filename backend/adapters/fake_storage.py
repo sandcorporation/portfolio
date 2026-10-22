@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import timedelta
+from pathlib import Path
 
 from adapters.storage import Bucket, PresignedUpload, StoredObject
 
@@ -41,6 +42,18 @@ class FakeObjectStorage:
     def delete(self, bucket: Bucket, key: str) -> None:
         self.calls.append(("delete", bucket, key))
         self.objects.pop((bucket, key), None)
+
+    def list_keys(self, bucket: Bucket, prefix: str) -> list[str]:
+        self.calls.append(("list_keys", bucket, prefix))
+        return sorted(k for b, k in self.objects if b == bucket and k.startswith(prefix))
+
+    def upload_file(self, bucket: Bucket, key: str, path: Path, content_type: str) -> None:
+        self.calls.append(("upload_file", bucket, key))
+        self.objects[(bucket, key)] = (path.read_bytes(), content_type)
+
+    def download_file(self, bucket: Bucket, key: str, path: Path) -> None:
+        self.calls.append(("download_file", bucket, key))
+        path.write_bytes(self.objects[(bucket, key)][0])
 
     def public_url(self, key: str) -> str:
         return self.public_base_url.rstrip("/") + "/" + key
