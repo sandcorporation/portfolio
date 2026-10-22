@@ -384,6 +384,18 @@ h3.block-heading {
   white-space: nowrap;
 }
 
+.block-table td[data-merged] {
+  vertical-align: middle;
+}
+
+.block-table td[data-align="center"] {
+  text-align: center;
+}
+
+.block-table td[data-align="right"] {
+  text-align: right;
+}
+
 .block-table tbody tr:last-child td,
 .prose tbody tr:last-child td {
   border-bottom: 0;

@@ -136,7 +136,7 @@ def test_block_edits_are_refused_with_paths_and_save_nothing() -> None:
         svc.replace_block(
             p.slug, "a", {"id": "a", "type": "table", "columns": ["x"], "rows": [["1", "2"]]}
         )
-    assert [e.path for e in bad.value.errors] == ["document.tabs[0].blocks[0].rows[0]"]
+    assert [e.path for e in bad.value.errors] == ["document.tabs[0].blocks[0].rows[0][1]"]
     with pytest.raises(Rejected):
         svc.insert_block(p.slug, "company", md("a"))  # id already used in another tab
     with pytest.raises(NotFound):

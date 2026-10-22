@@ -55,7 +55,9 @@ def validate_document(data: object) -> Document:
     try:
         document = Document.model_validate(data)
     except ValidationError as exc:
-        raise InvalidDocument([_from_pydantic(detail) for detail in exc.errors()]) from None
+        raise InvalidDocument(
+            [_from_pydantic(d) for d in exc.errors() if not _other_cell_branch(d)]
+        ) from None
     errors = _semantic_errors(document)
     if errors:
         raise InvalidDocument(errors)
@@ -94,6 +96,19 @@ def _from_pydantic(detail: ErrorDetails) -> DocumentError:
     return DocumentError(_path(detail["loc"]), _REASONS.get(detail["type"], detail["msg"]))
 
 
+_CELL_TAGS = {"str", "TableCell"}
+
+
+def _other_cell_branch(detail: ErrorDetails) -> bool:
+    """A cell is `str | TableCell`; pydantic reports both branches. Keep the one that fits."""
+    tag = detail["loc"][-1] if detail["loc"] else None
+    if tag == "str":
+        return isinstance(detail["input"], dict)
+    if tag == "TableCell":
+        return not isinstance(detail["input"], dict)
+    return False
+
+
 def _path(loc: tuple[int | str, ...]) -> str:
     """('tabs', 0, 'blocks', 3, 'table', 'rows', 2) -> 'tabs[0].blocks[3].rows[2]'.
 
@@ -106,6 +121,8 @@ def _path(loc: tuple[int | str, ...]) -> str:
             out += f"[{part}]"
             after_block_index = out.endswith(f"blocks[{part}]")
             continue
+        if out.endswith("]") and part in _CELL_TAGS and ".rows[" in out:
+            continue  # union tags of a table cell (str | TableCell)
         if after_block_index and part in BLOCK_TYPES:
             after_block_index = False
             continue

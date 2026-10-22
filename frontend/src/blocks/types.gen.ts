@@ -140,11 +140,11 @@ export interface TableBlock {
    */
   columns: string[];
   /**
-   * Each row has exactly one cell per column
+   * A cell is a string, or an object when it spans columns or rows. The rows must fill the grid exactly: a row lists only the cells that start in it, so the columns a cell above reaches with rowspan are left out of the rows below.
    */
-  rows: string[][];
+  rows: (string | TableCell)[][];
   /**
-   * Zero-based index of the emphasised column
+   * Zero-based index of the emphasised column. A merged cell is emphasised when it covers that column.
    */
   highlight_column?: number | null;
   /**
@@ -152,6 +152,24 @@ export interface TableBlock {
    */
   unit?: string | null;
   footnotes?: string[];
+}
+/**
+ * A cell that spans several columns or rows, or aligns differently from its column.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "TableCell".
+ */
+export interface TableCell {
+  text: string;
+  /**
+   * Columns covered, starting at this cell
+   */
+  colspan?: number;
+  /**
+   * Rows covered, starting at this row
+   */
+  rowspan?: number;
+  align?: ("left" | "center" | "right") | null;
 }
 /**
  * A boxed note: information, a warning, or a condition the reader must accept.
@@ -360,9 +378,9 @@ export interface MetricsTable {
    */
   columns: string[];
   /**
-   * Each row has exactly one cell per column
+   * Same cell rules as the table block: a string, or an object to merge cells
    */
-  rows: string[][];
+  rows: (string | TableCell)[][];
   /**
    * How to read the figures
    */

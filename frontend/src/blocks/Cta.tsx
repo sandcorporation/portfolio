@@ -15,6 +15,11 @@ export function Cta({ block }: { block: CtaBlock; anchor: string }) {
   );
 }
 
+// The printed line adds its own arrow before the destination; a label already ending in one would double it.
+function printLabel(label: string) {
+  return label.replace(/[\s→]+$/u, "");
+}
+
 function CtaItem({ item, print }: { item: Item; print: boolean }) {
   const nav = useDocumentNav();
   const { target } = item;
@@ -27,7 +32,7 @@ function CtaItem({ item, print }: { item: Item; print: boolean }) {
         : nav.describe(target) && `→ ${nav.describe(target)}`;
     return (
       <p className="cta-line">
-        <span className="cta-label">{item.label}</span>
+        <span className="cta-label">{printLabel(item.label)}</span>
         {where && <span className="cta-where"> {where}</span>}
       </p>
     );

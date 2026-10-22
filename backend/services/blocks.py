@@ -61,7 +61,11 @@ EXAMPLES: dict[str, dict[str, JSON]] = {
         "type": "table",
         "title": "견적",
         "columns": ["항목", "금액"],
-        "rows": [["설계", "800"], ["개발", "5,150"]],
+        "rows": [
+            ["설계", "800"],
+            ["개발", "5,150"],
+            [{"text": "별도 협의", "colspan": 2, "align": "center"}],
+        ],
         "highlight_column": 1,
         "unit": "단위: 만원",
         "footnotes": ["부가세 별도"],

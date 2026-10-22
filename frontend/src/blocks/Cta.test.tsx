@@ -87,3 +87,26 @@ test("가나다상사 예시의 CTA 셋이 그려진다", () => {
   expect(screen.getByRole("button", { name: "음성 분리 시험 듣기 →" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "회사 소개 및 구축 사례 보기 →" })).toBeInTheDocument();
 });
+
+test("인쇄 문구는 라벨 끝의 화살표를 걷어 → 가 한 번만 나온다", () => {
+  const arrowed: Document = {
+    tabs: [
+      {
+        id: "one",
+        title: "첫 탭",
+        blocks: [
+          {
+            id: "go",
+            type: "cta",
+            items: [{ label: "표 보기 →", target: { kind: "tab", tab_id: "two" }, style: "primary" }],
+          } satisfies CtaBlock,
+        ],
+      },
+      { id: "two", title: "둘째 탭", blocks: [{ id: "x", type: "markdown", body: "본문" }] },
+    ],
+  };
+  const { container } = show(arrowed, true);
+
+  const line = container.querySelector(".cta-line");
+  expect(line?.textContent).toBe("표 보기 → 둘째 탭");
+});

@@ -80,6 +80,68 @@ class MarkdownBlock(BlockBase):
     body: str = Field(default="", description="Markdown (GFM). Raw HTML is not rendered.")
 
 
+class TableCell(BaseModel):
+    """A cell that spans several columns or rows, or aligns differently from its column."""
+
+    model_config = ConfigDict(extra="forbid", title="TableCell")
+
+    text: str
+    colspan: int = Field(default=1, ge=1, description="Columns covered, starting at this cell")
+    rowspan: int = Field(default=1, ge=1, description="Rows covered, starting at this row")
+    align: Literal["left", "center", "right"] | None = None
+
+
+def grid_problems(width: int, rows: list[list[str | TableCell]], prefix: str = "") -> list[Problem]:
+    """Check that rows (with merged cells) fill a grid `width` columns wide exactly.
+
+    A row lists only the cells that start in it; columns held by a rowspan above are skipped.
+    """
+    found: list[Problem] = []
+    taken: set[tuple[int, int]] = set()  # (row, column) already covered by a cell
+    for index, row in enumerate(rows):
+        column = 0
+        for position, cell in enumerate(row):
+            where = f"{prefix}rows[{index}][{position}]"
+            colspan = cell.colspan if isinstance(cell, TableCell) else 1
+            rowspan = cell.rowspan if isinstance(cell, TableCell) else 1
+            while column < width and (index, column) in taken:
+                column += 1
+            if column >= width:
+                found.append((where, f"칸이 넘칩니다 — 이 행은 {width}칸이면 찹니다"))
+                break
+            if column + colspan > width:
+                found.append(
+                    (
+                        where,
+                        f"colspan {colspan}이 표 너비를 넘습니다 (남은 칸 {width - column})",
+                    )
+                )
+                colspan = width - column
+            left = len(rows) - index
+            if rowspan > left:
+                found.append(
+                    (
+                        where,
+                        f"rowspan {rowspan}이 표 높이를 넘습니다 (남은 행 {left})",
+                    )
+                )
+                rowspan = left
+            covered = {(index + r, column + c) for r in range(rowspan) for c in range(colspan)}
+            if covered & taken:
+                found.append((where, "위 행에서 내려온 병합 셀과 겹칩니다"))
+            taken |= covered
+            column += colspan
+        else:
+            while column < width and (index, column) in taken:
+                column += 1
+            if column < width:
+                filled = column
+                found.append(
+                    (f"{prefix}rows[{index}]", f"칸이 {width}개여야 하는데 {filled}개입니다")
+                )
+    return found
+
+
 class TableBlock(BlockBase):
     """A header row and data rows, with an optional highlighted column, unit and footnotes."""
 
@@ -88,19 +150,27 @@ class TableBlock(BlockBase):
     type: Literal["table"]
     title: str | None = Field(default=None, description="Listed in the table of contents")
     columns: list[str] = Field(min_length=1, description="Header row")
-    rows: list[list[str]] = Field(description="Each row has exactly one cell per column")
+    rows: list[list[str | TableCell]] = Field(
+        description=(
+            "A cell is a string, or an object when it spans columns or rows. The rows must "
+            "fill the grid exactly: a row lists only the cells that start in it, so the "
+            "columns a cell above reaches with rowspan are left out of the rows below."
+        )
+    )
     highlight_column: int | None = Field(
-        default=None, ge=0, description="Zero-based index of the emphasised column"
+        default=None,
+        ge=0,
+        description=(
+            "Zero-based index of the emphasised column. A merged cell is emphasised when "
+            "it covers that column."
+        ),
     )
     unit: str | None = Field(default=None, description="Unit note, e.g. '단위: 만원'")
     footnotes: list[str] = Field(default_factory=list)
 
     def problems(self) -> list[Problem]:
-        found: list[Problem] = []
+        found = grid_problems(len(self.columns), self.rows)
         width = len(self.columns)
-        for index, row in enumerate(self.rows):
-            if len(row) != width:
-                found.append((f"rows[{index}]", f"칸이 {width}개여야 하는데 {len(row)}개입니다"))
         if self.highlight_column is not None and self.highlight_column >= width:
             found.append(
                 (
@@ -178,7 +248,9 @@ class MetricsTable(BaseModel):
     model_config = ConfigDict(extra="forbid", title="MetricsTable")
 
     columns: list[str] = Field(min_length=1, description="Header row")
-    rows: list[list[str]] = Field(description="Each row has exactly one cell per column")
+    rows: list[list[str | TableCell]] = Field(
+        description="Same cell rules as the table block: a string, or an object to merge cells"
+    )
     note: str | None = Field(default=None, description="How to read the figures")
 
 
@@ -199,12 +271,7 @@ class AudioCompareBlock(BlockBase):
     def problems(self) -> list[Problem]:
         if self.metrics is None:
             return []
-        width = len(self.metrics.columns)
-        return [
-            (f"metrics.rows[{i}]", f"칸이 {width}개여야 하는데 {len(row)}개입니다")
-            for i, row in enumerate(self.metrics.rows)
-            if len(row) != width
-        ]
+        return grid_problems(len(self.metrics.columns), self.metrics.rows, "metrics.")
 
 
 class VideoBlock(BlockBase):

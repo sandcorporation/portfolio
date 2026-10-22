@@ -353,3 +353,69 @@ def test_cta_block_rejects_targets_missing_from_the_document() -> None:
         ("tabs[0].blocks[0].items[0].target.block_id", "문서에 없는 블록 id 'ghost'입니다"),
         ("tabs[0].blocks[0].items[1].target.tab_id", "문서에 없는 탭 id 'ghost'입니다"),
     ]
+
+
+# --- table cell merge ---
+
+
+def table_block(
+    rows: list[JSON], columns: int = 3, highlight: int | None = None
+) -> dict[str, JSON]:
+    return {
+        "id": "t1",
+        "type": "table",
+        "columns": [f"c{i}" for i in range(columns)],
+        "rows": rows,
+        "highlight_column": highlight,
+    }
+
+
+def table_errors(block: dict[str, JSON]) -> list[tuple[str, str]]:
+    return steps_errors(block)  # same helper: validate a one-block document
+
+
+def valid_table(rows: list[JSON], columns: int = 3) -> None:
+    validate_document({"tabs": [{"id": "t", "title": "T", "blocks": [table_block(rows, columns)]}]})
+
+
+def test_table_accepts_string_only_and_merged_grids() -> None:
+    valid_table([["a", "b", "c"], ["d", "e", "f"]])
+    valid_table(
+        [
+            [{"text": "A", "rowspan": 2}, "b", "c"],
+            ["e", {"text": "f", "align": "right"}],  # column 0 is held by the rowspan above
+            [{"text": "wide", "colspan": 3}],
+        ]
+    )
+
+
+def test_table_merge_problems_are_reported_with_cell_paths() -> None:
+    def errors(rows: list[JSON]) -> list[tuple[str, str]]:
+        return table_errors(table_block(rows))
+
+    # too many cells: the rowspan above already holds column 0
+    assert errors([[{"text": "A", "rowspan": 2}, "b", "c"], ["x", "e", "f"]]) == [
+        ("tabs[0].blocks[0].rows[1][2]", "칸이 넘칩니다 — 이 행은 3칸이면 찹니다")
+    ]
+    # too few cells
+    assert errors([["a", {"text": "b", "colspan": 1}]]) == [
+        ("tabs[0].blocks[0].rows[0]", "칸이 3개여야 하는데 2개입니다")
+    ]
+    # colspan past the edge
+    assert errors([["a", {"text": "b", "colspan": 3}]]) == [
+        ("tabs[0].blocks[0].rows[0][1]", "colspan 3이 표 너비를 넘습니다 (남은 칸 2)")
+    ]
+    # rowspan past the last row
+    assert errors([["a", "b", {"text": "c", "rowspan": 2}]]) == [
+        ("tabs[0].blocks[0].rows[0][2]", "rowspan 2이 표 높이를 넘습니다 (남은 행 1)")
+    ]
+    # a wide cell collides with a rowspan from above
+    assert errors(
+        [["a", {"text": "b", "rowspan": 2}, "c"], [{"text": "d", "colspan": 2}, "e"]]
+    ) == [("tabs[0].blocks[0].rows[1][0]", "위 행에서 내려온 병합 셀과 겹칩니다")]
+
+
+def test_table_cell_field_errors_do_not_leak_union_tags() -> None:
+    errors = table_errors(table_block([["a", {"text": "b", "colspan": 0}, "c"]]))
+
+    assert [path for path, _ in errors] == ["tabs[0].blocks[0].rows[0][1].colspan"]

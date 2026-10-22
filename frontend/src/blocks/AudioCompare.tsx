@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Heading } from "./Heading";
+import { TableRows } from "./Table";
 import { useMediaUrls, usePlayback } from "./media";
 import { blockLink, useRenderMode } from "./mode";
 import { QrLink } from "./QrLink";
@@ -153,13 +154,7 @@ function Metrics({ block }: { block: AudioCompareBlock }) {
             </tr>
           </thead>
           <tbody>
-            {metrics.rows.map((row, r) => (
-              <tr key={r}>
-                {row.map((cell, column) => (
-                  <td key={column}>{cell}</td>
-                ))}
-              </tr>
-            ))}
+            <TableRows rows={metrics.rows} />
           </tbody>
         </table>
       </div>
