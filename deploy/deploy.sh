@@ -38,6 +38,8 @@ wait_healthy postgres
 
 echo "== migrate"
 compose run --rm --no-deps web python manage.py migrate --noinput
+# 임시 admin 로그인 제한(#25)의 공유 카운터 테이블. #7에서 이 줄도 제거한다.
+compose run --rm --no-deps web python manage.py createcachetable
 
 echo "== web 교체"
 # --force-recreate: 새로 빌드한 이미지라도 compose가 "Running"으로 두고 넘어가는 경우가 있었다.

@@ -40,6 +40,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.admin_ratelimit.AdminLoginRateLimitMiddleware",  # temporary, removed by #7
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -76,6 +77,31 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
     }
 }
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# Shared across gunicorn workers (a per-process cache would multiply the limit by the worker count).
+# Create the table with `manage.py createcachetable` (deploy.sh does, after migrate).
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+    }
+}
+
+# Temporary admin password login limit (issue #25, removed by #7). See core/admin_ratelimit.py.
+ADMIN_LOGIN_MAX_FAILURES = 5
+ADMIN_LOGIN_WINDOW_SECONDS = 15 * 60
+# Proxies in front of Django that append to X-Forwarded-For (NPMplus = 1).
+ADMIN_LOGIN_PROXY_HOPS = int(env("ADMIN_LOGIN_PROXY_HOPS", "1"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
