@@ -9,6 +9,8 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from django.core.management.color import no_style
+from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from pytest_django.fixtures import Settings
@@ -30,9 +32,9 @@ SHARED_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 def example_document(db: None) -> dict[str, JSON]:
     """The GanadaTrade proposal as a block document. The frontend renderer tests read it too.
 
-    Its gallery points at media 1-3 (images), its audio-compare at 4-6 (audio), its video at
-    7 with poster 1, and its case-ref at portfolio items 1-2, so they exist (finished, public
-    media; one hidden item) while the test runs.
+    Its gallery points at media 1-3 (images), its audio-compare blocks at 4-6, 8-12 and 13-15
+    (audio), its videos at 7 and 16 with posters 1 and 2, and its case-ref at portfolio items
+    1-2, so they exist (finished, public media; one hidden item) while the test runs.
     """
     for media_id in (1, 2, 3):
         Media.objects.create(
@@ -43,12 +45,11 @@ def example_document(db: None) -> dict[str, JSON]:
             original_filename=f"example-{media_id}.png",
             uploaded_at=timezone.now(),
         )
-    for media_id, content_type in (
-        (4, "audio/mpeg"),
-        (5, "audio/mpeg"),
-        (6, "audio/mpeg"),
+    audio = (4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15)
+    for media_id, content_type in [(i, "audio/mpeg") for i in audio] + [
         (7, "video/mp4"),
-    ):
+        (16, "video/mp4"),
+    ]:
         Media.objects.create(
             pk=media_id,
             object_key=f"example-{media_id}",
@@ -59,6 +60,11 @@ def example_document(db: None) -> dict[str, JSON]:
         )
     PortfolioItem.objects.create(pk=1, slug="ramaba", title="라마바 통화 분석")
     PortfolioItem.objects.create(pk=2, slug="hidden-case", title="비공개 사례", is_public=False)
+    # Rows with explicit pks leave the id sequences at 1, so the next auto-pk insert in a test
+    # would collide with them (order-dependent failures). Move the sequences past them.
+    with connection.cursor() as cursor:
+        for sql in connection.ops.sequence_reset_sql(no_style(), [Media, PortfolioItem]):
+            cursor.execute(sql)
     path = SHARED_FIXTURES / "documents" / "example-proposal.json"
     data: dict[str, JSON] = json.loads(path.read_text(encoding="utf-8"))
     return data

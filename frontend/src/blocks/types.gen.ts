@@ -31,6 +31,7 @@ export interface Tab {
     | CaseRefBlock
     | AudioCompareBlock
     | VideoBlock
+    | HtmlBlock
   )[];
 }
 /**
@@ -402,4 +403,29 @@ export interface VideoBlock {
    * Filled in by the server when the document is served; never stored.
    */
   poster_url?: string | null;
+}
+/**
+ * Exception only: markup no other block can express. Sanitized on storage (allow-list).
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "HtmlBlock".
+ */
+export interface HtmlBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "html";
+  /**
+   * Section heading, listed in the TOC
+   */
+  title?: string | null;
+  /**
+   * Heading level of the title
+   */
+  level?: 2 | 3;
+  /**
+   * HTML limited to text, lists, tables, links and figures. Scripts, event attributes, style, images, iframes and non-http(s)/mailto/tel URLs are removed when stored.
+   */
+  html: string;
 }

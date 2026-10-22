@@ -28,10 +28,10 @@ afterEach(() => vi.restoreAllMocks());
 test("video 블록은 포스터·캡션과 함께 영상을 보여 주고, 허용되면 내려받기 링크를 단다", () => {
   renderBlock();
 
-  expect(screen.getByRole("heading", { name: "시연 영상" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "AI는 우리 회사 문서를 어떻게 읽을까?" })).toBeInTheDocument();
   expect(video()).toHaveAttribute("src", "https://private.example/demo.mp4?expires=600");
   expect(video()).toHaveAttribute("poster", "https://public.example/gallery-1.png");
-  expect(screen.getByText("약 45초 · 본인 목소리 합성 · 자막")).toBeInTheDocument();
+  expect(screen.getByText(/약 45초 · 본인 목소리 합성/)).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "영상 파일 내려받기" })).toBeInTheDocument();
 });
 

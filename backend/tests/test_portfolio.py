@@ -102,31 +102,41 @@ def test_detail_shell_carries_item_og_meta_and_body(
     assert '<meta property="og:url" content="http://testserver/work/voice">' in html
     assert '<meta name="robots" content="index, follow">' in html
     data = page_data(html)
-    # Serving adds each gallery image's public url; apart from that the body is the stored one.
-    gallery = data["body"]["tabs"][1]["blocks"][3]["images"]
+    # Serving adds the public urls of gallery images, audio and video; apart from that the body
+    # is the stored one.
+    served: Any = data["body"]  # Any: test pokes into JSON
+    expected: Any = normalized(validate_document(example_document))  # Any: ditto
+    gallery = block_by_id(served, "case-gallery")["images"]
     assert [image["url"] for image in gallery] == [
         fake_storage.public_url(f"example-{n}.png") for n in (1, 2, 3)
     ]
-    for image in gallery:
-        image["url"] = None
-    expected: Any = normalized(validate_document(example_document))  # Any: test pokes into JSON
-    for image in expected["tabs"][1]["blocks"][3]["images"]:
-        image["url"] = None
-    for ref in expected["tabs"][1]["blocks"][4]["items"]:
-        ref["case"] = None  # a stored document keeps references only
-    # Audio and video get their public urls the same way.
-    sep, demo = data["body"]["tabs"][2]["blocks"]
+    sep = block_by_id(served, "separation")
     assert sep["original"]["url"] == fake_storage.public_url("example-4")
+    demo = block_by_id(served, "demo-video")
     assert (demo["url"], demo["poster_url"]) == (
         fake_storage.public_url("example-7"),
         fake_storage.public_url("example-1.png"),
     )
-    for body in (data["body"], expected):
-        sep, demo = body["tabs"][2]["blocks"]
-        for track in [sep["original"], *sep["tracks"]]:
-            track["url"] = None
-        demo["url"] = demo["poster_url"] = None
-    assert data["body"] == expected
+    for body in (served, expected):
+        for image in block_by_id(body, "case-gallery")["images"]:
+            image["url"] = None
+        for block in all_blocks(body):
+            if block["type"] == "audio-compare":
+                for track in [block["original"], *block["tracks"]]:
+                    track["url"] = None
+            if block["type"] == "video":
+                block["url"] = block["poster_url"] = None
+    for ref in block_by_id(expected, "case-refs")["items"]:
+        ref["case"] = None  # a stored document keeps references only
+    assert served == expected
+
+
+def all_blocks(document: Any) -> list[Any]:  # Any: raw JSON
+    return [block for tab in document["tabs"] for block in tab["blocks"]]
+
+
+def block_by_id(document: Any, block_id: str) -> Any:  # Any: raw JSON
+    return next(block for block in all_blocks(document) if block["id"] == block_id)
 
 
 def test_detail_without_cover_has_no_og_image(client: Client) -> None:

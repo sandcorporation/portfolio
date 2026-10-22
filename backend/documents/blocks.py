@@ -7,7 +7,9 @@ To add a block type, follow frontend/src/blocks/README.md.
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from documents.sanitize import sanitize_html
 
 BlockId = Annotated[
     str,
@@ -270,6 +272,28 @@ class CaseRefBlock(BlockBase):
         return out
 
 
+class HtmlBlock(BlockBase):
+    """Exception only: markup no other block can express. Sanitized on storage (allow-list)."""
+
+    model_config = ConfigDict(title="HtmlBlock")
+
+    type: Literal["html"]
+    title: str | None = Field(default=None, description="Section heading, listed in the TOC")
+    level: Literal[2, 3] = Field(default=2, description="Heading level of the title")
+    html: str = Field(
+        max_length=50_000,
+        description=(
+            "HTML limited to text, lists, tables, links and figures. Scripts, event attributes, "
+            "style, images, iframes and non-http(s)/mailto/tel URLs are removed when stored."
+        ),
+    )
+
+    @field_validator("html")
+    @classmethod
+    def _sanitize(cls, value: str) -> str:
+        return sanitize_html(value)
+
+
 # Every block type, discriminated by `type`. Add a new block class here.
 Block = Annotated[
     CoverBlock
@@ -281,7 +305,8 @@ Block = Annotated[
     | GalleryBlock
     | CaseRefBlock
     | AudioCompareBlock
-    | VideoBlock,
+    | VideoBlock
+    | HtmlBlock,
     Field(discriminator="type"),
 ]
 

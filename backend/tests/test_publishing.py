@@ -382,3 +382,27 @@ def test_admin_refuses_to_publish_a_revoked_proposal(admin_client: HttpClient) -
 
     assert "회수된 제안서는 다시 발행할 수 없습니다" in html
     assert ProposalRevision.objects.filter(proposal__slug=slug).count() == 1
+
+
+def test_a_published_revision_carries_only_sanitized_html() -> None:
+    from tests.test_documents import HOSTILE
+
+    p = make_draft()
+    svc.replace_document(
+        p.slug,
+        {
+            "tabs": [
+                {"id": "t", "title": "T", "blocks": [{"id": "h", "type": "html", "html": HOSTILE}]}
+            ]
+        },
+    )
+    slug, code = p.slug, publishing.publish(p.slug).access_code
+    assert code is not None
+    client = HttpClient()
+    unlock(client, slug, code)
+
+    served = screen(client, slug)["document"]["tabs"][0]["blocks"][0]["html"]
+    frozen: Any = publishing.get_revision(slug, 1).document  # Any: raw JSON
+
+    assert served == frozen["tabs"][0]["blocks"][0]["html"]
+    assert "<script" not in served and "onclick" not in served and "javascript:" not in served

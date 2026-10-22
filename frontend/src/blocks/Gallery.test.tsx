@@ -13,10 +13,10 @@ test("gallery 블록은 url이 있는 이미지만 썸네일로 보여 준다", 
   expect(screen.getByRole("heading", { name: "사례 화면" })).toBeInTheDocument();
   const thumbs = screen.getAllByRole("button", { name: /크게 보기/ });
   expect(thumbs.map((t) => t.getAttribute("aria-label"))).toEqual([
-    "라마바 분석 대시보드 크게 보기",
-    "녹취 검수 화면 크게 보기",
+    "라마바유통 CS봇 처리 흐름 편집기 — 판단 단계, 답변 연결, 담당자 이관과 규칙 이력 크게 보기",
+    "라마바유통 상품 DB 검색 — 유사 상품과 가격 비교 크게 보기",
   ]);
-  expect(screen.getByAltText("라마바 분석 대시보드")).toHaveAttribute(
+  expect(screen.getByAltText("라마바유통 CS봇 처리 흐름 편집기 — 판단 단계, 답변 연결, 담당자 이관과 규칙 이력")).toHaveAttribute(
     "src",
     "https://public.example/gallery-1.png",
   );
@@ -26,27 +26,27 @@ test("썸네일을 누르면 확대 뷰어가 열리고 이전·다음·Esc로 �
   const user = userEvent.setup();
   renderGallery();
 
-  await user.click(screen.getByRole("button", { name: "라마바 분석 대시보드 크게 보기" }));
+  await user.click(screen.getByRole("button", { name: "라마바유통 CS봇 처리 흐름 편집기 — 판단 단계, 답변 연결, 담당자 이관과 규칙 이력 크게 보기" }));
   const viewer = screen.getByRole("dialog", { name: "이미지 보기" });
-  expect(within(viewer).getByRole("img")).toHaveAttribute("alt", "라마바 분석 대시보드");
-  expect(viewer).toHaveTextContent("통화 분석 대시보드");
+  expect(within(viewer).getByRole("img")).toHaveAttribute("alt", "라마바유통 CS봇 처리 흐름 편집기 — 판단 단계, 답변 연결, 담당자 이관과 규칙 이력");
+  expect(viewer).toHaveTextContent("처리 흐름 편집기");
   expect(viewer).toHaveTextContent("1 / 2");
 
   await user.click(within(viewer).getByRole("button", { name: "다음" }));
-  expect(within(viewer).getByRole("img")).toHaveAttribute("alt", "녹취 검수 화면");
+  expect(within(viewer).getByRole("img")).toHaveAttribute("alt", "라마바유통 상품 DB 검색 — 유사 상품과 가격 비교");
   await user.click(within(viewer).getByRole("button", { name: "다음" }));
   expect(viewer).toHaveTextContent("1 / 2");
 
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "라마바 분석 대시보드 크게 보기" })).toHaveFocus();
+  expect(screen.getByRole("button", { name: "라마바유통 CS봇 처리 흐름 편집기 — 판단 단계, 답변 연결, 담당자 이관과 규칙 이력 크게 보기" })).toHaveFocus();
 });
 
 test("확대 뷰어는 닫기 버튼으로도 닫힌다", async () => {
   const user = userEvent.setup();
   renderGallery();
 
-  await user.click(screen.getByRole("button", { name: "녹취 검수 화면 크게 보기" }));
+  await user.click(screen.getByRole("button", { name: "라마바유통 상품 DB 검색 — 유사 상품과 가격 비교 크게 보기" }));
   await user.click(screen.getByRole("button", { name: "닫기" }));
 
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

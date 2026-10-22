@@ -457,6 +457,54 @@
       "title": "GalleryImage",
       "type": "object"
     },
+    "HtmlBlock": {
+      "additionalProperties": false,
+      "description": "Exception only: markup no other block can express. Sanitized on storage (allow-list).",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "html",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Section heading, listed in the TOC"
+        },
+        "level": {
+          "default": 2,
+          "description": "Heading level of the title",
+          "enum": [
+            2,
+            3
+          ],
+          "type": "integer"
+        },
+        "html": {
+          "description": "HTML limited to text, lists, tables, links and figures. Scripts, event attributes, style, images, iframes and non-http(s)/mailto/tel URLs are removed when stored.",
+          "maxLength": 50000,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "html"
+      ],
+      "title": "HtmlBlock",
+      "type": "object"
+    },
     "KpiBlock": {
       "additionalProperties": false,
       "description": "Two to four headline figures shown as cards.",
@@ -641,6 +689,7 @@
                 "cover": "#/$defs/CoverBlock",
                 "details": "#/$defs/DetailsBlock",
                 "gallery": "#/$defs/GalleryBlock",
+                "html": "#/$defs/HtmlBlock",
                 "kpi": "#/$defs/KpiBlock",
                 "markdown": "#/$defs/MarkdownBlock",
                 "table": "#/$defs/TableBlock",
@@ -678,6 +727,9 @@
               },
               {
                 "$ref": "#/$defs/VideoBlock"
+              },
+              {
+                "$ref": "#/$defs/HtmlBlock"
               }
             ]
           },

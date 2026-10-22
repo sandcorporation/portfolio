@@ -16,8 +16,8 @@ test("callout 블록은 종류(안내·주의·조건)와 제목, 본문을 보�
   const warning = screen.getByRole("complementary", { name: "주의" });
   expect(warning).toHaveTextContent("보안 조건 · 고객자료 외부 전송 금지");
   expect(warning).toHaveTextContent("외부 AI API와 클라우드 구독 서비스에는 전송하지 않습니다.");
-  expect(screen.getByRole("complementary", { name: "조건" })).toHaveTextContent("견적 조건");
+  expect(screen.getByRole("complementary", { name: "조건" })).toHaveTextContent("3. 견적 적용 조건");
   expect(screen.getByRole("complementary", { name: "안내" })).toHaveTextContent(
-    "수행 사례의 수치는 고객사 동의를 받아 공개합니다.",
+    "정산 시스템의 후속 확장·재구현은 팀 협업으로 진행했습니다.",
   );
 });

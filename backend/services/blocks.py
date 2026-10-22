@@ -115,6 +115,16 @@ EXAMPLES: dict[str, dict[str, JSON]] = {
         "caption": "약 45초 · 자막",
         "allow_download": True,
     },
+    "html": {
+        "id": "flow",
+        "type": "html",
+        "title": "제작 흐름",
+        "level": 3,
+        "html": (
+            "<ol><li><strong>대본</strong></li><li><strong>음성</strong></li>"
+            "<li><strong>영상</strong></li></ol>"
+        ),
+    },
     "case-ref": {
         "id": "cases",
         "type": "case-ref",

@@ -7,6 +7,7 @@ import { Callout } from "./Callout";
 import { Cover } from "./Cover";
 import { Details } from "./Details";
 import { Gallery } from "./Gallery";
+import { Html } from "./Html";
 import { Kpi } from "./Kpi";
 import { MarkdownSection } from "./MarkdownSection";
 import { Table } from "./Table";
@@ -46,6 +47,10 @@ export const registry: Registry = {
   "case-ref": { Render: CaseRef, toc: titled(3) },
   "audio-compare": { Render: AudioCompare, toc: titled(3) },
   video: { Render: Video, toc: titled(3) },
+  html: {
+    Render: Html,
+    toc: (block) => (block.title ? { text: block.title, level: block.level ?? 2 } : null),
+  },
 };
 
 /** The entry for a block, or null for a type this build does not know (newer data). */

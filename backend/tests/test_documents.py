@@ -4,12 +4,14 @@ import copy
 import json
 import re
 from html import unescape
+from typing import Any
 
 import pytest
 from django.test import Client
 from django.urls import reverse
 
 from content.models import SiteProfile
+from documents.blocks import HtmlBlock
 from documents.validation import JSON, InvalidDocument, validate_document
 
 pytestmark = pytest.mark.django_db
@@ -74,6 +76,7 @@ def test_invalid_document_is_rejected_with_block_paths(
         "type": "kpi",
         "items": [{"label": "기간", "value": "12주"}],
     }
+    count = len(estimate)
     estimate.append({"id": "cover", "type": "markdown", "body": "같은 id"})
     estimate.append({"id": "chart", "type": "chart"})
 
@@ -82,7 +85,7 @@ def test_invalid_document_is_rejected_with_block_paths(
     assert response.status_code == 200  # the form is shown again, nothing saved
     errors = error_list(response.content.decode())
     assert any(e.startswith("tabs[0].blocks[1].items:") for e in errors)
-    assert "tabs[0].blocks[9]: 알 수 없는 블록 타입입니다" in errors
+    assert f"tabs[0].blocks[{count + 1}]: 알 수 없는 블록 타입입니다" in errors
     assert SiteProfile.load().company_intro != broken
 
 
@@ -95,6 +98,7 @@ def test_cross_field_problems_are_reported_once_fields_parse(
     assert isinstance(table, dict) and isinstance(table["rows"], list)
     table["rows"][2] = ["장비 구입 예산", "650"]
     table["highlight_column"] = 7
+    count = len(estimate)
     estimate.append({"id": "cover", "type": "markdown", "body": "같은 id"})
 
     response = admin_client.post(change_url(), profile_form(broken))
@@ -103,7 +107,7 @@ def test_cross_field_problems_are_reported_once_fields_parse(
     assert errors == [
         "tabs[0].blocks[4].rows[2]: 칸이 4개여야 하는데 2개입니다",
         "tabs[0].blocks[4].highlight_column: 열은 0부터 3까지인데 7입니다",
-        "tabs[0].blocks[8].id: 블록 id 'cover'가 겹칩니다",
+        f"tabs[0].blocks[{count}].id: 블록 id 'cover'가 겹칩니다",
     ]
 
 
@@ -154,3 +158,66 @@ def test_profile_edited_in_admin_shows_on_home(
     )
     assert data["ceo_intro"]["tabs"][0]["blocks"][0]["title"] == "한상진"
     assert data["contact"]["email"] == "hello@sandcorp.co.kr"
+
+
+# --- html block ---
+
+HOSTILE = (
+    '<p onclick="steal()" style="position:fixed;inset:0" class="x" id="y">본문'
+    '<script>alert(1)</script><a href="javascript:alert(1)">나쁜 링크</a>'
+    '<a href="https://example.com/a" target="_blank" onmouseover="x()">좋은 링크</a>'
+    '<img src="https://tracker.example/p.gif" onerror="x()">'
+    '<svg onload="x()"><a xlink:href="javascript:1">s</a></svg>'
+    '<iframe src="https://evil.example"></iframe>'
+    '<a href="data:text/html,<script>1</script>">d</a><a href="#top">f</a>'
+    "<!-- comment --></p>"
+    '<table><tr><td colspan="2" onclick="x()">셀</td></tr></table>'
+    '<form action="/x"><input name="a"></form>'
+)
+
+
+def html_block(markup: str) -> dict[str, JSON]:
+    return {"id": "h", "type": "html", "html": markup}
+
+
+def stored_html(markup: str) -> str:
+    document = validate_document(
+        {"tabs": [{"id": "t", "title": "T", "blocks": [html_block(markup)]}]}
+    )
+    block = document.tabs[0].blocks[0]
+    assert isinstance(block, HtmlBlock)
+    return block.html
+
+
+def test_html_block_drops_scripts_event_attributes_and_dangerous_urls() -> None:
+    cleaned = stored_html(HOSTILE)
+
+    for forbidden in (
+        "script", "alert", "onclick", "onerror", "onload", "onmouseover", "javascript:",
+        "data:", "style", "position", "class=", "id=", "<img", "<svg", "<iframe", "<form",
+        "<input", "comment", "tracker.example", 'href="#',
+    ):  # fmt: skip
+        assert forbidden not in cleaned, forbidden
+    assert "본문" in cleaned and "나쁜 링크" in cleaned and "셀" in cleaned
+    assert (
+        '<a href="https://example.com/a" rel="noopener noreferrer nofollow">좋은 링크</a>'
+        in cleaned
+    )
+    assert '<td colspan="2">셀</td>' in cleaned
+
+
+def test_html_block_sanitizing_is_idempotent() -> None:
+    once = stored_html(HOSTILE)
+
+    assert stored_html(once) == once
+
+
+def test_admin_stores_the_sanitized_html(admin_client: Client) -> None:
+    block = html_block("<b>굵게</b><script>x()</script>")
+    document: dict[str, JSON] = {"tabs": [{"id": "t", "title": "T", "blocks": [block]}]}
+
+    response = admin_client.post(change_url(), profile_form(document))
+
+    assert response.status_code == 302
+    saved: Any = SiteProfile.load().company_intro  # Any: raw JSON
+    assert saved["tabs"][0]["blocks"][0]["html"] == "<b>굵게</b>"

@@ -15,7 +15,7 @@ test("table 블록은 머리글, 행, 강조 열, 단위, 각주를 보여 준�
     "혼합형 · 참고",
     "로컬형 · 제안",
   ]);
-  expect(within(table).getAllByRole("row")).toHaveLength(6);
+  expect(within(table).getAllByRole("row")).toHaveLength(7);
   const highlighted = table.querySelectorAll(".is-highlight");
   expect([...highlighted].map((cell) => cell.textContent)).toEqual([
     "로컬형 · 제안",
@@ -23,6 +23,7 @@ test("table 블록은 머리글, 행, 강조 열, 단위, 각주를 보여 준�
     "450",
     "1,000",
     "5,950",
+    "사내 처리 · 제안 대상",
     "음성·내용 사내 처리",
   ]);
   expect(screen.getByText("장비 예산에는 세금이 포함됩니다.")).toBeInTheDocument();

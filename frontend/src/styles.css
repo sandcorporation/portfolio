@@ -1121,3 +1121,23 @@ h3.block-heading {
   color: var(--color-muted);
   font-size: var(--text-sm);
 }
+
+/* html block: sanitized markup; wide tables scroll instead of widening the page */
+.block-html .prose {
+  overflow-wrap: anywhere;
+}
+
+.block-html .prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.block-html .prose figure {
+  margin: var(--space-4) 0;
+}
+
+.block-html .prose figcaption {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
