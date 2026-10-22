@@ -113,6 +113,8 @@ USE_TZ = True
 # Django admin lives on a hard-to-guess path in production.
 # Absolute-URL base for sitemap.xml and robots.txt (they have no request host to trust).
 SITE_URL = env("SITE_URL", "https://sandcorp.co.kr").rstrip("/")
+# sandcorp-auth: the owner's username, the only `sub` this site accepts (empty -> /mcp is 503).
+AUTH_OWNER_SUB = env("AUTH_OWNER_SUB").strip()
 ADMIN_PATH = env("DJANGO_ADMIN_PATH", "admin/").strip("/") + "/"
 
 # Static files: whitenoise serves collectstatic output, which includes the Vite build.

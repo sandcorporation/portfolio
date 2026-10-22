@@ -16,7 +16,7 @@ from documents.blocks import Document
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schema" / "document.schema.json"
 
 
-class _ModelTitlesOnly(GenerateJsonSchema):
+class ModelTitlesOnly(GenerateJsonSchema):
     """Keep titles on models (they become TS type names) but not on every field."""
 
     def field_title_should_be_set(self, schema: CoreSchema) -> bool:
@@ -24,7 +24,7 @@ class _ModelTitlesOnly(GenerateJsonSchema):
 
 
 def render() -> str:
-    schema = Document.model_json_schema(mode="validation", schema_generator=_ModelTitlesOnly)
+    schema = Document.model_json_schema(mode="validation", schema_generator=ModelTitlesOnly)
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     return json.dumps(schema, ensure_ascii=False, indent=2) + "\n"
 

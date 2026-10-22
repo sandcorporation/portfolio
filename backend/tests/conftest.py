@@ -1,6 +1,7 @@
 """Shared fixtures for backend HTTP-boundary tests.
 
-Static fixture files live in tests/fixtures/. Fake adapters are fixtures here (fake_storage).
+Static fixture files live in tests/fixtures/.
+Fake adapters are fixtures here (fake_storage, auth_server).
 """
 
 import json
@@ -10,11 +11,14 @@ from pathlib import Path
 import pytest
 from django.test import override_settings
 from django.utils import timezone
+from pytest_django.fixtures import Settings
 
+from adapters.fake_jwks import FakeAuthServer
 from adapters.fake_storage import FakeObjectStorage
 from content.models import Media
 from core.vite import _read_manifest
 from documents.validation import JSON
+from oauth.tokens import JwksCache
 
 FIXTURES = Path(__file__).parent / "fixtures"
 # Fixtures shared with the frontend renderer tests live at the repo root.
@@ -59,3 +63,17 @@ def fake_storage(monkeypatch: pytest.MonkeyPatch) -> FakeObjectStorage:
     monkeypatch.setattr("services.media.get_storage", lambda: storage)
     monkeypatch.setattr("content.admin.get_storage", lambda: storage)
     return storage
+
+
+@pytest.fixture
+def auth_server(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> FakeAuthServer:
+    """A fake sandcorp-auth: sign tokens with `auth_server.issue()` / `.bearer()`.
+
+    Its JWKS and frozen clock replace the real ones, and `AUTH_OWNER_SUB` is its owner.
+    """
+    server = FakeAuthServer()
+    cache = JwksCache(server.fetch_jwks, server.clock)
+    settings.AUTH_OWNER_SUB = server.owner_sub
+    monkeypatch.setattr("oauth.bearer.get_jwks_cache", lambda: cache)
+    monkeypatch.setattr("oauth.bearer.get_clock", lambda: server.clock)
+    return server

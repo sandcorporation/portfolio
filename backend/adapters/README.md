@@ -5,6 +5,7 @@
 | 어댑터 | 실제 구현 | 가짜(시험용) |
 | --- | --- | --- |
 | 객체 저장소 | `storage.py` — OCI Object Storage S3 호환 API(boto3): presigned PUT/GET, 업로드, 존재 확인, 삭제 | `fake_storage.py` — 메모리에 객체와 호출 기록(`calls`)을 남김 |
+| sandcorp-auth JWKS | `jwks.py` — `GET https://auth.sandcorp.co.kr/.well-known/jwks.json`(5초, 실패하면 예외) | `fake_jwks.py` — `FakeAuthServer`: Ed25519 키로 토큰 서명(`issue`·`bearer`), JWKS 제공·조회 횟수(`fetches`)·실패(`failing`)·회전(`rotate`), 고정 시계 |
 | 알림 | Discord 웹훅(실패해도 요청은 실패시키지 않음) | 보낸 알림 목록을 남김 |
 | PDF 렌더러 | browserless(`127.0.0.1:3000`)에 인쇄 URL 전달 | 요청한 인쇄 URL을 남김 |
 
@@ -12,3 +13,5 @@
 
 객체 저장소: 서비스는 `get_storage()`(설정 `STORAGE_*`)로 받고, 시험은 `fake_storage` 픽스처가 `services.media.get_storage`를 갈아 끼운다. 설정이 비면 `StorageNotConfigured`가 나고 사이트는 그대로 뜬다(미디어만 막힘).
 OCI는 path-style 주소·SigV4·`request_checksum_calculation=when_required`가 필요하다(`S3ObjectStorage`에 고정).
+
+sandcorp-auth: 토큰 검증(`oauth/tokens.py`, sandcorp-auth `docs/resource-server-token-validation.md`를 그대로 옮긴 것)은 `oauth.bearer.get_jwks_cache()`(프로세스당 하나, 10분 캐시)와 `get_clock()`으로 키·시각을 받는다. 시험은 `auth_server` 픽스처가 둘을 `FakeAuthServer`로 갈아 끼우고 `AUTH_OWNER_SUB`를 `"owner"`로 둔다.
