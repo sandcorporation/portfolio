@@ -8,8 +8,8 @@ from mcpserver.views import mcp_endpoint
 from oauth import login as oauth_login
 from oauth.bearer import protected_resource_metadata
 
-# Login page: sandcorp-auth button above the temporary password form (#25).
-admin.site.login_template = "admin/sandcorp_login.html"
+# No password form: the admin login page is the sandcorp-auth start (issue #29).
+admin.site.login = oauth_login.admin_login  # type: ignore[method-assign]
 
 urlpatterns = [
     # sandcorp-auth login for the admin (before admin.site.urls, whose catch-all would 404 them).

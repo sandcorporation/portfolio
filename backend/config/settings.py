@@ -43,7 +43,6 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "core.admin_ratelimit.AdminLoginRateLimitMiddleware",  # temporary (#25)
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -92,6 +91,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Shared across gunicorn workers (a per-process cache would multiply the limit by the worker count).
+# Used by the proposal access-code limit, the inquiry limit and the tracking dedupe.
 # Create the table with `manage.py createcachetable` (deploy.sh does, after migrate).
 CACHES = {
     "default": {
@@ -100,13 +100,9 @@ CACHES = {
     }
 }
 
-# Temporary admin password login limit (issue #25), next to the sandcorp-auth login until a
-# follow-up to #7 removes it. See core/admin_ratelimit.py.
-ADMIN_LOGIN_MAX_FAILURES = 5
-ADMIN_LOGIN_WINDOW_SECONDS = 15 * 60
 # Proxies in front of Django that append to X-Forwarded-For (NPMplus = 1). Every IP rate limit
-# reads it through core/clientip.py. The old name still works so existing .env files keep working.
-PROXY_HOPS = int(env("PROXY_HOPS", env("ADMIN_LOGIN_PROXY_HOPS", "1")))
+# reads it through core/clientip.py.
+PROXY_HOPS = int(env("PROXY_HOPS", "1"))
 
 # Inquiry form (issue #17). Server-to-server posts (news site) prove themselves with the shared
 # secret; empty means no one can. The Discord webhook URL is secret too; empty skips alerts only.

@@ -90,6 +90,21 @@ def _not_configured(request: HttpRequest) -> HttpResponse:
     return _refuse(request, 503, "sandcorp-auth 로그인이 아직 설정되지 않았다.")
 
 
+def admin_login(
+    request: HttpRequest, extra_context: dict[str, object] | None = None
+) -> HttpResponse:
+    """Replaces `admin.site.login`: there is no password form, every method goes to sandcorp-auth.
+
+    A signed-in staff user who lands here goes on to `next` (Django's own behavior).
+    """
+    target = _safe_next(request, request.GET.get("next", ""))
+    user = request.user
+    if request.method == "GET" and user.is_active and user.is_staff:
+        return HttpResponseRedirect(target)
+    query = urllib.parse.urlencode({"next": target})
+    return HttpResponseRedirect(f"{reverse('admin_oauth_start')}?{query}")
+
+
 @require_GET
 def start(request: HttpRequest) -> HttpResponse:
     if not _configured():

@@ -2,8 +2,7 @@
 
 The browser is the Django test client; `auth_server` (FakeAuthServer) plays sandcorp-auth's
 `/authorize` (approve and send back a code) and `/token` (client secret, one-time code,
-redirect_uri, PKCE). The temporary password login (#25) stays beside it for now and keeps
-its own tests in test_admin_ratelimit.py.
+redirect_uri, PKCE). There is no password login any more (#29).
 """
 
 import urllib.parse
@@ -55,15 +54,62 @@ def signed_in(client: Client) -> bool:
     return "_auth_user_id" in client.session
 
 
-def test_anonymous_admin_goes_to_the_login_page_with_the_sandcorp_auth_button(
-    auth_server: FakeAuthServer,
+@pytest.mark.parametrize("path", ["/admin/", "/admin/content/portfolioitem/", "/admin/login/"])
+def test_anonymous_admin_goes_straight_to_oauth_start_keeping_next(
+    path: str, auth_server: FakeAuthServer
 ) -> None:
     client = Client()
-    login_page = location(client.get("/admin/content/portfolioitem/"))
-    assert login_page.startswith("/admin/login/")
-    body = client.get(login_page).content.decode()
-    assert 'id="oauth-login"' in body
-    assert f"{START}?next=/admin/content/portfolioitem/" in body
+    hop = location(client.get(path))
+    if path != "/admin/login/":
+        assert hop.startswith("/admin/login/")
+        hop = location(client.get(hop))
+    assert hop.startswith(START)
+    params = dict(urllib.parse.parse_qsl(hop.partition("?")[2]))
+    expected = "/admin/" if path == "/admin/login/" else path
+    assert params["next"] == expected
+    assert location(client.get(hop)).startswith(AUTHORIZE_URL)
+
+
+def test_login_next_is_kept_through_the_whole_flow(auth_server: FakeAuthServer) -> None:
+    client = Client()
+    start = location(client.get("/admin/login/", {"next": "/admin/auth/user/"}))
+    callback = auth_server.authorize(location(client.get(start)))
+    assert location(client.get(callback)) == "/admin/auth/user/"
+
+
+def test_password_to_the_login_path_logs_nobody_in() -> None:
+    User.objects.create_user("sandcorp-admin", password="correct-horse", is_staff=True)
+    client = Client()
+    response = client.post(
+        "/admin/login/", {"username": "sandcorp-admin", "password": "correct-horse"}
+    )
+    assert location(response).startswith(START)
+    assert not signed_in(client)
+    assert location(client.get("/admin/")).startswith("/admin/login/")
+
+
+def test_signed_in_owner_on_the_login_path_goes_on(auth_server: FakeAuthServer) -> None:
+    client = Client()
+    sign_in(client, auth_server)
+    assert (
+        location(client.get("/admin/login/", {"next": "/admin/auth/user/"})) == "/admin/auth/user/"
+    )
+
+
+def test_disable_password_logins_command() -> None:
+    from django.core.management import call_command
+
+    keep = User.objects.create_user("other", password="pw-other")
+    gone = User.objects.create_user("sandcorp-admin", password="pw-admin", is_staff=True)
+    call_command("disable_password_logins", "--username", "sandcorp-admin")
+    gone.refresh_from_db()
+    keep.refresh_from_db()
+    assert not gone.has_usable_password() and gone.is_staff
+    assert keep.check_password("pw-other")
+    call_command("disable_password_logins")
+    keep.refresh_from_db()
+    assert not keep.has_usable_password()
+    assert not Client().login(username="other", password="pw-other")
 
 
 def test_start_redirects_to_authorize_with_pkce_state_and_client(
@@ -198,7 +244,9 @@ def test_without_client_settings_only_the_oauth_login_is_off(settings: Settings)
     client = Client()
     assert client.get(START).status_code == 503
     assert client.get("/admin/oauth/callback/?code=x&state=y").status_code == 503
-    assert client.get("/admin/login/").status_code == 200
+    assert location(client.get("/admin/")).startswith("/admin/login/")
+    assert location(client.get("/admin/login/")).startswith(START)
+    assert client.get(location(client.get("/admin/login/"))).status_code == 503
     assert client.get("/").status_code == 200
 
 
