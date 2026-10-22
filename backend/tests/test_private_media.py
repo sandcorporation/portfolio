@@ -187,7 +187,7 @@ def test_public_pages_never_get_a_private_url(fake_storage: FakeObjectStorage) -
 def test_media_deleted_after_publishing_has_no_url(fake_storage: FakeObjectStorage) -> None:
     a, b = private(), private()
     slug, code = published_with(audio_compare(a.pk, b.pk))
-    media_service.delete_media(b)
+    b.delete()  # a published revision protects its media, so the row goes the way a fault would
     client = HttpClient()
     unlock(client, slug, code)
 

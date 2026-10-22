@@ -124,6 +124,7 @@ class MediaAdmin(_MediaAdmin):
     list_filter = ("is_public",)
     readonly_fields = (
         "preview",
+        "used_by",
         "is_public",
         "original_filename",
         "content_type",
@@ -160,7 +161,49 @@ class MediaAdmin(_MediaAdmin):
         return True
 
     def delete_model(self, request: HttpRequest, obj: Media) -> None:
+        drafts = media_service.usage_of([obj.pk])[obj.pk].drafts
         media_service.delete_media(obj)
+        if drafts:
+            self.message_user(
+                request,
+                f"초안 제안서 {', '.join(drafts)}에서 이 미디어가 더 이상 제공되지 않습니다.",
+                messages.WARNING,
+            )
+
+    def delete_view(
+        self, request: HttpRequest, object_id: str, extra_context: dict[str, Any] | None = None
+    ) -> HttpResponse:
+        obj = self.get_object(request, object_id)
+        if obj is not None:
+            usage = media_service.usage_of([obj.pk])[obj.pk]
+            if usage.blocks_delete:
+                self.message_user(request, usage.refusal(), messages.ERROR)
+                return HttpResponseRedirect(reverse("admin:content_media_change", args=[obj.pk]))
+        return super().delete_view(request, object_id, extra_context)
+
+    def delete_queryset(self, request: HttpRequest, queryset: QuerySet[Media]) -> None:
+        """Bulk delete goes through the service too (bucket objects included); media still in use
+        stays and is named in an error."""
+        for media in queryset:
+            try:
+                media_service.delete_media(media)
+            except media_service.MediaInUse as exc:
+                self.message_user(request, f"{media}: {exc.errors[0].reason}", messages.ERROR)
+            except StorageNotConfigured as exc:
+                self.message_user(request, f"{media}: {exc}", messages.ERROR)
+
+    @admin.display(description="사용처")
+    def used_by(self, obj: Media) -> str:
+        if obj.pk is None:
+            return "-"
+        usage = media_service.usage_of([obj.pk])[obj.pk]
+        lines = [
+            ("발행 리비전", usage.revisions),
+            ("초안 제안서", usage.drafts),
+            ("공개 페이지", usage.pages),
+        ]
+        shown = [f"{name}: {', '.join(items)}" for name, items in lines if items]
+        return " / ".join(shown) or "사용 안 함"
 
     @admin.display(description="미리보기")
     def preview(self, obj: Media) -> str:

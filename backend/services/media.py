@@ -9,6 +9,7 @@ A media item is referenceable only once `complete_upload` confirmed the object i
 import copy
 import posixpath
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -21,8 +22,9 @@ from adapters.storage import (
     StorageNotConfigured,
     get_storage,
 )
-from content.models import Media
+from content.models import Media, PortfolioItem, Proposal, ProposalRevision, SiteProfile
 from documents.validation import JSON
+from services.errors import Rejected
 
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
@@ -162,7 +164,80 @@ def public_url(media: Media, *, storage: ObjectStorage | None = None) -> str | N
         return None
 
 
+class MediaInUse(Rejected):
+    """The media cannot be deleted: published revisions or live pages still show it."""
+
+
+@dataclass(frozen=True)
+class MediaUsage:
+    """Where one media item is used. `revisions` are document numbers (published or revoked: they
+    never change), `drafts` are proposal addresses (still editable), `pages` are live portfolio
+    items and the profile."""
+
+    revisions: tuple[str, ...] = ()
+    drafts: tuple[str, ...] = ()
+    pages: tuple[str, ...] = ()
+
+    @property
+    def blocks_delete(self) -> bool:
+        return bool(self.revisions or self.pages)
+
+    @property
+    def is_used(self) -> bool:
+        return bool(self.revisions or self.drafts or self.pages)
+
+    def refusal(self) -> str:
+        parts = []
+        if self.revisions:
+            parts.append("발행 리비전 " + ", ".join(self.revisions))
+        if self.pages:
+            parts.append("공개 페이지 " + ", ".join(self.pages))
+        return "다음에서 쓰고 있어 지울 수 없습니다: " + " / ".join(parts)
+
+
+def usage_of(media_ids: Iterable[int]) -> dict[int, MediaUsage]:
+    """Where each media item is used. One pass over revisions, proposals, portfolio and profile
+    however many ids are asked, so a bulk delete costs the same as a single one."""
+    keys = dict(Media.objects.filter(pk__in=set(media_ids)).values_list("object_key", "pk"))
+    found: dict[int, dict[str, list[str]]] = {
+        pk: {"revisions": [], "drafts": [], "pages": []} for pk in keys.values()
+    }
+
+    def note(kind: str, label: str, document: dict[str, JSON], cover_id: int | None = None) -> None:
+        refs = media_refs(document)
+        hit = {pk for pk in refs.ids if pk in found}
+        hit |= {keys[k] for k in refs.public_keys if k in keys}
+        if cover_id in found:
+            hit.add(cover_id)
+        for pk in hit:
+            found[pk][kind].append(label)
+
+    for number, document in ProposalRevision.objects.values_list("doc_number", "document"):
+        note("revisions", number, document)
+    for slug, document in Proposal.objects.values_list("slug", "document"):
+        note("drafts", slug, document)
+    for title, cover_id, body in PortfolioItem.objects.values_list("title", "cover_id", "body"):
+        note("pages", f"포트폴리오 「{title}」", body, cover_id)
+    profile = SiteProfile.objects.first()
+    if profile is not None:
+        for field in SiteProfile.DOCUMENT_FIELDS:
+            note("pages", "회사 프로필", getattr(profile, field))
+    return {
+        pk: MediaUsage(
+            tuple(dict.fromkeys(f["revisions"])),
+            tuple(dict.fromkeys(f["drafts"])),
+            tuple(dict.fromkeys(f["pages"])),
+        )
+        for pk, f in found.items()
+    }
+
+
 def delete_media(media: Media, *, storage: ObjectStorage | None = None) -> None:
+    """Delete the bucket object and the row. Refused while a published revision or a live page
+    uses it; a media item only drafts use may go (the draft then shows it as no longer served)."""
+    usage = usage_of([media.pk]).get(media.pk, MediaUsage())
+    if usage.blocks_delete:
+        raise MediaInUse.at("media", usage.refusal())
     (storage or get_storage()).delete(_bucket(media), media.object_key)
     media.delete()
 
@@ -216,8 +291,30 @@ def _refs(document: dict[str, JSON]) -> list[_Ref]:
     return refs
 
 
+@dataclass(frozen=True)
+class MediaRefs:
+    ids: set[int]  # media ids named by blocks
+    public_keys: set[str]  # object keys of public URLs frozen into the document (case-ref covers)
+
+
+def media_refs(document: dict[str, JSON]) -> MediaRefs:
+    """Every media a stored document depends on: the one place that knows which block fields
+    hold media. A case-ref's frozen `cover_url` counts: deleting that object breaks the image."""
+    keys: set[str] = set()
+    for tab in _list(document.get("tabs")):
+        for raw in _list(_dict(tab).get("blocks")):
+            block = _dict(raw)
+            if block.get("type") != "case-ref":
+                continue
+            for item in _list(block.get("items")):
+                url = _dict(_dict(item).get("case")).get("cover_url")
+                if isinstance(url, str) and url:
+                    keys.add(url.rsplit("/", 1)[-1])  # keys never contain a slash
+    return MediaRefs({r.media_id for r in _refs(document) if r.media_id is not None}, keys)
+
+
 def referenced_media_ids(document: dict[str, JSON]) -> set[int]:
-    return {ref.media_id for ref in _refs(document) if ref.media_id is not None}
+    return media_refs(document).ids
 
 
 def resolve_document(document: dict[str, JSON], *, private: bool = False) -> dict[str, JSON]:
