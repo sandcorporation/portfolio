@@ -22,9 +22,12 @@ class FakeObjectStorage:
             headers={"Content-Type": content_type},
         )
 
-    def presign_get(self, bucket: Bucket, key: str, expires_in: timedelta) -> str:
+    def presign_get(
+        self, bucket: Bucket, key: str, expires_in: timedelta, *, download_name: str | None = None
+    ) -> str:
         self.calls.append(("presign_get", bucket, key))
-        return f"https://download.test/{bucket}/{key}?expires={int(expires_in.total_seconds())}"
+        url = f"https://download.test/{bucket}/{key}?expires={int(expires_in.total_seconds())}"
+        return f"{url}&download={download_name}" if download_name is not None else url
 
     def put(self, bucket: Bucket, key: str, data: bytes, content_type: str) -> None:
         self.calls.append(("put", bucket, key))

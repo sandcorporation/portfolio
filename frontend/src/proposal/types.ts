@@ -31,6 +31,8 @@ export interface ProposalData {
   revision?: RevisionMeta | null;
   /** Customer page only: for the lock button's form. */
   csrf_token?: string | null;
+  /** Where to ask for a fresh private media URL: GET {media_endpoint}/{media_id} -> {url}. */
+  media_endpoint?: string | null;
 }
 
 /** /p/<slug> before the code. Mirrors CodeScreenData. */

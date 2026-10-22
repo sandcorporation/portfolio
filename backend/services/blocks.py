@@ -85,6 +85,36 @@ EXAMPLES: dict[str, dict[str, JSON]] = {
         "title": "화면",
         "images": [{"media_id": 1, "alt": "대시보드 화면", "caption": "관리자 대시보드"}],
     },
+    "audio-compare": {
+        "id": "separation",
+        "type": "audio-compare",
+        "title": "원음과 분리음 비교",
+        "description": "원음을 들은 뒤 화자 A와 화자 B로 바꿔 들어 보세요.",
+        "original": {"media_id": 4, "label": "원음 · 두 화자 혼합"},
+        "tracks": [
+            {
+                "media_id": 5,
+                "label": "화자 A",
+                "transcript": "네 확인해 보겠습니다",
+                "script": "네, 확인해 보겠습니다.",
+            },
+            {"media_id": 6, "label": "화자 B"},
+        ],
+        "metrics": {
+            "columns": ["시험", "글자 오류"],
+            "rows": [["전화 음질·잡음", "9 / 237"]],
+            "note": "글자 오류는 원래 대본과 다른 글자 수입니다.",
+        },
+    },
+    "video": {
+        "id": "demo",
+        "type": "video",
+        "title": "시연 영상",
+        "media_id": 7,
+        "poster_media_id": 1,
+        "caption": "약 45초 · 자막",
+        "allow_download": True,
+    },
     "case-ref": {
         "id": "cases",
         "type": "case-ref",

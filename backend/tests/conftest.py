@@ -30,8 +30,9 @@ SHARED_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 def example_document(db: None) -> dict[str, JSON]:
     """The GanadaTrade proposal as a block document. The frontend renderer tests read it too.
 
-    Its gallery points at media 1-3 and its case-ref at portfolio items 1-2, so they exist
-    (finished, public media; one hidden item) while the test runs.
+    Its gallery points at media 1-3 (images), its audio-compare at 4-6 (audio), its video at
+    7 with poster 1, and its case-ref at portfolio items 1-2, so they exist (finished, public
+    media; one hidden item) while the test runs.
     """
     for media_id in (1, 2, 3):
         Media.objects.create(
@@ -40,6 +41,20 @@ def example_document(db: None) -> dict[str, JSON]:
             content_type="image/png",
             size=1,
             original_filename=f"example-{media_id}.png",
+            uploaded_at=timezone.now(),
+        )
+    for media_id, content_type in (
+        (4, "audio/mpeg"),
+        (5, "audio/mpeg"),
+        (6, "audio/mpeg"),
+        (7, "video/mp4"),
+    ):
+        Media.objects.create(
+            pk=media_id,
+            object_key=f"example-{media_id}",
+            content_type=content_type,
+            size=1,
+            original_filename=f"example-{media_id}",
             uploaded_at=timezone.now(),
         )
     PortfolioItem.objects.create(pk=1, slug="ramaba", title="라마바 통화 분석")

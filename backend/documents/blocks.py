@@ -127,7 +127,10 @@ class DetailsBlock(BlockBase):
 class GalleryImage(BaseModel):
     model_config = ConfigDict(extra="forbid", title="GalleryImage")
 
-    media_id: int = Field(ge=1, description="Id of an uploaded public media item")
+    media_id: int = Field(
+        ge=1,
+        description="Id of an uploaded image. Private media only in proposal documents.",
+    )
     alt: str = Field(min_length=1, description="Text for readers who cannot see the image")
     caption: str | None = None
     url: str | None = Field(
@@ -137,13 +140,82 @@ class GalleryImage(BaseModel):
 
 
 class GalleryBlock(BlockBase):
-    """Images in a grid; selecting one opens a larger viewer. Public media only."""
+    """Images in a grid; selecting one opens a larger viewer. Proposals may use private media."""
 
     model_config = ConfigDict(title="GalleryBlock")
 
     type: Literal["gallery"]
     title: str | None = Field(default=None, description="Listed in the table of contents")
     images: list[GalleryImage] = Field(min_length=1, max_length=30)
+
+
+SERVED_URL = "Filled in by the server when the document is served; never stored."
+
+
+class AudioTrack(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="AudioTrack")
+
+    media_id: int = Field(ge=1, description="Id of an uploaded audio file (private in proposals)")
+    label: str = Field(min_length=1, description="e.g. '원음 · 두 화자 혼합', '화자 A · 분리 결과'")
+    transcript: str | None = Field(
+        default=None, description="What speech-to-text made of this track (변환한 글)"
+    )
+    script: str | None = Field(
+        default=None, description="The original script to compare the transcript with (원래 대본)"
+    )
+    url: str | None = Field(default=None, description=SERVED_URL)
+
+
+class MetricsTable(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="MetricsTable")
+
+    columns: list[str] = Field(min_length=1, description="Header row")
+    rows: list[list[str]] = Field(description="Each row has exactly one cell per column")
+    note: str | None = Field(default=None, description="How to read the figures")
+
+
+class AudioCompareBlock(BlockBase):
+    """One original recording and the tracks separated from it, played in one player so the
+    listener can switch tracks at the same moment. Each track may carry its transcript and the
+    original script side by side; an optional metrics table sums up the results."""
+
+    model_config = ConfigDict(title="AudioCompareBlock")
+
+    type: Literal["audio-compare"]
+    title: str | None = Field(default=None, description="Listed in the table of contents")
+    description: str | None = Field(default=None, description="How to listen, one paragraph")
+    original: AudioTrack  # the mixed recording
+    tracks: list[AudioTrack] = Field(min_length=1, max_length=8)  # separated from `original`
+    metrics: MetricsTable | None = None
+
+    def problems(self) -> list[Problem]:
+        if self.metrics is None:
+            return []
+        width = len(self.metrics.columns)
+        return [
+            (f"metrics.rows[{i}]", f"칸이 {width}개여야 하는데 {len(row)}개입니다")
+            for i, row in enumerate(self.metrics.rows)
+            if len(row) != width
+        ]
+
+
+class VideoBlock(BlockBase):
+    """A video with an optional poster image and caption."""
+
+    model_config = ConfigDict(title="VideoBlock")
+
+    type: Literal["video"]
+    title: str | None = Field(default=None, description="Listed in the table of contents")
+    media_id: int = Field(ge=1, description="Id of an uploaded video (private in proposals)")
+    poster_media_id: int | None = Field(
+        default=None, ge=1, description="Id of an image shown before playing"
+    )
+    caption: str | None = None
+    allow_download: bool = Field(
+        default=False, description="Show a download button for the video file"
+    )
+    url: str | None = Field(default=None, description=SERVED_URL)
+    poster_url: str | None = Field(default=None, description=SERVED_URL)
 
 
 class CaseSnapshot(BaseModel):
@@ -207,7 +279,9 @@ Block = Annotated[
     | CalloutBlock
     | DetailsBlock
     | GalleryBlock
-    | CaseRefBlock,
+    | CaseRefBlock
+    | AudioCompareBlock
+    | VideoBlock,
     Field(discriminator="type"),
 ]
 

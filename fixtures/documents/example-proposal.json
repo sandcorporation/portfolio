@@ -131,6 +131,74 @@
           ]
         }
       ]
+    },
+    {
+      "id": "samples",
+      "title": "사전시험",
+      "blocks": [
+        {
+          "id": "separation",
+          "type": "audio-compare",
+          "title": "사전시험 · 원음과 분리음 비교",
+          "description": "원음을 들은 뒤 화자 A와 화자 B로 바꿔 들어 보세요. 같은 시점에서 이어 재생됩니다.",
+          "original": {
+            "media_id": 4,
+            "label": "원음 · 두 화자 혼합",
+            "url": "https://private.example/mix.mp3?expires=600",
+            "transcript": "네 그 건은 제가 확인해 보고요 아 네 다시 연락 주세요"
+          },
+          "tracks": [
+            {
+              "media_id": 5,
+              "label": "화자 A · 분리 결과",
+              "url": "https://private.example/a.mp3?expires=600",
+              "transcript": "네 그 건은 제가 확인해만 보고 다시 연락드릴게요",
+              "script": "네, 그 건은 제가 확인해 보고 다시 연락드릴게요."
+            },
+            {
+              "media_id": 6,
+              "label": "화자 B · 분리 결과",
+              "url": "https://private.example/b.mp3?expires=600",
+              "transcript": "아 네 그럼 기다리겠습니다",
+              "script": "아, 네. 그럼 기다리겠습니다."
+            }
+          ],
+          "metrics": {
+            "columns": [
+              "시험",
+              "초기 글자 오류",
+              "연결 보완",
+              "잔류음 처리 후"
+            ],
+            "rows": [
+              [
+                "같은 대화 · 전화 음질·잡음",
+                "198 / 237",
+                "89 / 237",
+                "9 / 237"
+              ],
+              [
+                "새 구어체 · 깨끗한 음질",
+                "12 / 237",
+                "12 / 237",
+                "0 / 237"
+              ]
+            ],
+            "note": "글자 오류는 원래 대본과 다른 글자 수입니다. 화자 구분 정확도와 같은 지표는 아닙니다."
+          }
+        },
+        {
+          "id": "demo-video",
+          "type": "video",
+          "title": "시연 영상",
+          "media_id": 7,
+          "poster_media_id": 1,
+          "caption": "약 45초 · 본인 목소리 합성 · 자막",
+          "allow_download": true,
+          "url": "https://private.example/demo.mp4?expires=600",
+          "poster_url": "https://public.example/gallery-1.png"
+        }
+      ]
     }
   ]
 }

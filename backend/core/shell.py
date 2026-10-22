@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from xml.sax.saxutils import escape
 
 from django.conf import settings
-from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods, require_POST
@@ -17,8 +17,8 @@ from pydantic import BaseModel
 from content.models import Proposal, ProposalRevision
 from core.clientip import client_ip
 from core.vite import entry_assets
+from services import media, proposals, publishing
 from services import proposal_access as access
-from services import proposals, publishing
 from services.home import home_page
 from services.portfolio import public_detail, public_slugs
 
@@ -133,6 +133,44 @@ def proposal_lock(request: HttpRequest, slug: str) -> HttpResponse:
     return response
 
 
+def _media_answer(url: str | None) -> HttpResponse:
+    if url is None:
+        return _private(JsonResponse({"error": "not_found"}, status=404))
+    return _private(JsonResponse({"url": url}))
+
+
+@require_http_methods(["GET"])
+def proposal_media(request: HttpRequest, slug: str, media_id: int) -> HttpResponse:
+    """A fresh URL for media in the customer's revision (the page asks when one expires).
+
+    Same gate as the document itself: a published proposal, its latest revision not expired, a
+    live session for this proposal (the cookie's Path covers /p/<slug>/...), and media the
+    revision refers to. `?download=1` asks for a URL that saves the file.
+    """
+    found = Proposal.objects.filter(slug=slug, status=Proposal.Status.PUBLISHED).first()
+    revision = publishing.latest_revision(found) if found else None
+    if found is None or revision is None:
+        raise Http404
+    if publishing.is_expired(revision) or not access.has_customer_session(request, found):
+        return _private(JsonResponse({"error": "no_session"}, status=403))
+    download = request.GET.get("download") == "1"
+    return _media_answer(media.document_media_url(revision.document, media_id, download=download))
+
+
+@require_http_methods(["GET"])
+def proposal_preview_media(request: HttpRequest, token: str, media_id: int) -> HttpResponse:
+    """The preview's counterpart of `proposal_media`: the signed link is the gate, the current
+    draft is the document."""
+    try:
+        found = proposals.proposal_for_preview(token)
+    except proposals.ExpiredPreviewToken:
+        return _private(JsonResponse({"error": "expired"}, status=410))
+    except proposals.BadPreviewToken:
+        raise Http404 from None
+    download = request.GET.get("download") == "1"
+    return _media_answer(media.document_media_url(found.document, media_id, download=download))
+
+
 def proposal_preview(request: HttpRequest, token: str) -> HttpResponse:
     """A signed, short-lived link to the proposal as the customer will see it."""
     try:
@@ -146,7 +184,7 @@ def proposal_preview(request: HttpRequest, token: str) -> HttpResponse:
     except proposals.BadPreviewToken:
         raise Http404 from None
     else:
-        data = proposals.page_data(found, preview=True)
+        data = proposals.page_data(found, preview=True, media_endpoint=f"/preview/{token}/media")
         response = render_shell(request, _PROPOSAL_META, data=data.model_dump(mode="json"))
     return _private(response)
 

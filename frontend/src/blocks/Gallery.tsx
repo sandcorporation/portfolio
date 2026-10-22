@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { Heading } from "./Heading";
+import { useMediaUrls } from "./media";
 import type { GalleryBlock } from "./types";
 
-type Shown = { url: string; alt: string; caption?: string | null };
+type Shown = { url: string; alt: string; caption?: string | null; onError: () => void };
 
 export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string }) {
   // The server fills in `url`; an image without one (media gone or not public) is skipped.
-  const images: Shown[] = block.images.flatMap((image) =>
-    image.url ? [{ url: image.url, alt: image.alt, caption: image.caption }] : [],
-  );
+  // A private image's URL expires; a failed load asks for a fresh one.
+  const { urlOf, renew } = useMediaUrls(block.images);
+  const images: Shown[] = block.images.flatMap((image) => {
+    const url = urlOf(image.media_id);
+    const onError = () => void renew(image.media_id);
+    return url ? [{ url, alt: image.alt, caption: image.caption, onError }] : [];
+  });
   const [open, setOpen] = useState<number | null>(null);
   const opener = useRef<HTMLElement | null>(null);
 
@@ -38,7 +43,7 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
                 setOpen(index);
               }}
             >
-              <img src={image.url} alt={image.alt} loading="lazy" />
+              <img src={image.url} alt={image.alt} loading="lazy" onError={image.onError} />
             </button>
           </li>
         ))}
@@ -83,7 +88,7 @@ function Viewer({
     >
       <div className="gallery-backdrop" onClick={onClose} />
       <figure className="gallery-figure">
-        <img src={image.url} alt={image.alt} />
+        <img src={image.url} alt={image.alt} onError={image.onError} />
         {image.caption && <figcaption>{image.caption}</figcaption>}
       </figure>
       <p className="gallery-count">

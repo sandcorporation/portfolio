@@ -85,7 +85,10 @@ def snapshot_document(document: dict[str, JSON]) -> dict[str, JSON]:
 
     `case-ref` items are expanded into the cited case as it reads now, so a later edit or delete
     of the portfolio item does not change what the customer was sent. Other blocks are copied
-    as they are; media urls are still resolved when serving (#14 decides for private media).
+    as they are. Media is frozen as its id, never a URL: presigned URLs expire, so the customer
+    page issues them when serving (`media.resolve_document(private=True)`) and again on request
+    (`/p/<slug>/media/<id>`). Media deleted after publishing simply has no URL any more; the
+    renderers say the material is no longer available.
     """
     return case_refs.expand(document)
 

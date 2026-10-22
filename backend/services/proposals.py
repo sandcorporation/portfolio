@@ -172,7 +172,7 @@ def _proposal_or_404(slug: str) -> Proposal:
 
 def _document(data: object, prefix: str = "document") -> dict[str, JSON]:
     try:
-        return stored_document(data)
+        return stored_document(data, allow_private_media=True)
     except InvalidDocument as exc:
         raise Rejected([DocumentError(f"{prefix}.{e.path}", e.reason) for e in exc.errors]) from exc
 
@@ -420,7 +420,9 @@ class RevisionMeta(BaseModel):
 class ProposalPageData(BaseModel):
     """Embedded as #page-data. Mirrors frontend/src/proposal/types.ts.
 
-    `revision` and `csrf_token` (for the lock button) are set on the customer page only."""
+    `revision` and `csrf_token` (for the lock button) are set on the customer page only.
+    `media_endpoint` is where the page asks for a fresh private media URL when one expires:
+    GET {media_endpoint}/{media_id} -> {"url": ...}."""
 
     preview: bool
     recipient: str
@@ -432,6 +434,7 @@ class ProposalPageData(BaseModel):
     document: dict[str, JSON]
     revision: RevisionMeta | None = None
     csrf_token: str | None = None
+    media_endpoint: str | None = None
 
 
 class CodeScreenData(BaseModel):
@@ -461,7 +464,8 @@ def supplier() -> Supplier:
 
 
 def revision_page_data(r: ProposalRevision, *, csrf_token: str) -> ProposalPageData:
-    """The customer page: a revision's frozen fields, with media resolved now."""
+    """The customer page: a revision's frozen fields, with media resolved now (private media as
+    short-lived URLs: the caller has checked the customer session)."""
     return ProposalPageData(
         preview=False,
         recipient=r.recipient,
@@ -470,15 +474,18 @@ def revision_page_data(r: ProposalRevision, *, csrf_token: str) -> ProposalPageD
         quote_date=r.quote_date,
         valid_until=r.valid_until,
         supplier=supplier(),
-        document=media.resolve_document(r.document),
+        document=media.resolve_document(r.document, private=True),
         revision=RevisionMeta(
             number=r.number, doc_number=r.doc_number, published_at=r.published_at
         ),
         csrf_token=csrf_token,
+        media_endpoint=f"/p/{r.proposal.slug}/media",
     )
 
 
-def page_data(p: Proposal, *, preview: bool) -> ProposalPageData:
+def page_data(p: Proposal, *, preview: bool, media_endpoint: str | None = None) -> ProposalPageData:
+    """The draft as the customer will see it. Private media is resolved only on the preview
+    (the caller has checked the signed link)."""
     title = p.client.contact_title
     return ProposalPageData(
         preview=preview,
@@ -488,5 +495,6 @@ def page_data(p: Proposal, *, preview: bool) -> ProposalPageData:
         quote_date=p.quote_date,
         valid_until=p.valid_until,
         supplier=supplier(),
-        document=case_refs.expand(media.resolve_document(p.document)),
+        document=case_refs.expand(media.resolve_document(p.document, private=preview)),
+        media_endpoint=media_endpoint,
     )

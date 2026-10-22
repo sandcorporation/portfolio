@@ -1,13 +1,13 @@
 """Public content edited in Django admin. Documents are block documents (see documents/)."""
 
 import secrets
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Literal, Self
 
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
-from documents.blocks import CaseRefBlock, Document, GalleryBlock
+from documents.blocks import AudioCompareBlock, CaseRefBlock, Document, GalleryBlock, VideoBlock
 from documents.validation import (
     JSON,
     DocumentError,
@@ -24,7 +24,8 @@ def empty_document() -> dict[str, JSON]:
 class Media(models.Model):
     """An uploaded file in object storage. `uploaded_at` is set once the object is confirmed there.
 
-    Blocks and covers may only reference media that is complete (and, for now, public).
+    Blocks and covers may only reference media that is complete; private media only from
+    proposal documents (see `media_problems`).
     """
 
     is_public = models.BooleanField("공개", default=True)
@@ -48,24 +49,51 @@ class Media(models.Model):
         return self.uploaded_at is not None
 
 
-def media_problems(document: Document) -> list[DocumentError]:
-    """Gallery images must point at media that exists, is public and finished uploading."""
-    wanted: list[tuple[str, int]] = []
+MediaKind = Literal["image", "audio", "video"]
+_KINDS: dict[str, MediaKind] = {"image": "image", "audio": "audio", "video": "video"}
+_KIND_NAMES: dict[MediaKind, str] = {"image": "이미지가", "audio": "오디오가", "video": "영상이"}
+
+
+def media_kind(content_type: str) -> MediaKind | None:
+    return _KINDS.get(content_type.split("/", 1)[0])
+
+
+def _media_wanted(document: Document) -> list[tuple[str, int, MediaKind]]:
+    """Every media reference in the document: (path, media id, the kind it must be)."""
+    wanted: list[tuple[str, int, MediaKind]] = []
     for t, tab in enumerate(document.tabs):
         for b, block in enumerate(tab.blocks):
+            at = f"tabs[{t}].blocks[{b}]"
             if isinstance(block, GalleryBlock):
                 for i, image in enumerate(block.images):
-                    wanted.append((f"tabs[{t}].blocks[{b}].images[{i}].media_id", image.media_id))
-    found = {m.pk: m for m in Media.objects.filter(pk__in={mid for _, mid in wanted})}
+                    wanted.append((f"{at}.images[{i}].media_id", image.media_id, "image"))
+            elif isinstance(block, AudioCompareBlock):
+                wanted.append((f"{at}.original.media_id", block.original.media_id, "audio"))
+                for i, track in enumerate(block.tracks):
+                    wanted.append((f"{at}.tracks[{i}].media_id", track.media_id, "audio"))
+            elif isinstance(block, VideoBlock):
+                wanted.append((f"{at}.media_id", block.media_id, "video"))
+                if block.poster_media_id is not None:
+                    wanted.append((f"{at}.poster_media_id", block.poster_media_id, "image"))
+    return wanted
+
+
+def media_problems(document: Document, *, allow_private: bool = False) -> list[DocumentError]:
+    """Media references must point at finished media of the right kind. Private media only where
+    `allow_private` (proposal documents, served behind the customer session)."""
+    wanted = _media_wanted(document)
+    found = {m.pk: m for m in Media.objects.filter(pk__in={mid for _, mid, _ in wanted})}
     errors: list[DocumentError] = []
-    for path, media_id in wanted:
+    for path, media_id, kind in wanted:
         media = found.get(media_id)
         if media is None:
             errors.append(DocumentError(path, f"미디어 {media_id}가 없습니다"))
         elif not media.is_complete:
             errors.append(DocumentError(path, f"미디어 {media_id}는 업로드가 끝나지 않았습니다"))
-        elif not media.is_public:
+        elif not media.is_public and not allow_private:
             errors.append(DocumentError(path, f"미디어 {media_id}는 공개 미디어가 아닙니다"))
+        elif media_kind(media.content_type) != kind:
+            errors.append(DocumentError(path, f"미디어 {media_id}는 {_KIND_NAMES[kind]} 아닙니다"))
     return errors
 
 
@@ -87,10 +115,15 @@ def case_ref_problems(document: Document) -> list[DocumentError]:
     ]
 
 
-def stored_document(data: object) -> dict[str, JSON]:
-    """Validate a document for storage: schema, media references, then the normalized form."""
+def stored_document(data: object, *, allow_private_media: bool = False) -> dict[str, JSON]:
+    """Validate a document for storage: schema, media references, then the normalized form.
+
+    Only proposal documents pass `allow_private_media`: their media is served behind the
+    customer session or the signed preview link; every other document is public."""
     document = validate_document(data)
-    errors = media_problems(document) + case_ref_problems(document)
+    errors = media_problems(document, allow_private=allow_private_media) + case_ref_problems(
+        document
+    )
     if errors:
         raise InvalidDocument(errors)
     # Resolved URLs are computed when serving; a stored one would go stale.
@@ -99,6 +132,11 @@ def stored_document(data: object) -> dict[str, JSON]:
             if isinstance(block, GalleryBlock):
                 for image in block.images:
                     image.url = None
+            if isinstance(block, AudioCompareBlock):
+                for track in [block.original, *block.tracks]:
+                    track.url = None
+            if isinstance(block, VideoBlock):
+                block.url = block.poster_url = None
             if isinstance(block, CaseRefBlock):
                 # Case content is filled when serving: drafts always read the current portfolio.
                 for item in block.items:
@@ -192,8 +230,11 @@ class PortfolioItem(models.Model):
         super().save(**kwargs)
 
     def check_cover(self) -> None:
-        if self.cover is not None and not (self.cover.is_public and self.cover.is_complete):
-            raise ValidationError({"cover": "업로드가 끝난 공개 미디어만 쓸 수 있습니다."})
+        cover = self.cover
+        if cover is not None and not (
+            cover.is_public and cover.is_complete and media_kind(cover.content_type) == "image"
+        ):
+            raise ValidationError({"cover": "업로드가 끝난 공개 이미지만 쓸 수 있습니다."})
 
     def clean(self) -> None:
         self.check_cover()
@@ -284,12 +325,12 @@ class Proposal(models.Model):
         return f"{self.client.code} · {self.title}"
 
     def save(self, **kwargs: Any) -> None:  # Any: forwarded unchanged to Model.save
-        self.document = stored_document(self.document)
+        self.document = stored_document(self.document, allow_private_media=True)
         super().save(**kwargs)
 
     def clean(self) -> None:
         try:
-            self.document = stored_document(self.document)
+            self.document = stored_document(self.document, allow_private_media=True)
         except InvalidDocument as exc:
             raise ValidationError(
                 {"document": [f"{e.path}: {e.reason}" for e in exc.errors]}

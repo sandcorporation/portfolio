@@ -117,9 +117,9 @@ def test_block_schema_without_type_lists_every_type(mcp: McpClient) -> None:
 
 
 def test_block_schema_unknown_type_is_a_tool_error(mcp: McpClient) -> None:
-    result = mcp.call_tool("block_schema", {"type": "video"})
+    result = mcp.call_tool("block_schema", {"type": "hologram"})
     assert result["isError"] is True
-    assert "unknown block type 'video'" in json.dumps(result["content"])
+    assert "unknown block type 'hologram'" in json.dumps(result["content"])
 
 
 def test_bad_tool_arguments_are_a_tool_error(mcp: McpClient) -> None:

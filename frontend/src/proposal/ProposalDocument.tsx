@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { DocumentView } from "../blocks/DocumentView";
+import { MediaUrlContext, endpointRefresher } from "../blocks/media";
 import type { Document } from "../blocks/types";
 import type { ProposalData } from "./types";
 
@@ -24,6 +26,8 @@ function withoutCoverBlocks(document: Document): Document {
 export function ProposalDocument({ data }: { data: ProposalData }) {
   const { supplier } = data;
   const contact = [supplier.email, supplier.phone, supplier.address].filter(Boolean);
+  const endpoint = data.media_endpoint;
+  const refreshMedia = useMemo(() => (endpoint ? endpointRefresher(endpoint) : null), [endpoint]);
   return (
     <article className="proposal" aria-labelledby="proposal-title">
       {data.preview && (
@@ -64,7 +68,9 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
           </div>
         </dl>
       </header>
-      <DocumentView document={withoutCoverBlocks(data.document)} idPrefix="proposal-" />
+      <MediaUrlContext.Provider value={refreshMedia}>
+        <DocumentView document={withoutCoverBlocks(data.document)} idPrefix="proposal-" />
+      </MediaUrlContext.Provider>
     </article>
   );
 }

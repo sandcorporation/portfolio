@@ -1,5 +1,131 @@
 {
   "$defs": {
+    "AudioCompareBlock": {
+      "additionalProperties": false,
+      "description": "One original recording and the tracks separated from it, played in one player so the\nlistener can switch tracks at the same moment. Each track may carry its transcript and the\noriginal script side by side; an optional metrics table sums up the results.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "audio-compare",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Listed in the table of contents"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How to listen, one paragraph"
+        },
+        "original": {
+          "$ref": "#/$defs/AudioTrack"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/AudioTrack"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "type": "array"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetricsTable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "original",
+        "tracks"
+      ],
+      "title": "AudioCompareBlock",
+      "type": "object"
+    },
+    "AudioTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "media_id": {
+          "description": "Id of an uploaded audio file (private in proposals)",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "label": {
+          "description": "e.g. '원음 · 두 화자 혼합', '화자 A · 분리 결과'",
+          "minLength": 1,
+          "type": "string"
+        },
+        "transcript": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What speech-to-text made of this track (변환한 글)"
+        },
+        "script": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The original script to compare the transcript with (원래 대본)"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Filled in by the server when the document is served; never stored."
+        }
+      },
+      "required": [
+        "media_id",
+        "label"
+      ],
+      "title": "AudioTrack",
+      "type": "object"
+    },
     "CalloutBlock": {
       "additionalProperties": false,
       "description": "A boxed note: information, a warning, or a condition the reader must accept.",
@@ -247,7 +373,7 @@
     },
     "GalleryBlock": {
       "additionalProperties": false,
-      "description": "Images in a grid; selecting one opens a larger viewer. Public media only.",
+      "description": "Images in a grid; selecting one opens a larger viewer. Proposals may use private media.",
       "properties": {
         "id": {
           "description": "Unique within the document. Partial edits address blocks by this id.",
@@ -291,7 +417,7 @@
       "additionalProperties": false,
       "properties": {
         "media_id": {
-          "description": "Id of an uploaded public media item",
+          "description": "Id of an uploaded image. Private media only in proposal documents.",
           "minimum": 1,
           "type": "integer"
         },
@@ -452,6 +578,47 @@
       "title": "MarkdownBlock",
       "type": "object"
     },
+    "MetricsTable": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "description": "Header row",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "rows": {
+          "description": "Each row has exactly one cell per column",
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How to read the figures"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "MetricsTable",
+      "type": "object"
+    },
     "Tab": {
       "additionalProperties": false,
       "properties": {
@@ -468,6 +635,7 @@
           "items": {
             "discriminator": {
               "mapping": {
+                "audio-compare": "#/$defs/AudioCompareBlock",
                 "callout": "#/$defs/CalloutBlock",
                 "case-ref": "#/$defs/CaseRefBlock",
                 "cover": "#/$defs/CoverBlock",
@@ -475,7 +643,8 @@
                 "gallery": "#/$defs/GalleryBlock",
                 "kpi": "#/$defs/KpiBlock",
                 "markdown": "#/$defs/MarkdownBlock",
-                "table": "#/$defs/TableBlock"
+                "table": "#/$defs/TableBlock",
+                "video": "#/$defs/VideoBlock"
               },
               "propertyName": "type"
             },
@@ -503,6 +672,12 @@
               },
               {
                 "$ref": "#/$defs/CaseRefBlock"
+              },
+              {
+                "$ref": "#/$defs/AudioCompareBlock"
+              },
+              {
+                "$ref": "#/$defs/VideoBlock"
               }
             ]
           },
@@ -599,6 +774,98 @@
         "rows"
       ],
       "title": "TableBlock",
+      "type": "object"
+    },
+    "VideoBlock": {
+      "additionalProperties": false,
+      "description": "A video with an optional poster image and caption.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "video",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Listed in the table of contents"
+        },
+        "media_id": {
+          "description": "Id of an uploaded video (private in proposals)",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "poster_media_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Id of an image shown before playing"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "allow_download": {
+          "default": false,
+          "description": "Show a download button for the video file",
+          "type": "boolean"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Filled in by the server when the document is served; never stored."
+        },
+        "poster_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Filled in by the server when the document is served; never stored."
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "media_id"
+      ],
+      "title": "VideoBlock",
       "type": "object"
     }
   },

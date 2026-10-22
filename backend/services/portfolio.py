@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Max
 from pydantic import BaseModel, ConfigDict, Field
 
-from content.models import Media, PortfolioItem, empty_document, stored_document
+from content.models import Media, PortfolioItem, empty_document, media_kind, stored_document
 from documents.validation import JSON, DocumentError, InvalidDocument
 from services import media
 from services.errors import Conflict, NotFound, Rejected
@@ -198,6 +198,8 @@ def _cover(media_id: int | None) -> Media | None:
         raise Rejected.at("cover_media_id", f"미디어 {media_id}는 업로드가 끝나지 않았습니다")
     if not found.is_public:
         raise Rejected.at("cover_media_id", f"미디어 {media_id}는 공개 미디어가 아닙니다")
+    if media_kind(found.content_type) != "image":
+        raise Rejected.at("cover_media_id", f"미디어 {media_id}는 이미지가 아닙니다")
     return found
 
 

@@ -9,6 +9,7 @@ from datetime import timedelta
 from enum import StrEnum
 from functools import cache
 from typing import TYPE_CHECKING, Protocol
+from urllib.parse import quote
 
 import boto3
 from botocore.client import Config
@@ -45,7 +46,11 @@ class ObjectStorage(Protocol):
         self, bucket: Bucket, key: str, content_type: str, expires_in: timedelta
     ) -> PresignedUpload: ...
 
-    def presign_get(self, bucket: Bucket, key: str, expires_in: timedelta) -> str: ...
+    def presign_get(
+        self, bucket: Bucket, key: str, expires_in: timedelta, *, download_name: str | None = None
+    ) -> str:
+        """A time-limited GET URL. With `download_name` the browser saves the file under it."""
+        ...
 
     def put(self, bucket: Bucket, key: str, data: bytes, content_type: str) -> None: ...
 
@@ -100,10 +105,17 @@ class S3ObjectStorage:
         )
         return PresignedUpload(url=url, headers={"Content-Type": content_type})
 
-    def presign_get(self, bucket: Bucket, key: str, expires_in: timedelta) -> str:
+    def presign_get(
+        self, bucket: Bucket, key: str, expires_in: timedelta, *, download_name: str | None = None
+    ) -> str:
+        params = {"Bucket": self._buckets[bucket], "Key": key}
+        if download_name is not None:
+            params["ResponseContentDisposition"] = (
+                f"attachment; filename*=UTF-8''{quote(download_name, safe='')}"
+            )
         url: str = self._client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": self._buckets[bucket], "Key": key},
+            Params=params,
             ExpiresIn=int(expires_in.total_seconds()),
         )
         return url

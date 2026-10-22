@@ -114,6 +114,18 @@ def test_detail_shell_carries_item_og_meta_and_body(
         image["url"] = None
     for ref in expected["tabs"][1]["blocks"][4]["items"]:
         ref["case"] = None  # a stored document keeps references only
+    # Audio and video get their public urls the same way.
+    sep, demo = data["body"]["tabs"][2]["blocks"]
+    assert sep["original"]["url"] == fake_storage.public_url("example-4")
+    assert (demo["url"], demo["poster_url"]) == (
+        fake_storage.public_url("example-7"),
+        fake_storage.public_url("example-1.png"),
+    )
+    for body in (data["body"], expected):
+        sep, demo = body["tabs"][2]["blocks"]
+        for track in [sep["original"], *sep["tracks"]]:
+            track["url"] = None
+        demo["url"] = demo["poster_url"] = None
     assert data["body"] == expected
 
 

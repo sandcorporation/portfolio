@@ -29,6 +29,8 @@ export interface Tab {
     | DetailsBlock
     | GalleryBlock
     | CaseRefBlock
+    | AudioCompareBlock
+    | VideoBlock
   )[];
 }
 /**
@@ -189,7 +191,7 @@ export interface DetailsBlock {
   body: string;
 }
 /**
- * Images in a grid; selecting one opens a larger viewer. Public media only.
+ * Images in a grid; selecting one opens a larger viewer. Proposals may use private media.
  *
  * This interface was referenced by `Document`'s JSON-Schema
  * via the `definition` "GalleryBlock".
@@ -216,7 +218,7 @@ export interface GalleryBlock {
  */
 export interface GalleryImage {
   /**
-   * Id of an uploaded public media item
+   * Id of an uploaded image. Private media only in proposal documents.
    */
   media_id: number;
   /**
@@ -286,4 +288,118 @@ export interface CaseSnapshot {
    * Public URL of the cover image; empty if none
    */
   cover_url?: string;
+}
+/**
+ * One original recording and the tracks separated from it, played in one player so the
+ * listener can switch tracks at the same moment. Each track may carry its transcript and the
+ * original script side by side; an optional metrics table sums up the results.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "AudioCompareBlock".
+ */
+export interface AudioCompareBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "audio-compare";
+  /**
+   * Listed in the table of contents
+   */
+  title?: string | null;
+  /**
+   * How to listen, one paragraph
+   */
+  description?: string | null;
+  original: AudioTrack;
+  /**
+   * @minItems 1
+   * @maxItems 8
+   */
+  tracks: AudioTrack[];
+  metrics?: MetricsTable | null;
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "AudioTrack".
+ */
+export interface AudioTrack {
+  /**
+   * Id of an uploaded audio file (private in proposals)
+   */
+  media_id: number;
+  /**
+   * e.g. '원음 · 두 화자 혼합', '화자 A · 분리 결과'
+   */
+  label: string;
+  /**
+   * What speech-to-text made of this track (변환한 글)
+   */
+  transcript?: string | null;
+  /**
+   * The original script to compare the transcript with (원래 대본)
+   */
+  script?: string | null;
+  /**
+   * Filled in by the server when the document is served; never stored.
+   */
+  url?: string | null;
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "MetricsTable".
+ */
+export interface MetricsTable {
+  /**
+   * Header row
+   *
+   * @minItems 1
+   */
+  columns: string[];
+  /**
+   * Each row has exactly one cell per column
+   */
+  rows: string[][];
+  /**
+   * How to read the figures
+   */
+  note?: string | null;
+}
+/**
+ * A video with an optional poster image and caption.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "VideoBlock".
+ */
+export interface VideoBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "video";
+  /**
+   * Listed in the table of contents
+   */
+  title?: string | null;
+  /**
+   * Id of an uploaded video (private in proposals)
+   */
+  media_id: number;
+  /**
+   * Id of an image shown before playing
+   */
+  poster_media_id?: number | null;
+  caption?: string | null;
+  /**
+   * Show a download button for the video file
+   */
+  allow_download?: boolean;
+  /**
+   * Filled in by the server when the document is served; never stored.
+   */
+  url?: string | null;
+  /**
+   * Filled in by the server when the document is served; never stored.
+   */
+  poster_url?: string | null;
 }

@@ -83,7 +83,13 @@ else:
 class MediaUploadForm(_MediaForm):
     """Add: pick a file and visibility. The server stores it through services.media.upload."""
 
-    file = forms.FileField(label="파일", help_text="JPEG·PNG·WebP·GIF·AVIF, 20MB까지.")
+    file = forms.FileField(
+        label="파일",
+        help_text=(
+            "이미지(JPEG·PNG·WebP·GIF·AVIF) 20MB, 오디오(MP3·M4A·AAC·WAV·OGG·FLAC)·"
+            "영상(MP4·WebM·MOV) 100MB까지. 제안서 시연 자료는 공개를 끈다."
+        ),
+    )
 
     class Meta:
         model = Media
