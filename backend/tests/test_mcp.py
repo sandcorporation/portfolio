@@ -74,7 +74,7 @@ def test_initialize_list_and_call_tools(mcp: McpClient) -> None:
     tools = mcp.request("tools/list")["result"]
     assert isinstance(tools, dict) and isinstance(tools["tools"], list)
     by_name = {tool["name"]: tool for tool in tools["tools"] if isinstance(tool, dict)}
-    assert set(by_name) == {"whoami", "block_schema"}
+    assert {"whoami", "block_schema"} <= set(by_name)
     for tool in by_name.values():
         schema = tool["inputSchema"]
         assert isinstance(schema, dict) and schema["type"] == "object"

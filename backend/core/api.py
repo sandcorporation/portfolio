@@ -5,10 +5,14 @@ from django.db.utils import DatabaseError
 from django.http import HttpRequest
 from ninja import NinjaAPI, Schema, Status
 
+from core.admin_api import install_service_errors
+from core.admin_api import router as admin_router
 from oauth.bearer import BearerAuth, bearer_token, install_bearer_errors
 
 api = NinjaAPI(title="Sandcorp portfolio API", docs_url=None)
 install_bearer_errors(api)
+install_service_errors(api)
+api.add_router("/admin", admin_router)
 
 
 class Health(Schema):

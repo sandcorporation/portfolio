@@ -4,11 +4,17 @@ Proposal `case-ref` blocks (and MCP tools) use the full lookups, because a hidde
 be cited in a proposal. Public pages use `public_cards` / `public_detail` / `public_slugs`.
 """
 
+from datetime import datetime
 from typing import TypedDict
 
-from content.models import PortfolioItem
-from documents.validation import JSON
+from django.db import transaction
+from django.db.models import Max
+from pydantic import BaseModel, ConfigDict, Field
+
+from content.models import Media, PortfolioItem, empty_document, stored_document
+from documents.validation import JSON, DocumentError, InvalidDocument
 from services import media
+from services.errors import Conflict, NotFound, Rejected
 
 
 class PortfolioCard(TypedDict):
@@ -72,3 +78,196 @@ def public_slugs() -> list[str]:
 def public_detail(slug: str) -> PortfolioDetail | None:
     item = PortfolioItem.objects.filter(slug=slug, is_public=True).first()
     return detail_of(item) if item else None
+
+
+# --- writes (MCP tools and the admin API call these) ---
+
+SLUG_PATTERN = r"^[-a-zA-Z0-9_]+$"
+TAGS_MAX_LENGTH = 200  # the column's width once joined with ", "
+
+
+class ItemSummary(BaseModel):
+    """One row of the owner's list: hidden items included, with their public flag."""
+
+    slug: str
+    title: str
+    summary: str
+    tags: list[str]
+    period: str
+    is_public: bool
+    sort_order: int
+    cover_media_id: int | None
+    url: str
+
+
+class ItemAdmin(ItemSummary):
+    body: dict[str, JSON]
+    updated_at: datetime
+
+
+class NewItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str = Field(
+        min_length=1, max_length=50, pattern=SLUG_PATTERN, description="URL part: /work/<slug>."
+    )
+    title: str = Field(min_length=1, max_length=120)
+    summary: str = Field(default="", max_length=300, description="Card and OG description.")
+    tags: list[str] = Field(default_factory=list)
+    period: str = Field(default="", max_length=60, description="e.g. 2025.03 ~ 2025.08")
+    cover_media_id: int | None = Field(
+        default=None, description="Id of a finished, public upload; omit for no cover."
+    )
+    body: dict[str, object] = Field(
+        default_factory=lambda: dict[str, object](empty_document()),
+        description="Block document (see block_schema).",
+    )
+    is_public: bool = Field(default=False, description="Created hidden unless true.")
+
+
+class ItemPatch(BaseModel):
+    """Fields left out stay as they are. `cover_media_id: null` removes the cover."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(default="", min_length=1, max_length=120)
+    summary: str = Field(default="", max_length=300)
+    tags: list[str] = Field(default_factory=list)
+    period: str = Field(default="", max_length=60)
+    cover_media_id: int | None = None
+    body: dict[str, object] = Field(
+        default_factory=dict, description="Whole block document (see block_schema)."
+    )
+
+
+def _summary_fields(item: PortfolioItem) -> dict[str, object]:
+    return {
+        "slug": item.slug,
+        "title": item.title,
+        "summary": item.summary,
+        "tags": item.tag_list(),
+        "period": item.period,
+        "is_public": item.is_public,
+        "sort_order": item.sort_order,
+        "cover_media_id": item.cover_id,
+        "url": f"/work/{item.slug}",
+    }
+
+
+def summary_of(item: PortfolioItem) -> ItemSummary:
+    return ItemSummary.model_validate(_summary_fields(item))
+
+
+def admin_of(item: PortfolioItem) -> ItemAdmin:
+    return ItemAdmin.model_validate(
+        {**_summary_fields(item), "body": item.body, "updated_at": item.updated_at}
+    )
+
+
+def list_summaries() -> list[ItemSummary]:
+    return [summary_of(item) for item in all_items()]
+
+
+def read_item(slug: str) -> ItemAdmin:
+    return admin_of(_item_or_404(slug))
+
+
+def _item_or_404(slug: str) -> PortfolioItem:
+    item = get_item(slug)
+    if item is None:
+        raise NotFound(f"포트폴리오 항목 {slug!r}이(가) 없습니다")
+    return item
+
+
+def _clean_tags(tags: list[str]) -> list[str]:
+    cleaned = [tag.strip() for tag in tags if tag.strip()]
+    if any("," in tag for tag in cleaned):
+        raise Rejected.at("tags", "태그에 쉼표를 넣을 수 없습니다")
+    if len(", ".join(cleaned)) > TAGS_MAX_LENGTH:
+        raise Rejected.at("tags", f"태그를 합쳐 {TAGS_MAX_LENGTH}자 이하로 줄이세요")
+    return cleaned
+
+
+def _cover(media_id: int | None) -> Media | None:
+    if media_id is None:
+        return None
+    found = Media.objects.filter(pk=media_id).first()
+    if found is None:
+        raise Rejected.at("cover_media_id", f"미디어 {media_id}가 없습니다")
+    if not found.is_complete:
+        raise Rejected.at("cover_media_id", f"미디어 {media_id}는 업로드가 끝나지 않았습니다")
+    if not found.is_public:
+        raise Rejected.at("cover_media_id", f"미디어 {media_id}는 공개 미디어가 아닙니다")
+    return found
+
+
+def _body(document: object) -> dict[str, JSON]:
+    try:
+        return stored_document(document)
+    except InvalidDocument as exc:
+        raise Rejected([DocumentError(f"body.{e.path}", e.reason) for e in exc.errors]) from exc
+
+
+def create_item(new: NewItem) -> ItemAdmin:
+    """Append a new item after the last one. Nothing is saved if anything is refused."""
+    if PortfolioItem.objects.filter(slug=new.slug).exists():
+        raise Conflict(f"주소 {new.slug!r}는 이미 쓰고 있습니다")
+    item = PortfolioItem(
+        slug=new.slug,
+        title=new.title,
+        summary=new.summary,
+        tags=", ".join(_clean_tags(new.tags)),
+        period=new.period,
+        cover=_cover(new.cover_media_id),
+        body=_body(new.body),
+        is_public=new.is_public,
+        sort_order=(PortfolioItem.objects.aggregate(top=Max("sort_order"))["top"] or 0) + 10,
+    )
+    item.save()
+    return admin_of(item)
+
+
+def update_item(slug: str, patch: ItemPatch) -> ItemAdmin:
+    item = _item_or_404(slug)
+    given = patch.model_fields_set
+    if "title" in given:
+        item.title = patch.title
+    if "summary" in given:
+        item.summary = patch.summary
+    if "period" in given:
+        item.period = patch.period
+    if "tags" in given:
+        item.tags = ", ".join(_clean_tags(patch.tags))
+    if "cover_media_id" in given:
+        item.cover = _cover(patch.cover_media_id)
+    if "body" in given:
+        item.body = _body(patch.body)
+    item.save()
+    return admin_of(item)
+
+
+def set_visibility(slug: str, is_public: bool) -> ItemAdmin:
+    item = _item_or_404(slug)
+    item.is_public = is_public
+    item.save(update_fields=["is_public", "updated_at"])
+    return admin_of(item)
+
+
+def reorder(slugs: list[str]) -> list[ItemSummary]:
+    """Set the display order (hidden items included). `slugs` must name every item exactly once."""
+    with transaction.atomic():
+        items = {item.slug: item for item in PortfolioItem.objects.select_for_update()}
+        missing = sorted(set(items) - set(slugs))
+        unknown = sorted(set(slugs) - set(items))
+        if len(set(slugs)) != len(slugs) or missing or unknown:
+            problems = []
+            if unknown:
+                problems.append(f"없는 주소: {', '.join(unknown)}")
+            if missing:
+                problems.append(f"빠진 주소: {', '.join(missing)}")
+            if len(set(slugs)) != len(slugs):
+                problems.append("같은 주소가 두 번 들어 있습니다")
+            raise Rejected.at("slugs", "; ".join(problems))
+        for position, slug in enumerate(slugs):
+            PortfolioItem.objects.filter(pk=items[slug].pk).update(sort_order=(position + 1) * 10)
+    return list_summaries()
