@@ -2,10 +2,12 @@ import re
 from datetime import date
 
 import pytest
+from django.core.management import call_command
 from django.test import Client
 
 from content.models import Client as Client_
 from content.models import Proposal, SiteProfile
+from services import publishing
 
 
 def meta(html: str, name: str) -> str | None:
@@ -49,14 +51,12 @@ def test_home_shell_is_indexable_and_mounts_react(client: Client) -> None:
 
 @pytest.mark.django_db
 def test_published_proposal_shell_is_noindex_and_keeps_meta_generic(client: Client) -> None:
+    call_command("createcachetable", verbosity=0)  # the code form reads the failure counter
     owner = Client_.objects.create(name="가나다상사", code="NEXT")
     Proposal.objects.create(
-        client=owner,
-        title="가나다상사 견적",
-        slug="ganadatrade-2026",
-        quote_date=date(2026, 10, 1),
-        status=Proposal.Status.PUBLISHED,
+        client=owner, title="가나다상사 견적", slug="ganadatrade-2026", quote_date=date(2026, 10, 1)
     )
+    publishing.publish("ganadatrade-2026")
 
     response = client.get("/p/ganadatrade-2026")
     html = response.content.decode()

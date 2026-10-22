@@ -4,14 +4,24 @@ from django import forms
 from django.contrib import admin, messages
 from django.db.models import QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
+from django.template.response import TemplateResponse
 from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html
 
 from adapters.storage import StorageNotConfigured, get_storage
-from content.models import Client, Inquiry, Media, PortfolioItem, Proposal, SiteProfile
+from content.models import (
+    Client,
+    Inquiry,
+    Media,
+    PortfolioItem,
+    Proposal,
+    ProposalRevision,
+    SiteProfile,
+)
 from services import inquiries as inquiry_service
 from services import media as media_service
 from services import proposals as proposal_service
+from services import publishing
 from services.errors import ServiceError
 
 # ModelAdmin is generic only in django-stubs; at runtime it is not subscriptable.
@@ -155,9 +165,13 @@ class MediaAdmin(_MediaAdmin):
 if TYPE_CHECKING:
     _ClientAdmin = admin.ModelAdmin[Client]
     _ProposalAdmin = admin.ModelAdmin[Proposal]
+    _RevisionAdmin = admin.ModelAdmin[ProposalRevision]
+    _RevisionInline = admin.TabularInline[ProposalRevision, Proposal]
 else:
     _ClientAdmin = admin.ModelAdmin
     _ProposalAdmin = admin.ModelAdmin
+    _RevisionAdmin = admin.ModelAdmin
+    _RevisionInline = admin.TabularInline
 
 
 @admin.register(Client)
@@ -172,9 +186,24 @@ class ClientAdmin(_ClientAdmin):
         return ("code",) if obj else ()  # the code is the handle proposals and tools use
 
 
+class RevisionInline(_RevisionInline):
+    """Revisions are frozen: listed here, opened read-only on their own page."""
+
+    model = ProposalRevision
+    extra = 0
+    can_delete = False
+    show_change_link = True
+    fields = ("number", "doc_number", "published_at", "valid_until")
+    readonly_fields = fields
+    ordering = ("-number",)
+
+    def has_add_permission(self, request: HttpRequest, obj: Proposal | None = None) -> bool:
+        return False
+
+
 @admin.register(Proposal)
 class ProposalAdmin(_ProposalAdmin):
-    list_display = ("title", "client", "status", "quote_date", "preview_link")
+    list_display = ("title", "client", "status", "latest_doc_number", "quote_date", "preview_link")
     list_filter = ("status", "client")
     search_fields = ("title", "client__name", "client__code")
     fields = (
@@ -189,7 +218,15 @@ class ProposalAdmin(_ProposalAdmin):
         "document",
     )
     readonly_fields = ("status", "slug", "preview_link")
-    actions = ("duplicate",)
+    inlines = (RevisionInline,)
+    actions = ("publish", "reissue_code", "revoke", "duplicate")
+
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: Proposal | None = None
+    ) -> tuple[str, ...]:
+        if obj is not None and obj.status == Proposal.Status.REVOKED:
+            return self.fields  # revoked for good; duplicate it to keep working
+        return tuple(self.readonly_fields)
 
     def get_urls(self) -> list[URLPattern]:
         # Before the model admin's own `<id>/` catch-all.
@@ -214,6 +251,75 @@ class ProposalAdmin(_ProposalAdmin):
         url = reverse("admin:content_proposal_preview", args=[obj.pk])
         return format_html('<a href="{}" target="_blank" rel="noopener">미리보기</a>', url)
 
+    @admin.display(description="최신 문서번호")
+    def latest_doc_number(self, obj: Proposal) -> str:
+        latest = publishing.latest_revision(obj)
+        return f"{latest.doc_number} (v{latest.number})" if latest else "-"
+
+    def _codes_page(
+        self,
+        request: HttpRequest,
+        title: str,
+        done: list[str],
+        failed: list[str],
+        codes: list[dict[str, str]],
+    ) -> HttpResponse:
+        """Render the result in this response itself. A message would be stored (cookie or
+        session) until the next page, and the plain codes must not be kept anywhere."""
+        context = {
+            **self.admin_site.each_context(request),
+            "title": title,
+            "done": done,
+            "failed": failed,
+            "codes": codes,
+            "back_url": reverse("admin:content_proposal_changelist"),
+        }
+        response = TemplateResponse(request, "admin/proposal_access_codes.html", context)
+        response["Cache-Control"] = "no-store"
+        return response
+
+    @admin.action(description="발행 (새 리비전)")
+    def publish(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> HttpResponse:
+        done: list[str] = []
+        failed: list[str] = []
+        codes: list[dict[str, str]] = []
+        for p in queryset:
+            try:
+                result = publishing.publish(p.slug)
+            except ServiceError as exc:
+                failed.append(f"{p.title}: {exc}")
+                continue
+            r = result.revision
+            done.append(f"{p.title}: v{r.number} {r.doc_number} 발행")
+            if result.access_code:
+                codes.append({"title": p.title, "url": f"/p/{p.slug}", "code": result.access_code})
+        return self._codes_page(request, "발행", done, failed, codes)
+
+    @admin.action(description="접근 코드 재발급 (기존 세션 끊김)")
+    def reissue_code(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> HttpResponse:
+        done: list[str] = []
+        failed: list[str] = []
+        codes: list[dict[str, str]] = []
+        for p in queryset:
+            try:
+                issued = publishing.reissue_access_code(p.slug)
+            except ServiceError as exc:
+                failed.append(f"{p.title}: {exc}")
+                continue
+            done.append(f"{p.title}: 접근 코드를 새로 만들었습니다")
+            codes.append({"title": p.title, "url": f"/p/{p.slug}", "code": issued.access_code})
+        return self._codes_page(request, "접근 코드 재발급", done, failed, codes)
+
+    @admin.action(description="회수 (고객 주소를 닫는다, 되돌릴 수 없음)")
+    def revoke(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> None:
+        for p in queryset:
+            try:
+                publishing.revoke(p.slug)
+            except ServiceError as exc:
+                self.message_user(request, f"{p.title}: {exc}", messages.ERROR)
+            else:
+                self.message_user(request, f"{p.title}: 회수했습니다")
+
     @admin.action(description="복제 (새 주소의 초안으로)")
     def duplicate(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> None:
         for source in queryset:
@@ -223,6 +329,41 @@ class ProposalAdmin(_ProposalAdmin):
                 self.message_user(request, str(exc), messages.ERROR)
                 return
         self.message_user(request, f"{queryset.count()}건을 초안으로 복제했습니다.")
+
+
+@admin.register(ProposalRevision)
+class ProposalRevisionAdmin(_RevisionAdmin):
+    """Read-only: a revision is what the customer was sent."""
+
+    list_display = ("doc_number", "proposal", "number", "published_at", "valid_until")
+    list_filter = ("client",)
+    search_fields = ("doc_number", "proposal__title")
+    fields = (
+        "proposal",
+        "number",
+        "doc_number",
+        "published_at",
+        "recipient",
+        "title",
+        "subtitle",
+        "quote_date",
+        "valid_until",
+        "document",
+    )
+    readonly_fields = fields
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: ProposalRevision | None = None
+    ) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: ProposalRevision | None = None
+    ) -> bool:
+        return False
 
 
 if TYPE_CHECKING:

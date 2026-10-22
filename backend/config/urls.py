@@ -30,5 +30,6 @@ urlpatterns = [
     path("robots.txt", shell.robots_txt),
     path("sitemap.xml", shell.sitemap_xml),
     path("p/<slug:slug>", shell.proposal, name="proposal"),
+    path("p/<slug:slug>/lock", shell.proposal_lock, name="proposal_lock"),
     path("preview/<str:token>", shell.proposal_preview, name="proposal_preview"),
 ]

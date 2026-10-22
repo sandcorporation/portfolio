@@ -180,14 +180,18 @@ def test_the_last_tab_cannot_be_deleted() -> None:
         svc.delete_tab(p.slug, "estimate")
 
 
-def test_only_drafts_are_edited() -> None:
+def test_published_drafts_stay_editable_and_revoked_ones_do_not() -> None:
     p = make_draft()
     Proposal.objects.filter(slug=p.slug).update(status=Proposal.Status.PUBLISHED)
 
+    assert svc.update_proposal(p.slug, svc.ProposalPatch(title="바꿈")).title == "바꿈"
+    assert block_ids(svc.insert_block(p.slug, "estimate", md("x")), 0) == ["x"]
+
+    Proposal.objects.filter(slug=p.slug).update(status=Proposal.Status.REVOKED)
     with pytest.raises(Conflict):
-        svc.update_proposal(p.slug, svc.ProposalPatch(title="바꿈"))
+        svc.update_proposal(p.slug, svc.ProposalPatch(title="또"))
     with pytest.raises(Conflict):
-        svc.insert_block(p.slug, "estimate", md("x"))
+        svc.insert_block(p.slug, "estimate", md("y"))
 
 
 def test_a_copy_is_a_new_draft_with_its_own_slug() -> None:
@@ -288,6 +292,9 @@ def admin_form(**over: Any) -> dict[str, Any]:  # Any: form fields
         "quote_date": "2026-10-01",
         "valid_until": "",
         "document": '{"tabs":[{"id":"a","title":"견적","blocks":[]}]}',
+        # the read-only revisions inline's management form
+        "revisions-TOTAL_FORMS": "0",
+        "revisions-INITIAL_FORMS": "0",
         **over,
     }
 

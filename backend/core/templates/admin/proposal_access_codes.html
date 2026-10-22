@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block content %}
+{# Shown once: the plain codes exist only in this response (never stored, logged or queued as a message). #}
+<ul class="messagelist">
+  {% for line in done %}<li class="success">{{ line }}</li>{% endfor %}
+  {% for line in failed %}<li class="error">{{ line }}</li>{% endfor %}
+</ul>
+{% if codes %}
+<p><strong>접근 코드는 지금 한 번만 보입니다.</strong> 고객에게 전할 곳에 옮겨 두세요. 잃어버리면 「접근 코드 재발급」으로 새로 만듭니다(기존 고객 세션은 끊깁니다).</p>
+<table id="access-codes">
+  <thead><tr><th>제안서</th><th>주소</th><th>접근 코드</th></tr></thead>
+  <tbody>
+  {% for row in codes %}<tr><td>{{ row.title }}</td><td>{{ row.url }}</td><td><code style="font-size:1.4em;letter-spacing:.15em">{{ row.code }}</code></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<p><a href="{{ back_url }}">제안서 목록으로</a></p>
+{% endblock %}

@@ -46,6 +46,15 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
               <dd>{formatDate(data.valid_until)}까지</dd>
             </div>
           )}
+          {data.revision && (
+            <div>
+              <dt>문서번호</dt>
+              <dd>
+                {data.revision.doc_number}
+                <span className="proposal-contact">{data.revision.number}차 발행본</span>
+              </dd>
+            </div>
+          )}
           <div>
             <dt>공급자</dt>
             <dd>

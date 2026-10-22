@@ -7,6 +7,14 @@ export interface Supplier {
   address: string;
 }
 
+/** The published revision the customer is reading. */
+export interface RevisionMeta {
+  number: number;
+  /** SC-{YYYYMMDD}-{client code}-{serial}. */
+  doc_number: string;
+  published_at: string;
+}
+
 /** The shell's #page-data for a proposal. Mirrors ProposalPageData in backend/services/proposals.py. */
 export interface ProposalData {
   /** True on the owner's signed preview; the screen says so. */
@@ -19,6 +27,37 @@ export interface ProposalData {
   valid_until: string | null;
   supplier: Supplier;
   document: Document;
+  /** Customer page only (absent on the preview). */
+  revision?: RevisionMeta | null;
+  /** Customer page only: for the lock button's form. */
+  csrf_token?: string | null;
+}
+
+/** /p/<slug> before the code. Mirrors CodeScreenData. */
+export interface CodeScreenData {
+  screen: "code";
+  /** Why the last try failed: a wrong code, or too many of them (blocked for a while). */
+  error: "wrong" | "blocked" | null;
+  csrf_token: string;
+}
+
+/** /p/<slug> past its validity date. Mirrors ExpiredScreenData. */
+export interface ExpiredScreenData {
+  screen: "expired";
+  valid_until: string;
+  supplier: Supplier;
+}
+
+function hasScreen(value: unknown, screen: string): boolean {
+  return typeof value === "object" && value !== null && "screen" in value && value.screen === screen;
+}
+
+export function isCodeScreen(value: unknown): value is CodeScreenData {
+  return hasScreen(value, "code");
+}
+
+export function isExpiredScreen(value: unknown): value is ExpiredScreenData {
+  return hasScreen(value, "expired");
 }
 
 export function isProposalData(value: unknown): value is ProposalData {

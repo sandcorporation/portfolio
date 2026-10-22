@@ -8,12 +8,17 @@ from dataclasses import dataclass
 from xml.sax.saxutils import escape
 
 from django.conf import settings
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
+from django.middleware.csrf import get_token
 from django.shortcuts import render
+from django.views.decorators.http import require_http_methods, require_POST
+from pydantic import BaseModel
 
 from content.models import Proposal
+from core.clientip import client_ip
 from core.vite import entry_assets
-from services import proposals
+from services import proposal_access as access
+from services import proposals, publishing
 from services.home import home_page
 from services.portfolio import public_detail, public_slugs
 
@@ -64,12 +69,63 @@ def home(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _customer_page(request: HttpRequest, data: BaseModel, status: int = 200) -> HttpResponse:
+    response = render_shell(
+        request, _PROPOSAL_META, status=status, data=data.model_dump(mode="json")
+    )
+    return _private(response)
+
+
+def _private(response: HttpResponse) -> HttpResponse:
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = NOINDEX
+    return response
+
+
+@require_http_methods(["GET", "HEAD", "POST"])
 def proposal(request: HttpRequest, slug: str) -> HttpResponse:
-    # Only a published proposal has a customer page (the content arrives with #12). A draft or a
-    # revoked one is a 404, indistinguishable from a slug that never existed.
-    if not Proposal.objects.filter(slug=slug, status=Proposal.Status.PUBLISHED).exists():
+    """The customer page: code form -> (session) -> latest revision, or the expiry notice.
+
+    A draft, a revoked proposal and an unknown slug are the same 404. POST is the code form; a
+    right code sets the session cookie and redirects back here.
+    """
+    found = Proposal.objects.filter(slug=slug, status=Proposal.Status.PUBLISHED).first()
+    revision = publishing.latest_revision(found) if found else None
+    if found is None or revision is None:
         raise Http404
-    return render_shell(request, _PROPOSAL_META)
+    if publishing.is_expired(revision):
+        if request.method == "POST":
+            return _private(HttpResponseRedirect(request.path))
+        assert revision.valid_until is not None
+        expired = proposals.ExpiredScreenData(
+            valid_until=revision.valid_until, supplier=proposals.supplier()
+        )
+        return _customer_page(request, expired)
+    if request.method == "POST":
+        attempt = access.try_code(found, request.POST.get("code", ""), client_ip(request))
+        if attempt is access.Attempt.OPENED:
+            response = _private(HttpResponseRedirect(request.path))
+            access.start_customer_session(response, found)
+            access.on_opened(found, revision)
+            return response
+        form = proposals.CodeScreenData(error=attempt.value, csrf_token=get_token(request))
+        return _customer_page(request, form, 429 if attempt is access.Attempt.BLOCKED else 400)
+    if access.has_customer_session(request, found):
+        data = proposals.revision_page_data(revision, csrf_token=get_token(request))
+        return _customer_page(request, data)
+    blocked = access.is_blocked(found, client_ip(request))
+    form = proposals.CodeScreenData(
+        error="blocked" if blocked else None, csrf_token=get_token(request)
+    )
+    return _customer_page(request, form)
+
+
+@require_POST
+def proposal_lock(request: HttpRequest, slug: str) -> HttpResponse:
+    """「잠금」: forget this browser's session for the proposal and go back to the code form."""
+    response = _private(HttpResponseRedirect(f"/p/{slug}"))
+    access.end_customer_session(response, slug)
+    return response
 
 
 def proposal_preview(request: HttpRequest, token: str) -> HttpResponse:
@@ -87,9 +143,7 @@ def proposal_preview(request: HttpRequest, token: str) -> HttpResponse:
     else:
         data = proposals.page_data(found, preview=True)
         response = render_shell(request, _PROPOSAL_META, data=data.model_dump(mode="json"))
-    response["Cache-Control"] = "no-store"
-    response["X-Robots-Tag"] = NOINDEX
-    return response
+    return _private(response)
 
 
 def work(request: HttpRequest, slug: str) -> HttpResponse:

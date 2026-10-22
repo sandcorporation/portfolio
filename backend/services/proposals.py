@@ -1,13 +1,16 @@
-"""Clients and proposals: the owner's side. Drafts live here; the customer page is #12's.
+"""Clients and proposals: the owner's side. Drafts live here; publishing is services/publishing.
 
 Every write takes a Pydantic input (only `model_fields_set` fields change) and returns a Pydantic
 output, and refuses with `services.errors`. Block and tab edits address blocks by `block_id` and
 tabs by `tab_id`, touch nothing else, and re-validate the whole document before saving.
-Only drafts can be edited; a published proposal changes through revisions (#12).
+A proposal's draft stays editable after publishing: what the customer sees is a frozen revision,
+and the next publication makes a new one. Only a revoked proposal is refused (it can never be
+published again, so edits would go nowhere; duplicate it instead).
 """
 
 import copy
 from datetime import date, datetime, timedelta
+from typing import Literal
 
 from django.conf import settings
 from django.core import signing
@@ -19,6 +22,7 @@ from content.models import (
     CLIENT_CODE_PATTERN,
     Client,
     Proposal,
+    ProposalRevision,
     SiteProfile,
     new_proposal_slug,
     stored_document,
@@ -147,6 +151,10 @@ def _summary_fields(p: Proposal) -> dict[str, object]:
     }
 
 
+def proposal_summary(p: Proposal) -> ProposalSummary:
+    return ProposalSummary.model_validate(_summary_fields(p))
+
+
 def proposal_out(p: Proposal) -> ProposalOut:
     return ProposalOut.model_validate(
         {**_summary_fields(p), "document": p.document, "updated_at": p.updated_at}
@@ -169,8 +177,8 @@ def _document(data: object, prefix: str = "document") -> dict[str, JSON]:
 
 def _editable(slug: str) -> Proposal:
     p = _proposal_or_404(slug)
-    if p.status != Proposal.Status.DRAFT:
-        raise Conflict("초안만 고칠 수 있습니다. 발행된 제안서는 새 리비전으로 고칩니다")
+    if p.status == Proposal.Status.REVOKED:
+        raise Conflict("회수된 제안서는 고칠 수 없습니다. 복제해서 새 초안으로 고칩니다")
     return p
 
 
@@ -178,7 +186,7 @@ def list_proposals(client_code: str | None = None) -> list[ProposalSummary]:
     rows = Proposal.objects.select_related("client")
     if client_code is not None:
         rows = rows.filter(client__code=client_code)
-    return [ProposalSummary.model_validate(_summary_fields(p)) for p in rows]
+    return [proposal_summary(p) for p in rows]
 
 
 def get_proposal(slug: str) -> ProposalOut:
@@ -371,7 +379,7 @@ def proposal_for_preview(token: str) -> Proposal:
     return p
 
 
-# --- the customer-facing page data (shared by preview and, in #12, /p/<slug>) ---
+# --- the customer-facing page data (the draft's preview, and a revision on /p/<slug>) ---
 
 
 class Supplier(BaseModel):
@@ -381,8 +389,16 @@ class Supplier(BaseModel):
     address: str
 
 
+class RevisionMeta(BaseModel):
+    number: int
+    doc_number: str
+    published_at: datetime
+
+
 class ProposalPageData(BaseModel):
-    """Embedded as #page-data. Mirrors frontend/src/proposal/types.ts."""
+    """Embedded as #page-data. Mirrors frontend/src/proposal/types.ts.
+
+    `revision` and `csrf_token` (for the lock button) are set on the customer page only."""
 
     preview: bool
     recipient: str
@@ -392,10 +408,55 @@ class ProposalPageData(BaseModel):
     valid_until: date | None
     supplier: Supplier
     document: dict[str, JSON]
+    revision: RevisionMeta | None = None
+    csrf_token: str | None = None
+
+
+class CodeScreenData(BaseModel):
+    """/p/<slug> before the code: the form, and why the last try failed (if it did)."""
+
+    screen: Literal["code"] = "code"
+    error: Literal["wrong", "blocked"] | None = None
+    csrf_token: str
+
+
+class ExpiredScreenData(BaseModel):
+    """/p/<slug> past its validity date: whom to contact instead of the document."""
+
+    screen: Literal["expired"] = "expired"
+    valid_until: date
+    supplier: Supplier
+
+
+def supplier() -> Supplier:
+    profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
+    return Supplier(
+        name=settings.SUPPLIER_NAME,
+        email=profile.contact_email,
+        phone=profile.contact_phone,
+        address=profile.address,
+    )
+
+
+def revision_page_data(r: ProposalRevision, *, csrf_token: str) -> ProposalPageData:
+    """The customer page: a revision's frozen fields, with media resolved now."""
+    return ProposalPageData(
+        preview=False,
+        recipient=r.recipient,
+        title=r.title,
+        subtitle=r.subtitle,
+        quote_date=r.quote_date,
+        valid_until=r.valid_until,
+        supplier=supplier(),
+        document=media.resolve_document(r.document),
+        revision=RevisionMeta(
+            number=r.number, doc_number=r.doc_number, published_at=r.published_at
+        ),
+        csrf_token=csrf_token,
+    )
 
 
 def page_data(p: Proposal, *, preview: bool) -> ProposalPageData:
-    profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
     title = p.client.contact_title
     return ProposalPageData(
         preview=preview,
@@ -404,11 +465,6 @@ def page_data(p: Proposal, *, preview: bool) -> ProposalPageData:
         subtitle=p.subtitle,
         quote_date=p.quote_date,
         valid_until=p.valid_until,
-        supplier=Supplier(
-            name=settings.SUPPLIER_NAME,
-            email=profile.contact_email,
-            phone=profile.contact_phone,
-            address=profile.address,
-        ),
+        supplier=supplier(),
         document=media.resolve_document(p.document),
     )

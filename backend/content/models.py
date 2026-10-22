@@ -246,6 +246,10 @@ class Proposal(models.Model):
     quote_date = models.DateField("견적 기준일")
     valid_until = models.DateField("유효기간", null=True, blank=True, help_text="이 날까지 유효.")
     status = models.CharField("상태", max_length=12, choices=Status, default=Status.DRAFT)
+    # The customer's access code, as a Django password hash; the plain code is shown once.
+    # Sessions carry `access_code_issued_at`, so a reissue invalidates every one of them.
+    access_code_hash = models.CharField(max_length=256, blank=True, editable=False)
+    access_code_issued_at = models.DateTimeField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -268,6 +272,48 @@ class Proposal(models.Model):
             raise ValidationError(
                 {"document": [f"{e.path}: {e.reason}" for e in exc.errors]}
             ) from exc
+
+
+class ProposalRevision(models.Model):
+    """What the customer saw: a frozen copy of a proposal at one publication. Never changes.
+
+    Fields are the stored document and metadata at publish time (media URLs are resolved when
+    served, like everywhere else). `doc_number` is SC-{YYYYMMDD}-{client code}-{serial}.
+    """
+
+    proposal = models.ForeignKey(
+        Proposal, verbose_name="제안서", on_delete=models.PROTECT, related_name="revisions"
+    )
+    number = models.PositiveIntegerField("리비전")
+    client = models.ForeignKey(
+        Client, verbose_name="고객", on_delete=models.PROTECT, related_name="revisions"
+    )
+    serial = models.PositiveIntegerField("고객별 일련번호")
+    doc_number = models.CharField("문서번호", max_length=40, unique=True)
+    published_at = models.DateTimeField("발행")
+    recipient = models.CharField("받는 분", max_length=200)
+    title = models.CharField("제목", max_length=160)
+    subtitle = models.CharField("부제", max_length=200, blank=True)
+    quote_date = models.DateField("견적 기준일")
+    valid_until = models.DateField("유효기간", null=True, blank=True)
+    document = models.JSONField("제안서 문서")
+
+    class Meta:
+        verbose_name = "리비전"
+        verbose_name_plural = "리비전"
+        ordering = ("proposal", "-number")
+        constraints = [
+            models.UniqueConstraint(fields=("proposal", "number"), name="revision_number_unique"),
+            models.UniqueConstraint(fields=("client", "serial"), name="revision_serial_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.doc_number} (v{self.number})"
+
+    def save(self, **kwargs: Any) -> None:  # Any: forwarded unchanged to Model.save
+        if not self._state.adding:
+            raise ValueError("리비전은 바꿀 수 없습니다")
+        super().save(**kwargs)
 
 
 class Inquiry(models.Model):

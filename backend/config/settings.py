@@ -23,6 +23,9 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 # NPMplus terminates TLS and forwards X-Forwarded-Proto.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# The site is served over HTTPS only; keep the admin session and CSRF cookies off plain HTTP.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -167,3 +170,8 @@ LOGGING = {
 # minutes covers reading a draft through; an older link is simply issued again from the admin.
 SUPPLIER_NAME = env("SUPPLIER_NAME", "샌드코프")
 PROPOSAL_PREVIEW_MAX_AGE = 30 * 60
+# The customer page (/p/<slug>): a right code opens a seven-day session for that proposal; five
+# wrong ones from one IP block that IP for fifteen minutes, right code or not.
+PROPOSAL_SESSION_MAX_AGE = 7 * 24 * 60 * 60
+PROPOSAL_CODE_MAX_FAILURES = 5
+PROPOSAL_CODE_BLOCK_SECONDS = 15 * 60

@@ -733,9 +733,9 @@ h3.block-heading {
 
 @media (min-width: 720px) {
   .proposal-facts {
-    grid-template-columns: repeat(3, auto);
-    justify-content: start;
-    gap: var(--space-6);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-6);
   }
 }
 
@@ -824,5 +824,119 @@ h3.block-heading {
 
   .inquiry-form button {
     justify-self: stretch;
+  }
+}
+
+/* ---- proposal customer page: code form, expiry notice, lock ---- */
+.gate-page {
+  max-width: 520px;
+}
+
+.gate h1 {
+  font-size: var(--text-xl);
+}
+
+.gate-lead {
+  margin: var(--space-2) 0 var(--space-5);
+  color: var(--color-text);
+}
+
+.gate-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.gate-form label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.gate-form input {
+  font: inherit;
+  font-size: var(--text-xl);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  min-width: 0;
+}
+
+.gate-form input::placeholder {
+  letter-spacing: 0.05em;
+  text-transform: none;
+  font-size: var(--text-base);
+  color: var(--color-muted);
+}
+
+.gate-form button,
+.lock-form button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border: 0;
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-6);
+  cursor: pointer;
+}
+
+.gate-error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.gate-note {
+  margin: var(--space-5) 0 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.gate-contact {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.gate-contact dt {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.gate-contact dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.lock-form {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lock-form button {
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  background: transparent;
+  border: 1px solid var(--color-line-strong);
+}
+
+.lock-doc {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 600px) {
+  .lock-doc {
+    display: none;
   }
 }
