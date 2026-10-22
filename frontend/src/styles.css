@@ -921,12 +921,20 @@ h3.block-heading {
   gap: var(--space-3);
 }
 
-.lock-form button {
+.lock-form button,
+.pdf-download {
   padding: var(--space-1) var(--space-4);
   font-size: var(--text-sm);
   color: var(--color-ink);
   background: transparent;
   border: 1px solid var(--color-line-strong);
+}
+
+.pdf-download {
+  font-weight: 600;
+  line-height: inherit;
+  border-radius: var(--radius);
+  text-decoration: none;
 }
 
 .lock-doc {

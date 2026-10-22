@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from content.models import Proposal, ProposalRevision
 from core.clientip import client_ip
 from core.vite import entry_assets
-from services import media, proposals, publishing
+from services import media, pdf, proposals, publishing
 from services import proposal_access as access
 from services.home import home_page
 from services.portfolio import public_detail, public_slugs
@@ -116,7 +116,10 @@ def proposal(request: HttpRequest, slug: str) -> HttpResponse:
         form = proposals.CodeScreenData(error=attempt.value, csrf_token=get_token(request))
         return _customer_page(request, form, 429 if attempt is access.Attempt.BLOCKED else 400)
     if not publishing.is_expired(revision) and access.has_customer_session(request, found):
-        data = proposals.revision_page_data(revision, csrf_token=get_token(request))
+        pdf_url = f"/p/{slug}/pdf" if pdf.ready_job(found) else None
+        data = proposals.revision_page_data(
+            revision, csrf_token=get_token(request), pdf_url=pdf_url
+        )
         return _customer_page(request, data)
     blocked = access.is_blocked(found, client_ip(request))
     form = proposals.CodeScreenData(
@@ -137,6 +140,24 @@ def _media_answer(url: str | None) -> HttpResponse:
     if url is None:
         return _private(JsonResponse({"error": "not_found"}, status=404))
     return _private(JsonResponse({"url": url}))
+
+
+@require_http_methods(["GET"])
+def proposal_pdf(request: HttpRequest, slug: str) -> HttpResponse:
+    """The latest revision's PDF: the same gate as the page, then a 302 to a short-lived presigned
+    URL that saves it as `<document number>.pdf`. 404 until the PDF is done."""
+    found = Proposal.objects.filter(slug=slug, status=Proposal.Status.PUBLISHED).first()
+    revision = publishing.latest_revision(found) if found else None
+    if found is None or revision is None:
+        raise Http404
+    if publishing.is_expired(revision) or not access.has_customer_session(request, found):
+        return _private(HttpResponse("코드를 다시 입력해 주세요.", status=403))
+    job = pdf.ready_job(found)
+    if job is None:
+        raise Http404
+    response = _private(HttpResponseRedirect(pdf.download_url(job)))
+    access.on_pdf_downloaded(found, revision)
+    return response
 
 
 @require_http_methods(["GET"])

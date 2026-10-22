@@ -177,3 +177,16 @@ PROPOSAL_PRINT_MAX_AGE = 10 * 60
 PROPOSAL_SESSION_MAX_AGE = 7 * 24 * 60 * 60
 PROPOSAL_CODE_MAX_FAILURES = 5
 PROPOSAL_CODE_BLOCK_SECONDS = 15 * 60
+
+# Revision PDFs (#40): the worker (`manage.py pdf_worker`) hands the renderer the print page of a
+# revision at PDF_PRINT_BASE_URL (web as seen from the compose network). The renderer is the
+# project's own browserless container; without a token every PDF fails and the site still works.
+PDF_RENDERER_URL = env("PDF_RENDERER_URL", "http://renderer:3000")
+PDF_RENDERER_TOKEN = env("PDF_RENDERER_TOKEN")
+PDF_PRINT_BASE_URL = env("PDF_PRINT_BASE_URL", "http://web:8000")
+# browserless gives up on each step (load, print-ready wait) after this long.
+PDF_RENDER_TIMEOUT_SECONDS = 60
+# A job is tried this many times (failures wait 1, 2, ... minutes) before it stays failed.
+PDF_JOB_MAX_ATTEMPTS = 3
+# One render takes at most about 2 x timeout + 10s; a job running longer than this lost its worker.
+PDF_JOB_STALE_SECONDS = 5 * 60

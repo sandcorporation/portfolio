@@ -441,6 +441,8 @@ class ProposalPageData(BaseModel):
     # proposal, which video / audio-compare blocks turn into a QR code plus link (`#<block id>`).
     print_mode: bool = False
     public_url: str | None = None
+    # Customer page only: where the finished PDF of this revision downloads (absent until done).
+    pdf_url: str | None = None
 
 
 class CodeScreenData(BaseModel):
@@ -520,7 +522,9 @@ def supplier() -> Supplier:
     )
 
 
-def revision_page_data(r: ProposalRevision, *, csrf_token: str) -> ProposalPageData:
+def revision_page_data(
+    r: ProposalRevision, *, csrf_token: str, pdf_url: str | None = None
+) -> ProposalPageData:
     """The customer page: a revision's frozen fields, with media resolved now (private media as
     short-lived URLs: the caller has checked the customer session)."""
     return ProposalPageData(
@@ -537,6 +541,7 @@ def revision_page_data(r: ProposalRevision, *, csrf_token: str) -> ProposalPageD
         ),
         csrf_token=csrf_token,
         media_endpoint=f"/p/{r.proposal.slug}/media",
+        pdf_url=pdf_url,
     )
 
 

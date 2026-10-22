@@ -76,6 +76,15 @@ test("고객 본문은 문서번호와 리비전을 보이고, 잠금은 /lock �
   expect(container.querySelector('input[name="csrfmiddlewaretoken"]')).toHaveValue("tok");
 });
 
+test("PDF가 만들어진 리비전에만 PDF 내려받기 링크가 있다", () => {
+  const { unmount } = render(<App path={path} data={body} />);
+  expect(screen.queryByRole("link", { name: "PDF" })).toBeNull();
+  unmount();
+
+  render(<App path={path} data={{ ...body, pdf_url: `${path}/pdf` }} />);
+  expect(screen.getByRole("link", { name: "PDF" })).toHaveAttribute("href", `${path}/pdf`);
+});
+
 test("미리보기에는 잠금 버튼이 없다", () => {
   render(<App path="/preview/tok" data={{ ...body, preview: true, revision: null, csrf_token: null }} />);
 

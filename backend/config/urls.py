@@ -32,6 +32,7 @@ urlpatterns = [
     path("p/<slug:slug>", shell.proposal, name="proposal"),
     path("p/<slug:slug>/lock", shell.proposal_lock, name="proposal_lock"),
     path("p/<slug:slug>/media/<int:media_id>", shell.proposal_media, name="proposal_media"),
+    path("p/<slug:slug>/pdf", shell.proposal_pdf, name="proposal_pdf"),
     path("preview/<str:token>", shell.proposal_preview, name="proposal_preview"),
     path(
         "preview/<str:token>/media/<int:media_id>",

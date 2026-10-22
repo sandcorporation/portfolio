@@ -31,4 +31,5 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 - 새 블록 추가 절차: `frontend/src/blocks/README.md`.
 - 작업자는 이 「명령」 절을 명령이 바뀌는 티켓에서 함께 고친다.
 - 로컬 실행: `make dev-frontend`(Vite, :5173)와 `make dev-backend`(Django, :8000)를 따로 띄우고 http://localhost:8000 을 연다. Django가 HTML 셸을 내리고 Vite dev 서버의 스크립트를 붙인다.
+- PDF 워커(#40): 운영 compose의 `worker`가 `python manage.py pdf_worker`를 돌린다(작업 하나씩, `--once`는 하나만 처리하고 끝냄). 렌더러는 같은 compose의 `renderer`(browserless, 호스트 포트 없음)이고 `.env`의 `PDF_RENDERER_TOKEN`이 비면 PDF만 「실패」로 남는다. 로컬 개발 서버에서는 워커를 띄우지 않으면 PDF가 「대기」에 머문다.
 - 운영 compose 로컬 확인: `.env.example`을 `.env`로 복사해 값을 채우고(`DJANGO_ALLOWED_HOSTS`에 `localhost`) `COMPOSE_PROJECT_NAME=portfolio-local COMPOSE_FILE=docker-compose.prod.yml bash deploy/deploy.sh` → http://127.0.0.1:18091 . 끝나면 `make prod-local-down`.

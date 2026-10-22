@@ -46,6 +46,11 @@ echo "== web 교체"
 compose up -d --no-deps --force-recreate web
 wait_healthy web
 
+echo "== PDF 렌더러·워커"
+# 렌더러는 고정 태그라 설정이 같으면 그대로 둔다. 워커는 새 이미지로 바꾼다(진행 중 PDF는 끝내고 멈춤).
+compose up -d --no-deps renderer
+compose up -d --no-deps --force-recreate worker
+
 echo "== 헬스 확인"
 compose exec -T web python -c "
 import os, urllib.request as u

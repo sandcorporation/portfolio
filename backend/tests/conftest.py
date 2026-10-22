@@ -17,6 +17,7 @@ from pytest_django.fixtures import Settings
 
 from adapters.fake_jwks import FakeAuthServer
 from adapters.fake_notify import FakeNotifier
+from adapters.fake_renderer import FakeRenderer
 from adapters.fake_storage import FakeObjectStorage
 from content.models import Media, PortfolioItem
 from core.vite import _read_manifest
@@ -87,6 +88,7 @@ def fake_storage(monkeypatch: pytest.MonkeyPatch) -> FakeObjectStorage:
     storage = FakeObjectStorage()
     monkeypatch.setattr("services.media.get_storage", lambda: storage)
     monkeypatch.setattr("content.admin.get_storage", lambda: storage)
+    monkeypatch.setattr("services.pdf.get_storage", lambda: storage)
     return storage
 
 
@@ -113,4 +115,12 @@ def notifier(monkeypatch: pytest.MonkeyPatch) -> FakeNotifier:
     """Replace the owner-alert channel; assert on `notifier.sent`, set `notifier.failing`."""
     fake = FakeNotifier()
     monkeypatch.setattr("services.inquiries.get_notifier", lambda: fake)
+    return fake
+
+
+@pytest.fixture
+def renderer(monkeypatch: pytest.MonkeyPatch) -> FakeRenderer:
+    """Replace the PDF renderer; assert on `renderer.urls`, set `renderer.failing`."""
+    fake = FakeRenderer()
+    monkeypatch.setattr("services.pdf.get_renderer", lambda: fake)
     return fake

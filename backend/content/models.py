@@ -403,3 +403,41 @@ class Inquiry(models.Model):
 
     def __str__(self) -> str:
         return f"[{self.site}·{self.kind}] {self.name}"
+
+
+class PdfJob(models.Model):
+    """The customer's PDF of one revision, and the background job that makes it.
+
+    One row per revision, made in the same transaction as the revision (so the worker sees it
+    only after the publication commits). The worker (`manage.py pdf_worker`) claims due jobs one
+    at a time; `locked_at` is when it claimed this one. A running job whose `locked_at` is older
+    than `PDF_JOB_STALE_SECONDS` belongs to a worker that died and is picked up again.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "대기"
+        RUNNING = "running", "처리 중"
+        DONE = "done", "완료"
+        FAILED = "failed", "실패"
+
+    revision = models.OneToOneField(
+        ProposalRevision, verbose_name="리비전", on_delete=models.PROTECT, related_name="pdf"
+    )
+    status = models.CharField(
+        "PDF 상태", max_length=8, choices=Status, default=Status.PENDING, db_index=True
+    )
+    attempts = models.PositiveSmallIntegerField("시도 횟수", default=0)
+    run_after = models.DateTimeField("다음 시도", auto_now_add=True)
+    locked_at = models.DateTimeField("처리 시작", null=True, blank=True)
+    finished_at = models.DateTimeField("완료", null=True, blank=True)
+    error = models.TextField("마지막 오류", blank=True)
+    object_key = models.CharField("PDF 객체 키", max_length=200, blank=True)
+    size = models.PositiveIntegerField("크기(바이트)", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "리비전 PDF"
+        verbose_name_plural = "리비전 PDF"
+        ordering = ("-id",)
+
+    def __str__(self) -> str:
+        return f"{self.revision.doc_number} PDF ({self.get_status_display()})"

@@ -13,6 +13,7 @@ from content.models import (
     Client,
     Inquiry,
     Media,
+    PdfJob,
     PortfolioItem,
     Proposal,
     ProposalRevision,
@@ -20,6 +21,7 @@ from content.models import (
 )
 from services import inquiries as inquiry_service
 from services import media as media_service
+from services import pdf as pdf_service
 from services import proposals as proposal_service
 from services import publishing
 from services.errors import ServiceError
@@ -384,8 +386,9 @@ class ProposalAdmin(_ProposalAdmin):
 class ProposalRevisionAdmin(_RevisionAdmin):
     """Read-only: a revision is what the customer was sent."""
 
-    list_display = ("doc_number", "proposal", "number", "published_at", "valid_until")
-    list_filter = ("client",)
+    list_display = ("doc_number", "proposal", "number", "published_at", "valid_until", "pdf_state")
+    list_filter = ("client", "pdf__status")
+    actions = ("retry_pdf",)
     search_fields = ("doc_number", "proposal__title")
     fields = (
         "proposal",
@@ -397,9 +400,51 @@ class ProposalRevisionAdmin(_RevisionAdmin):
         "subtitle",
         "quote_date",
         "valid_until",
+        "pdf_state",
+        "pdf_detail",
         "document",
     )
     readonly_fields = fields
+
+    @admin.display(description="PDF")
+    def pdf_state(self, obj: ProposalRevision) -> str:
+        job = PdfJob.objects.filter(revision=obj).first()
+        return job.get_status_display() if job else "없음"
+
+    @admin.display(description="PDF 내용")
+    def pdf_detail(self, obj: ProposalRevision) -> str:
+        job = PdfJob.objects.filter(revision=obj).first()
+        if job is None:
+            return "PDF 작업이 없습니다(이전 발행). 「PDF 다시 만들기」로 만듭니다."
+        if job.status == PdfJob.Status.DONE:
+            try:
+                url = pdf_service.download_url(job, storage=get_storage())
+            except StorageNotConfigured:
+                return f"완료 ({job.size or 0:,} 바이트) — 저장소 설정이 없어 내려받을 수 없음"
+            return format_html(
+                '<a href="{}">{}</a> ({} 바이트)',
+                url,
+                pdf_service.download_name(obj),
+                f"{job.size or 0:,}",
+            )
+        return f"{job.get_status_display()} · 시도 {job.attempts}회" + (
+            f" · 오류: {job.error}" if job.error else ""
+        )
+
+    @admin.action(description="PDF 다시 만들기")
+    def retry_pdf(self, request: HttpRequest, queryset: QuerySet[ProposalRevision]) -> None:
+        done = 0
+        for revision in queryset:
+            try:
+                pdf_service.retry(revision)
+            except ServiceError as e:
+                self.message_user(request, f"{revision.doc_number}: {e}", messages.WARNING)
+            else:
+                done += 1
+        if done:
+            self.message_user(
+                request, f"PDF {done}건을 다시 만들도록 맡겼습니다. 워커가 곧 처리합니다."
+            )
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False

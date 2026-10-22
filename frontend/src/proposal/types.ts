@@ -37,6 +37,8 @@ export interface ProposalData {
   print_mode?: boolean;
   /** Print page only: `https://…/p/<slug>`, where audio / video blocks send the reader (`#<block id>`). */
   public_url?: string | null;
+  /** Customer page only: where this revision's PDF downloads, once it has been made. */
+  pdf_url?: string | null;
 }
 
 /** /p/<slug> before the code. Mirrors CodeScreenData. */

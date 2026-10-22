@@ -37,6 +37,10 @@ def on_opened(p: Proposal, revision: ProposalRevision) -> None:
     """Called when the right code opens a customer session. #18: the "viewed" event goes here."""
 
 
+def on_pdf_downloaded(p: Proposal, revision: ProposalRevision) -> None:
+    """Called when a customer with a session downloads the revision's PDF. #18: alert here."""
+
+
 # --- the session cookie ---
 
 

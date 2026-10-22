@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 from content.models import Client, Proposal, ProposalRevision
 from documents.validation import JSON
-from services import case_refs
+from services import case_refs, pdf
 from services.errors import Conflict, NotFound
 from services.proposals import ProposalSummary, proposal_summary
 
@@ -155,6 +155,7 @@ def publish(slug: str) -> Published:
             valid_until=p.valid_until,
             document=snapshot_document(p.document),
         )
+        pdf.enqueue(revision)  # same transaction: the worker sees it once this commits
         code = None if p.access_code_hash else _issue_code(p)
         p.status = Proposal.Status.PUBLISHED
         p.save()
