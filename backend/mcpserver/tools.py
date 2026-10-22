@@ -8,7 +8,7 @@ should read (it becomes an `isError` result, not a protocol error).
 Every tool runs behind the `/mcp` bearer check (scope `admin`), so it always has a token.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -93,7 +93,10 @@ class BlockSchemaInput(BaseModel):
 @tool(
     "whoami",
     "Who am I",
-    "The identity this connection acts as: the token's subject, client and scopes.",
+    "The identity this connection acts as: the token's subject, client and scopes. Writing a "
+    "proposal: block_schema -> list_clients/create_client -> create_proposal -> replace_block/"
+    "insert_block/add_tab -> issue_preview_url (look at it) -> publish (the access code is shown "
+    "once; give it to the customer separately).",
     NoInput,
 )
 def whoami(token: AccessToken, args: NoInput) -> ToolResult:
@@ -149,6 +152,22 @@ def _failure(exc: ServiceError) -> ToolError:
     if isinstance(exc, (NotFound, Conflict)):
         return ToolError(str(exc))
     return ToolError(f"{type(exc).__name__}: {exc}")
+
+
+def one(call: Callable[[], BaseModel]) -> ToolResult:
+    """Run a service call returning a model; a refusal becomes the tool's error."""
+    try:
+        return call().model_dump(mode="json")
+    except ServiceError as exc:
+        raise _failure(exc) from exc
+
+
+def many(call: Callable[[], Sequence[BaseModel]]) -> ToolResult:
+    """Like `one` for a list: `{"items": [...]}`."""
+    try:
+        return {"items": [row.model_dump(mode="json") for row in call()]}
+    except ServiceError as exc:
+        raise _failure(exc) from exc
 
 
 class SlugInput(BaseModel):

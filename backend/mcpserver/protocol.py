@@ -10,6 +10,7 @@ import logging
 from pydantic import ValidationError
 
 from documents.validation import JSON
+from mcpserver import tools_media, tools_proposals, tools_publishing  # noqa: F401  # register
 from mcpserver.tools import TOOLS, ToolError
 from oauth.tokens import AccessToken
 

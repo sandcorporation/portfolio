@@ -403,11 +403,25 @@ def test_mcp_content_tools_need_a_token_with_admin_scope(
     assert not PortfolioItem.objects.exists()
 
 
+CONTENT_TOOLS = {
+    "whoami",
+    "block_schema",
+    "get_profile",
+    "update_profile",
+    "list_portfolio",
+    "get_portfolio",
+    "create_portfolio",
+    "update_portfolio",
+    "reorder_portfolio",
+    "set_portfolio_visibility",
+}  # fmt: skip (the other tools are checked in test_mcp_proposals)
+
+
 def test_tool_list_marks_writers_and_readers(client: Client, auth_server: FakeAuthServer) -> None:
     tools = McpClient(client, auth_server).request("tools/list")["result"]
     assert isinstance(tools, dict) and isinstance(tools["tools"], list)
     read_only = {t["name"]: t["annotations"]["readOnlyHint"] for t in tools["tools"]}  # type: ignore[index,call-overload]
-    assert read_only == {
+    assert {k: v for k, v in read_only.items() if k in CONTENT_TOOLS} == {
         "whoami": True,
         "block_schema": True,
         "get_profile": True,

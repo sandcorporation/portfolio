@@ -173,6 +173,16 @@ def retry(revision: ProposalRevision) -> None:
         job.save()
 
 
+def retry_revision(slug: str, number: int | None = None) -> PdfStatus:
+    """`retry` by proposal slug and revision number (latest by default); returns the new status."""
+    revisions = ProposalRevision.objects.filter(proposal__slug=slug)
+    revision = revisions.filter(number=number).first() if number is not None else revisions.first()
+    if revision is None:
+        raise NotFound(f"제안서 {slug!r}의 리비전이 없습니다")
+    retry(revision)
+    return pdf_status(slug, revision.number)
+
+
 # --- reading ---
 
 
