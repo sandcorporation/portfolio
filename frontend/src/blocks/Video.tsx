@@ -1,9 +1,40 @@
 import type { MouseEvent } from "react";
 import { Heading } from "./Heading";
 import { useMediaRefresh, useMediaUrls, usePlayback } from "./media";
+import { blockLink, useRenderMode } from "./mode";
+import { QrLink } from "./QrLink";
 import type { VideoBlock } from "./types";
 
 export function Video({ block, anchor }: { block: VideoBlock; anchor: string }) {
+  const { print, shareUrl } = useRenderMode();
+  if (print && shareUrl) return <VideoOnPaper block={block} anchor={anchor} shareUrl={shareUrl} />;
+  return <VideoPlayer block={block} anchor={anchor} />;
+}
+
+/** Print mode: the file cannot play on paper (and its URL expires), so a QR code and a link. */
+function VideoOnPaper({
+  block,
+  anchor,
+  shareUrl,
+}: {
+  block: VideoBlock;
+  anchor: string;
+  shareUrl: string;
+}) {
+  return (
+    <section className="block-video" aria-labelledby={block.title ? anchor : undefined}>
+      {block.title && (
+        <Heading level={3} id={anchor}>
+          {block.title}
+        </Heading>
+      )}
+      <QrLink href={blockLink(shareUrl, block.id)} kind="영상" />
+      {block.caption && <p className="media-description">{block.caption}</p>}
+    </section>
+  );
+}
+
+function VideoPlayer({ block, anchor }: { block: VideoBlock; anchor: string }) {
   const { urlOf, renew } = useMediaUrls([{ media_id: block.media_id, url: block.url }]);
   const { ref, hold, handlers } = usePlayback<HTMLVideoElement>();
   const refresh = useMediaRefresh();

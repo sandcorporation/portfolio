@@ -170,6 +170,8 @@ LOGGING = {
 # minutes covers reading a draft through; an older link is simply issued again from the admin.
 SUPPLIER_NAME = env("SUPPLIER_NAME", "샌드코프")
 PROPOSAL_PREVIEW_MAX_AGE = 30 * 60
+# The PDF renderer opens a print page within seconds of being handed the link.
+PROPOSAL_PRINT_MAX_AGE = 10 * 60
 # The customer page (/p/<slug>): a right code opens a seven-day session for that proposal; five
 # wrong ones from one IP block that IP for fifteen minutes, right code or not.
 PROPOSAL_SESSION_MAX_AGE = 7 * 24 * 60 * 60

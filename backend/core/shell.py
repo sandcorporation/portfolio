@@ -189,6 +189,36 @@ def proposal_preview(request: HttpRequest, token: str) -> HttpResponse:
     return _private(response)
 
 
+@require_http_methods(["GET"])
+def proposal_print_media(request: HttpRequest, token: str, media_id: int) -> HttpResponse:
+    """The print page's counterpart of `proposal_media`: the print token is the gate and the
+    revision it names is the document."""
+    try:
+        revision = proposals.revision_for_print(token)
+    except proposals.ExpiredPrintToken:
+        return _private(JsonResponse({"error": "expired"}, status=410))
+    except proposals.BadPrintToken:
+        raise Http404 from None
+    return _media_answer(media.document_media_url(revision.document, media_id))
+
+
+def proposal_print(request: HttpRequest, token: str) -> HttpResponse:
+    """One revision as the print layout (every tab, QR codes for audio / video). Opened by the PDF
+    renderer with a short-lived signed token; no customer session, never indexed."""
+    try:
+        revision = proposals.revision_for_print(token)
+    except proposals.ExpiredPrintToken:
+        response = HttpResponse(
+            "인쇄 링크가 만료되었습니다.", status=410, content_type="text/plain; charset=utf-8"
+        )
+    except proposals.BadPrintToken:
+        raise Http404 from None
+    else:
+        data = proposals.print_page_data(revision, token=token)
+        response = render_shell(request, _PROPOSAL_META, data=data.model_dump(mode="json"))
+    return _private(response)
+
+
 def work(request: HttpRequest, slug: str) -> HttpResponse:
     detail = public_detail(slug)
     if detail is None:
@@ -208,7 +238,7 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
 
 def robots_txt(request: HttpRequest) -> HttpResponse:
     body = (
-        "User-agent: *\nDisallow: /p/\nDisallow: /preview/\n\n"
+        "User-agent: *\nDisallow: /p/\nDisallow: /preview/\nDisallow: /print/\n\n"
         f"Sitemap: {settings.SITE_URL}/sitemap.xml\n"
     )
     return HttpResponse(body, content_type="text/plain; charset=utf-8")

@@ -1141,3 +1141,167 @@ h3.block-heading {
   color: var(--color-muted);
   font-size: var(--text-sm);
 }
+
+/* ---- print: A4 paper (the PDF renderer's /print/<token>, and a browser's own print) ---- */
+.qr-link {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  break-inside: avoid;
+}
+
+.qr-code {
+  flex: none;
+  width: 28mm;
+  height: 28mm;
+}
+
+.qr-bg {
+  fill: var(--color-qr-bg);
+}
+
+.qr-fg {
+  fill: var(--color-qr-fg);
+}
+
+.qr-link p {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.qr-link a {
+  overflow-wrap: anywhere;
+}
+
+.audio-track-label {
+  margin: var(--space-3) 0 var(--space-1);
+  font-weight: 600;
+}
+
+.audio-track-names {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.print-page {
+  max-width: none;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.print-tab-title {
+  margin: 0 0 var(--space-4);
+  padding-bottom: var(--space-2);
+  font-size: var(--text-2xl);
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.document-toc li[data-level="1"] a {
+  font-weight: 700;
+  padding-top: var(--space-2);
+}
+
+@page {
+  size: A4;
+  margin: 16mm 14mm 18mm;
+}
+
+@media print {
+  html {
+    scroll-padding-top: 0;
+  }
+
+  /* the page margins stay white, so the sheet is not tinted either */
+  body,
+  .proposal {
+    background: none;
+    color: var(--color-text);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .masthead,
+  .document-tabs,
+  .lock-form,
+  .proposal-preview-note,
+  .media-download {
+    display: none !important;
+  }
+
+  .page,
+  .print-page {
+    max-width: none;
+    padding: 0;
+  }
+
+  .sheet {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  /* cover and contents share the first sheet; each tab starts a new one */
+  .print-tab {
+    break-before: page;
+  }
+
+  .block-slot {
+    scroll-margin-top: 0;
+  }
+
+  h2,
+  h3,
+  h4,
+  .block-heading,
+  .audio-track-label {
+    break-after: avoid;
+  }
+
+  .block-table,
+  .block-table tr,
+  .block-kpi,
+  .block-callout,
+  .block-details,
+  .kpi-card,
+  .case-card,
+  .gallery-grid li,
+  .audio-compare-text section,
+  figure,
+  .qr-link {
+    break-inside: avoid;
+  }
+
+  .block-table thead {
+    display: table-header-group;
+  }
+
+  .table-scroll {
+    overflow: visible;
+  }
+
+  /* a link on paper is only useful with its address */
+  .prose a[href^="http"]::after,
+  .block-callout a[href^="http"]::after,
+  .case-card a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    overflow-wrap: anywhere;
+  }
+
+  .document-toc a::after {
+    content: none !important;
+  }
+
+  .audio-compare-text {
+    grid-template-columns: repeat(auto-fit, minmax(60mm, 1fr));
+  }
+}

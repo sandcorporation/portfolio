@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { DocumentView } from "../blocks/DocumentView";
 import { MediaUrlContext, endpointRefresher } from "../blocks/media";
+import { RenderModeContext, screenMode, type RenderMode } from "../blocks/mode";
 import type { Document } from "../blocks/types";
 import type { ProposalData } from "./types";
 
@@ -28,8 +29,12 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
   const contact = [supplier.email, supplier.phone, supplier.address].filter(Boolean);
   const endpoint = data.media_endpoint;
   const refreshMedia = useMemo(() => (endpoint ? endpointRefresher(endpoint) : null), [endpoint]);
+  const mode: RenderMode = useMemo(
+    () => (data.print_mode ? { print: true, shareUrl: data.public_url ?? null } : screenMode),
+    [data.print_mode, data.public_url],
+  );
   return (
-    <article className="proposal" aria-labelledby="proposal-title">
+    <article className={data.print_mode ? "proposal proposal-print" : "proposal"} aria-labelledby="proposal-title">
       {data.preview && (
         <p className="proposal-preview-note" role="status">
           초안 미리보기 · 고객에게 공개되지 않은 화면입니다
@@ -68,9 +73,11 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
           </div>
         </dl>
       </header>
-      <MediaUrlContext.Provider value={refreshMedia}>
-        <DocumentView document={withoutCoverBlocks(data.document)} idPrefix="proposal-" />
-      </MediaUrlContext.Provider>
+      <RenderModeContext.Provider value={mode}>
+        <MediaUrlContext.Provider value={refreshMedia}>
+          <DocumentView document={withoutCoverBlocks(data.document)} idPrefix="proposal-" />
+        </MediaUrlContext.Provider>
+      </RenderModeContext.Provider>
     </article>
   );
 }

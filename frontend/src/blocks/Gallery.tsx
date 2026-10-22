@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Heading } from "./Heading";
 import { useMediaUrls } from "./media";
+import { useRenderMode } from "./mode";
 import type { GalleryBlock } from "./types";
 
 type Shown = { url: string; alt: string; caption?: string | null; onError: () => void };
@@ -14,6 +15,7 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
     const onError = () => void renew(image.media_id);
     return url ? [{ url, alt: image.alt, caption: image.caption, onError }] : [];
   });
+  const { print } = useRenderMode();
   const [open, setOpen] = useState<number | null>(null);
   const opener = useRef<HTMLElement | null>(null);
 
@@ -43,7 +45,7 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
                 setOpen(index);
               }}
             >
-              <img src={image.url} alt={image.alt} loading="lazy" onError={image.onError} />
+              <img src={image.url} alt={image.alt} loading={print ? "eager" : "lazy"} onError={image.onError} />
             </button>
           </li>
         ))}

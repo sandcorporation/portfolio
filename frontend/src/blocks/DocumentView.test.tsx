@@ -69,3 +69,50 @@ test("알 수 없는 블록 타입은 건너뛰고 나머지를 그린다", () =
   expect(screen.getByRole("heading", { name: "뒤" })).toBeInTheDocument();
   expect(within(screen.getByRole("navigation")).getAllByRole("link")).toHaveLength(2);
 });
+
+describe("#<블록 id>로 들어오면", () => {
+  const scrolled: string[] = [];
+
+  beforeEach(() => {
+    scrolled.length = 0;
+    Element.prototype.scrollIntoView = function (this: HTMLElement) {
+      scrolled.push(this.dataset.blockId ?? "");
+    };
+  });
+
+  afterEach(() => {
+    window.location.hash = "";
+  });
+
+  test("그 블록이 있는 탭으로 바뀌고 그 블록으로 스크롤한다", () => {
+    window.location.hash = "#demo-video";
+    render(<DocumentView document={exampleDocument} />);
+
+    expect(screen.getByRole("tab", { name: "회사소개·수행사례" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(scrolled).toEqual(["demo-video"]);
+  });
+
+  test("열려 있는 중에 주소가 바뀌어도 따라간다", async () => {
+    render(<DocumentView document={exampleDocument} />);
+    expect(screen.getByRole("tab", { name: "견적 제안" })).toHaveAttribute("aria-selected", "true");
+
+    window.location.hash = "#demo-video";
+    await vi.waitFor(() => expect(scrolled).toContain("demo-video"));
+
+    expect(screen.getByRole("tab", { name: "회사소개·수행사례" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  test("모르는 블록 id는 무시한다", () => {
+    window.location.hash = "#nothing-here";
+    render(<DocumentView document={exampleDocument} />);
+
+    expect(screen.getByRole("tab", { name: "견적 제안" })).toHaveAttribute("aria-selected", "true");
+    expect(scrolled).toEqual([]);
+  });
+});

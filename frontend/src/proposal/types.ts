@@ -33,6 +33,10 @@ export interface ProposalData {
   csrf_token?: string | null;
   /** Where to ask for a fresh private media URL: GET {media_endpoint}/{media_id} -> {url}. */
   media_endpoint?: string | null;
+  /** Print page only (/print/<token>): lay the document out for paper. */
+  print_mode?: boolean;
+  /** Print page only: `https://…/p/<slug>`, where audio / video blocks send the reader (`#<block id>`). */
+  public_url?: string | null;
 }
 
 /** /p/<slug> before the code. Mirrors CodeScreenData. */

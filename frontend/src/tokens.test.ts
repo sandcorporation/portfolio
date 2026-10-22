@@ -48,7 +48,7 @@ function contrast(a: string, b: string): number {
 /** Token values of one scheme: the light block is the first `:root`, dark the one in the media query. */
 function tokens(scheme: "light" | "dark"): Record<string, string> {
   const css = sources[join(SRC, "tokens.css")] ?? "";
-  const [light = "", dark = ""] = css.split("@media (prefers-color-scheme: dark)");
+  const [light = "", dark = ""] = css.split("@media screen and (prefers-color-scheme: dark)");
   const block = scheme === "light" ? light : dark;
   const values: Record<string, string> = {};
   for (const [, name, value] of block.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) {

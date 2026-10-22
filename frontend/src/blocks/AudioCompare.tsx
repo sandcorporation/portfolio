@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Heading } from "./Heading";
 import { useMediaUrls, usePlayback } from "./media";
+import { blockLink, useRenderMode } from "./mode";
+import { QrLink } from "./QrLink";
 import type { AudioCompareBlock, AudioTrack } from "./types";
 
 /**
@@ -9,6 +11,46 @@ import type { AudioCompareBlock, AudioTrack } from "./types";
  * transcript and original script are shown side by side.
  */
 export function AudioCompare({ block, anchor }: { block: AudioCompareBlock; anchor: string }) {
+  const { print, shareUrl } = useRenderMode();
+  if (print && shareUrl) {
+    return <AudioCompareOnPaper block={block} anchor={anchor} shareUrl={shareUrl} />;
+  }
+  return <AudioComparePlayer block={block} anchor={anchor} />;
+}
+
+/** Print mode: no player; a QR code and link to the online block, and every track's text. */
+function AudioCompareOnPaper({
+  block,
+  anchor,
+  shareUrl,
+}: {
+  block: AudioCompareBlock;
+  anchor: string;
+  shareUrl: string;
+}) {
+  const tracks: AudioTrack[] = [block.original, ...block.tracks];
+  return (
+    <section className="block-audio-compare" aria-labelledby={block.title ? anchor : undefined}>
+      {block.title && (
+        <Heading level={3} id={anchor}>
+          {block.title}
+        </Heading>
+      )}
+      {block.description && <p className="media-description">{block.description}</p>}
+      <QrLink href={blockLink(shareUrl, block.id)} kind="오디오" />
+      <p className="audio-track-names">트랙: {tracks.map((t) => t.label).join(" · ")}</p>
+      {tracks.map((t, index) => (
+        <div key={`${index}-${t.media_id}`} className="audio-track-print">
+          <p className="audio-track-label">{t.label}</p>
+          <TrackText track={t} />
+        </div>
+      ))}
+      <Metrics block={block} />
+    </section>
+  );
+}
+
+function AudioComparePlayer({ block, anchor }: { block: AudioCompareBlock; anchor: string }) {
   const tracks: AudioTrack[] = [block.original, ...block.tracks];
   const { urlOf, renew } = useMediaUrls(tracks);
   const { ref, hold, handlers } = usePlayback<HTMLAudioElement>();
@@ -69,33 +111,7 @@ export function AudioCompare({ block, anchor }: { block: AudioCompareBlock; anch
         )}
       </div>
       <TrackText track={track} />
-      {block.metrics && (
-        <div className="block-table audio-compare-metrics">
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  {block.metrics.columns.map((label, column) => (
-                    <th key={column} scope="col">
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {block.metrics.rows.map((row, r) => (
-                  <tr key={r}>
-                    {row.map((cell, column) => (
-                      <td key={column}>{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {block.metrics.note && <p className="media-description">{block.metrics.note}</p>}
-        </div>
-      )}
+      <Metrics block={block} />
     </section>
   );
 }
@@ -116,6 +132,38 @@ function TrackText({ track }: { track: AudioTrack }) {
           <p>{track.script}</p>
         </section>
       )}
+    </div>
+  );
+}
+
+function Metrics({ block }: { block: AudioCompareBlock }) {
+  const metrics = block.metrics;
+  if (!metrics) return null;
+  return (
+    <div className="block-table audio-compare-metrics">
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              {metrics.columns.map((label, column) => (
+                <th key={column} scope="col">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.rows.map((row, r) => (
+              <tr key={r}>
+                {row.map((cell, column) => (
+                  <td key={column}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {metrics.note && <p className="media-description">{metrics.note}</p>}
     </div>
   );
 }

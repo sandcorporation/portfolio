@@ -11,6 +11,9 @@
 :root {
   color-scheme: light dark;
 
+  /* QR codes stay black on white in every scheme, so a phone camera reads them */
+  --color-qr-bg: #ffffff;
+  --color-qr-fg: #000000;
   /* surfaces */
   --color-canvas: #f7f4ee;
   --color-paper: #fffdf9;
@@ -62,7 +65,8 @@
   --tabs-height: 48px;
 }
 
-@media (prefers-color-scheme: dark) {
+/* Paper is always light: print media ignores this block. */
+@media screen and (prefers-color-scheme: dark) {
   :root {
     --color-canvas: #17140f;
     --color-paper: #1f1b15;

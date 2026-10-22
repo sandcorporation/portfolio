@@ -1,6 +1,7 @@
 import { HomePage } from "./home/HomePage";
 import { isHomeData } from "./home/types";
 import { ProposalCodeScreen, ProposalExpiredScreen } from "./proposal/ProposalGate";
+import { ProposalPrintPage } from "./proposal/ProposalPrintPage";
 import { ProposalPage } from "./proposal/ProposalPage";
 import { isCodeScreen, isExpiredScreen, isProposalData } from "./proposal/types";
 import { WorkPage } from "./work/WorkPage";
@@ -16,6 +17,9 @@ export function App({ path, data }: { path: string; data: unknown }) {
     if (isProposalData(data)) return <ProposalPage data={data} lockAction={`${path}/lock`} />;
   }
   if (path.startsWith("/preview/") && isProposalData(data)) return <ProposalPage data={data} />;
+  if (path.startsWith("/print/") && isProposalData(data) && data.print_mode) {
+    return <ProposalPrintPage data={data} />;
+  }
   return (
     <main className="placeholder">
       <h1>Sandcorp</h1>

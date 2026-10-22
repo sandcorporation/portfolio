@@ -34,6 +34,8 @@ from services.errors import Conflict, NotFound, Rejected
 from services.profile import get_profile
 
 PREVIEW_SALT = "proposal-preview"
+# A different salt than the preview: a preview link can never open a print page, nor the reverse.
+PRINT_SALT = "proposal-print"
 
 
 # --- clients ---
@@ -435,6 +437,10 @@ class ProposalPageData(BaseModel):
     revision: RevisionMeta | None = None
     csrf_token: str | None = None
     media_endpoint: str | None = None
+    # Print page only (/print/<token>, the PDF renderer's): the customer-facing address of the
+    # proposal, which video / audio-compare blocks turn into a QR code plus link (`#<block id>`).
+    print_mode: bool = False
+    public_url: str | None = None
 
 
 class CodeScreenData(BaseModel):
@@ -451,6 +457,57 @@ class ExpiredScreenData(BaseModel):
     screen: Literal["expired"] = "expired"
     valid_until: date
     supplier: Supplier
+
+
+# --- print: a signed, very short-lived link to one revision, for the PDF renderer ---
+
+
+class BadPrintToken(Exception):
+    pass
+
+
+class ExpiredPrintToken(BadPrintToken):
+    pass
+
+
+def issue_print_url(revision: ProposalRevision) -> str:
+    """`/print/<token>`: the revision as a print layout. The token names the revision (not the
+    proposal), expires after `PROPOSAL_PRINT_MAX_AGE`, and is not a preview token."""
+    token = signing.TimestampSigner(salt=PRINT_SALT).sign(str(revision.pk))
+    return f"/print/{token}"
+
+
+def revision_for_print(token: str) -> ProposalRevision:
+    try:
+        raw = signing.TimestampSigner(salt=PRINT_SALT).unsign(
+            token, max_age=settings.PROPOSAL_PRINT_MAX_AGE
+        )
+    except signing.SignatureExpired:
+        raise ExpiredPrintToken from None
+    except signing.BadSignature:
+        raise BadPrintToken from None
+    revision = (
+        ProposalRevision.objects.select_related("proposal").filter(pk=raw).first()
+        if raw.isdigit()
+        else None
+    )
+    if revision is None:
+        raise BadPrintToken
+    return revision
+
+
+def print_page_data(r: ProposalRevision, *, token: str) -> ProposalPageData:
+    """The revision's frozen fields for the print layout. Private media is resolved now with the
+    print token as the gate (no customer session on this route)."""
+    data = revision_page_data(r, csrf_token="")
+    return data.model_copy(
+        update={
+            "csrf_token": None,
+            "media_endpoint": f"/print/{token}/media",
+            "print_mode": True,
+            "public_url": f"{settings.SITE_URL}/p/{r.proposal.slug}",
+        }
+    )
 
 
 def supplier() -> Supplier:
