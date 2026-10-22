@@ -339,6 +339,142 @@
       "title": "CoverBlock",
       "type": "object"
     },
+    "CtaBlock": {
+      "additionalProperties": false,
+      "description": "One to three link buttons that move the reader to another block or tab of this document,\nor to an outside address. On paper they become link text. Not in the table of contents.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "cta",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/CtaItem"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "items"
+      ],
+      "title": "CtaBlock",
+      "type": "object"
+    },
+    "CtaItem": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "description": "Button text, one short line",
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        },
+        "target": {
+          "discriminator": {
+            "mapping": {
+              "block": "#/$defs/CtaTargetBlock",
+              "tab": "#/$defs/CtaTargetTab",
+              "url": "#/$defs/CtaTargetUrl"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CtaTargetBlock"
+            },
+            {
+              "$ref": "#/$defs/CtaTargetTab"
+            },
+            {
+              "$ref": "#/$defs/CtaTargetUrl"
+            }
+          ]
+        },
+        "style": {
+          "default": "primary",
+          "enum": [
+            "primary",
+            "secondary"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "target"
+      ],
+      "title": "CtaItem",
+      "type": "object"
+    },
+    "CtaTargetBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "block",
+          "type": "string"
+        },
+        "block_id": {
+          "description": "A block of this document; opens its tab and scrolls to it",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block_id"
+      ],
+      "title": "CtaTargetBlock",
+      "type": "object"
+    },
+    "CtaTargetTab": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "tab",
+          "type": "string"
+        },
+        "tab_id": {
+          "description": "A tab of this document",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "tab_id"
+      ],
+      "title": "CtaTargetTab",
+      "type": "object"
+    },
+    "CtaTargetUrl": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "url",
+          "type": "string"
+        },
+        "href": {
+          "description": "Only https:, mailto: or tel: addresses; opens in a new window",
+          "pattern": "^(https://|mailto:|tel:)\\S+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "href"
+      ],
+      "title": "CtaTargetUrl",
+      "type": "object"
+    },
     "DetailsBlock": {
       "additionalProperties": false,
       "description": "Supplementary explanation, collapsed until the reader opens it.",
@@ -787,6 +923,7 @@
                 "callout": "#/$defs/CalloutBlock",
                 "case-ref": "#/$defs/CaseRefBlock",
                 "cover": "#/$defs/CoverBlock",
+                "cta": "#/$defs/CtaBlock",
                 "details": "#/$defs/DetailsBlock",
                 "gallery": "#/$defs/GalleryBlock",
                 "html": "#/$defs/HtmlBlock",
@@ -834,6 +971,9 @@
               },
               {
                 "$ref": "#/$defs/StepsBlock"
+              },
+              {
+                "$ref": "#/$defs/CtaBlock"
               }
             ]
           },

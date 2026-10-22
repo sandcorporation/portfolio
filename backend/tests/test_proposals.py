@@ -357,3 +357,38 @@ def test_admin_client_code_is_unique(admin_client: HttpClient) -> None:
 
     assert response.status_code == 200
     assert Client.objects.count() == 1
+
+
+def cta_block(block_id: str, *targets: dict[str, str]) -> dict[str, object]:
+    items: list[JSON] = [{"label": "이동", "target": dict(t)} for t in targets]
+    return {"id": block_id, "type": "cta", "items": items}
+
+
+def test_edits_that_remove_a_cta_target_are_refused_with_the_cta_path() -> None:
+    p = make_draft()
+    p = svc.insert_block(p.slug, "estimate", md("target"))
+    p = svc.insert_block(
+        p.slug,
+        "estimate",
+        cta_block(
+            "go", {"kind": "block", "block_id": "target"}, {"kind": "tab", "tab_id": "company"}
+        ),
+    )
+
+    with pytest.raises(Rejected) as gone_block:
+        svc.delete_block(p.slug, "target")
+    assert [e.path for e in gone_block.value.errors] == [
+        "document.tabs[0].blocks[0].items[0].target.block_id"
+    ]
+    with pytest.raises(Rejected) as gone_tab:
+        svc.delete_tab(p.slug, "company")
+    assert [e.path for e in gone_tab.value.errors] == [
+        "document.tabs[0].blocks[0].items[1].target.tab_id"
+    ]
+    with pytest.raises(Rejected):
+        svc.replace_document(p.slug, {"tabs": [t for t in tabs_of(p) if t["id"] != "company"]})
+    assert svc.get_proposal(p.slug).document == p.document
+
+    # Deleting the CTA first frees both targets.
+    p = svc.delete_block(p.slug, "go")
+    svc.delete_block(p.slug, "target")

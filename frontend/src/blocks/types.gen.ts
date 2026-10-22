@@ -33,6 +33,7 @@ export interface Tab {
     | VideoBlock
     | HtmlBlock
     | StepsBlock
+    | CtaBlock
   )[];
 }
 /**
@@ -479,4 +480,68 @@ export interface StepItem {
    * Small note, e.g. who does it or how long
    */
   caption?: string | null;
+}
+/**
+ * One to three link buttons that move the reader to another block or tab of this document,
+ * or to an outside address. On paper they become link text. Not in the table of contents.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CtaBlock".
+ */
+export interface CtaBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "cta";
+  /**
+   * @minItems 1
+   * @maxItems 3
+   */
+  items: CtaItem[];
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CtaItem".
+ */
+export interface CtaItem {
+  /**
+   * Button text, one short line
+   */
+  label: string;
+  target: CtaTargetBlock | CtaTargetTab | CtaTargetUrl;
+  style?: "primary" | "secondary";
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CtaTargetBlock".
+ */
+export interface CtaTargetBlock {
+  kind: "block";
+  /**
+   * A block of this document; opens its tab and scrolls to it
+   */
+  block_id: string;
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CtaTargetTab".
+ */
+export interface CtaTargetTab {
+  kind: "tab";
+  /**
+   * A tab of this document
+   */
+  tab_id: string;
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "CtaTargetUrl".
+ */
+export interface CtaTargetUrl {
+  kind: "url";
+  /**
+   * Only https:, mailto: or tel: addresses; opens in a new window
+   */
+  href: string;
 }

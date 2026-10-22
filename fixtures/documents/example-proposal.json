@@ -180,6 +180,20 @@
           "title": "3. 견적 적용 조건"
         },
         {
+          "id": "sample-cta",
+          "type": "cta",
+          "items": [
+            {
+              "label": "음성 분리 시험 듣기 →",
+              "target": {
+                "kind": "block",
+                "block_id": "separation"
+              },
+              "style": "primary"
+            }
+          ]
+        },
+        {
           "id": "samples-intro",
           "type": "markdown",
           "level": 2,
@@ -609,6 +623,20 @@
           "level": 2,
           "body": "**가나다상사 · 홍길동 대표**\n\n정산 시스템, 사내 AI 업무 자동화, 강의 영상 제작 플랫폼을 구축해 왔습니다. 회사 소개와 구축 사례는 「회사소개·수행사례」 탭에서 볼 수 있습니다.",
           "title": "개발사 소개"
+        },
+        {
+          "id": "profile-cta",
+          "type": "cta",
+          "items": [
+            {
+              "label": "회사 소개 및 구축 사례 보기 →",
+              "target": {
+                "kind": "tab",
+                "tab_id": "company"
+              },
+              "style": "primary"
+            }
+          ]
         }
       ]
     },
@@ -694,9 +722,21 @@
           "layout": "horizontal",
           "numbered": true,
           "items": [
-            { "id": "script", "title": "강의 대본", "body": "대본을 쓰고 고칩니다" },
-            { "id": "voice", "title": "본인 목소리 음성", "body": "녹음 음성을 기준으로 합성합니다" },
-            { "id": "video", "title": "강의 영상", "body": "자막과 장면을 Remotion으로 합성합니다" }
+            {
+              "id": "script",
+              "title": "강의 대본",
+              "body": "대본을 쓰고 고칩니다"
+            },
+            {
+              "id": "voice",
+              "title": "본인 목소리 음성",
+              "body": "녹음 음성을 기준으로 합성합니다"
+            },
+            {
+              "id": "video",
+              "title": "강의 영상",
+              "body": "자막과 장면을 Remotion으로 합성합니다"
+            }
           ]
         },
         {
@@ -764,6 +804,20 @@
             },
             {
               "item_id": 2
+            }
+          ]
+        },
+        {
+          "id": "back-cta",
+          "type": "cta",
+          "items": [
+            {
+              "label": "견적서로 돌아가기",
+              "target": {
+                "kind": "block",
+                "block_id": "supplier-profile"
+              },
+              "style": "secondary"
             }
           ]
         }

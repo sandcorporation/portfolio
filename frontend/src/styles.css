@@ -1278,6 +1278,7 @@ h3.block-heading {
   .block-table tr,
   .block-kpi,
   .block-steps,
+  .block-cta,
   .block-callout,
   .block-details,
   .kpi-card,
@@ -1411,5 +1412,64 @@ h3.block-heading {
     width: var(--space-6);
     height: auto;
     line-height: 1;
+  }
+}
+
+.block-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  break-inside: avoid;
+}
+
+.cta-button {
+  display: inline-block;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-5);
+}
+
+.cta-button[data-style="primary"] {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
+.cta-button[data-style="secondary"] {
+  color: var(--color-accent);
+  background: transparent;
+}
+
+.cta-button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.block-cta[data-print] {
+  display: block;
+}
+
+.cta-line {
+  margin: var(--space-2) 0;
+}
+
+.cta-line .cta-label {
+  font-weight: 600;
+}
+
+.cta-line .cta-where {
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .block-cta .cta-button {
+    flex: 1 1 100%;
   }
 }

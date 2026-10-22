@@ -18,6 +18,9 @@ def _block_types() -> frozenset[str]:
 
 BLOCK_TYPES = _block_types()
 
+# A CTA target is a tagged union too; pydantic puts the tag after `target` in the error location.
+_TARGET_KINDS = frozenset({"block", "tab", "url"})
+
 # Korean reasons for the pydantic error types an author is likely to hit.
 _REASONS = {
     "missing": "필수 값이 없습니다",
@@ -66,6 +69,8 @@ def normalized(document: Document) -> dict[str, JSON]:
 
 def _semantic_errors(document: Document) -> list[DocumentError]:
     errors: list[DocumentError] = []
+    tab_ids = frozenset(tab.id for tab in document.tabs)
+    block_ids = frozenset(block.id for tab in document.tabs for block in tab.blocks)
     seen_tabs: set[str] = set()
     seen_blocks: set[str] = set()
     for t, tab in enumerate(document.tabs):
@@ -78,6 +83,10 @@ def _semantic_errors(document: Document) -> list[DocumentError]:
                 errors.append(DocumentError(f"{path}.id", f"블록 id '{block.id}'가 겹칩니다"))
             seen_blocks.add(block.id)
             errors.extend(DocumentError(f"{path}.{sub}", why) for sub, why in block.problems())
+            errors.extend(
+                DocumentError(f"{path}.{sub}", why)
+                for sub, why in block.document_problems(tab_ids, block_ids)
+            )
     return errors
 
 
@@ -101,5 +110,7 @@ def _path(loc: tuple[int | str, ...]) -> str:
             after_block_index = False
             continue
         after_block_index = False
+        if out.endswith(".target") and part in _TARGET_KINDS:
+            continue
         out += f".{part}" if out else part
     return out or "(문서)"

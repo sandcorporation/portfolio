@@ -11,7 +11,7 @@ from django.test import Client
 from django.urls import reverse
 
 from content.models import SiteProfile
-from documents.blocks import HtmlBlock
+from documents.blocks import CtaBlock, HtmlBlock
 from documents.validation import JSON, InvalidDocument, validate_document
 
 pytestmark = pytest.mark.django_db
@@ -272,3 +272,84 @@ def test_steps_block_rejects_duplicate_item_ids() -> None:
     errors = steps_errors(steps_block([step("a"), step("b"), step("a")]))
 
     assert errors == [("tabs[0].blocks[0].items[2].id", "단계 id 'a'가 겹칩니다")]
+
+
+# --- cta block ---
+
+
+def cta_item(target: dict[str, JSON], label: str = "보기") -> dict[str, JSON]:
+    return {"label": label, "target": target}
+
+
+def cta_document(items: list[JSON]) -> dict[str, JSON]:
+    return {
+        "tabs": [
+            {
+                "id": "t1",
+                "title": "첫 탭",
+                "blocks": [{"id": "c", "type": "cta", "items": items}],
+            },
+            {
+                "id": "t2",
+                "title": "둘째 탭",
+                "blocks": [{"id": "m", "type": "markdown", "body": "본문"}],
+            },
+        ]
+    }
+
+
+def cta_errors(items: list[JSON]) -> list[tuple[str, str]]:
+    with pytest.raises(InvalidDocument) as caught:
+        validate_document(cta_document(items))
+    return [(e.path, e.reason) for e in caught.value.errors]
+
+
+def test_cta_block_accepts_every_target_kind_with_default_style() -> None:
+    document = validate_document(
+        cta_document(
+            [
+                cta_item({"kind": "block", "block_id": "m"}),
+                cta_item({"kind": "tab", "tab_id": "t2"}),
+                cta_item({"kind": "url", "href": "https://example.com/a?b=1"}),
+            ]
+        )
+    )
+    block = document.tabs[0].blocks[0]
+    assert isinstance(block, CtaBlock) and block.items[0].style == "primary"
+
+
+@pytest.mark.parametrize(
+    "href", ["javascript:alert(1)", "http://example.com", "data:text/html,x", "//example.com", ""]
+)
+def test_cta_block_rejects_url_schemes_other_than_https_mailto_tel(href: str) -> None:
+    errors = cta_errors([cta_item({"kind": "url", "href": href})])
+
+    assert [path for path, _ in errors] == ["tabs[0].blocks[0].items[0].target.href"]
+
+
+@pytest.mark.parametrize("count", [0, 4])
+def test_cta_block_takes_one_to_three_items(count: int) -> None:
+    errors = cta_errors([cta_item({"kind": "tab", "tab_id": "t1"})] * count)
+
+    assert [path for path, _ in errors] == ["tabs[0].blocks[0].items"]
+
+
+def test_cta_block_rejects_long_label() -> None:
+    errors = cta_errors([cta_item({"kind": "tab", "tab_id": "t1"}, "가" * 41)])
+
+    assert [path for path, _ in errors] == ["tabs[0].blocks[0].items[0].label"]
+
+
+def test_cta_block_rejects_targets_missing_from_the_document() -> None:
+    errors = cta_errors(
+        [
+            cta_item({"kind": "block", "block_id": "ghost"}),
+            cta_item({"kind": "tab", "tab_id": "ghost"}),
+            cta_item({"kind": "tab", "tab_id": "t2"}),
+        ]
+    )
+
+    assert errors == [
+        ("tabs[0].blocks[0].items[0].target.block_id", "문서에 없는 블록 id 'ghost'입니다"),
+        ("tabs[0].blocks[0].items[1].target.tab_id", "문서에 없는 탭 id 'ghost'입니다"),
+    ]

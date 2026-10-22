@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { DocumentNavContext, describeTarget, type DocumentNav } from "./nav";
 import { useRenderMode } from "./mode";
 import { entryFor } from "./registry";
 import { anchorFor, tableOfContents } from "./toc";
@@ -52,11 +53,19 @@ function decodeHash(hash: string): string {
   }
 }
 
+/** A move the view still has to scroll to: a block of the open tab, or the top of a tab. */
+type Jump = { kind: "block" | "tab"; id: string; n: number };
+
 function TabbedView({ document, idPrefix }: { document: Document; idPrefix: string }) {
   const [active, setActive] = useState(() => tabOfHash(document, window.location.hash) ?? 0);
-  // Bumped on every jump to a block, so a second jump to the same block scrolls again.
-  const [jump, setJump] = useState(0);
+  // Bumped on every jump, so a second jump to the same place scrolls again.
+  const [jump, setJump] = useState<Jump | null>(() =>
+    tabOfHash(document, window.location.hash) === null
+      ? null
+      : { kind: "block", id: decodeHash(window.location.hash), n: 0 },
+  );
   const { onTabChange } = useRenderMode();
+  const root = useRef<HTMLDivElement>(null);
   const open = (index: number) => {
     setActive(index);
     const id = document.tabs[index]?.id;
@@ -64,34 +73,59 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
   };
   const tabsId = useId();
 
+  // CTA buttons and `#<block id>` links share one way of moving: open the tab, then scroll.
+  const nav = useMemo<DocumentNav>(() => {
+    const moveTo = (index: number, kind: Jump["kind"], id: string) => {
+      if (index !== active) {
+        const tabId = document.tabs[index]?.id;
+        if (tabId) onTabChange?.(tabId);
+      }
+      setActive(index);
+      setJump((last) => ({ kind, id, n: (last?.n ?? 0) + 1 }));
+    };
+    return {
+      openBlock: (blockId) => {
+        const index = document.tabs.findIndex((t) => t.blocks.some((b) => b.id === blockId));
+        if (index >= 0) moveTo(index, "block", blockId);
+      },
+      openTab: (tabId) => {
+        const index = document.tabs.findIndex((t) => t.id === tabId);
+        if (index >= 0) moveTo(index, "tab", tabId);
+      },
+      describe: (target) => describeTarget(document, target),
+    };
+  }, [document, onTabChange, active]);
+
   // A link `…/p/<slug>#<block id>` (the print QR codes) opens the tab holding that block and
   // scrolls to it; so does the address changing while the page is open.
   useEffect(() => {
     const onHashChange = () => {
-      const index = tabOfHash(document, window.location.hash);
-      if (index === null) return;
-      setActive(index);
-      setJump((n) => n + 1);
+      const id = decodeHash(window.location.hash);
+      if (tabOfHash(document, window.location.hash) !== null) nav.openBlock(id);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [document]);
+  }, [document, nav]);
 
   useEffect(() => {
-    const id = decodeHash(window.location.hash);
-    if (!id || tabOfHash(document, window.location.hash) === null) return;
+    if (!jump) return;
+    if (jump.kind === "tab") {
+      root.current?.scrollIntoView?.();
+      return;
+    }
     const slots = window.document.querySelectorAll<HTMLElement>("[data-block-id]");
     Array.from(slots)
-      .find((slot) => slot.dataset.blockId === id)
+      .find((slot) => slot.dataset.blockId === jump.id)
       ?.scrollIntoView?.();
-  }, [document, jump]);
+  }, [jump]);
 
   const tab = document.tabs[active] ?? document.tabs[0];
   if (!tab) return null;
   const several = document.tabs.length > 1;
 
   return (
-    <div className="document">
+    <DocumentNavContext.Provider value={nav}>
+    <div className="document" ref={root}>
       {several && (
         <div role="tablist" className="document-tabs">
           {document.tabs.map((t, index) => (
@@ -118,6 +152,7 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
         <Blocks tab={tab} prefix={idPrefix} />
       </div>
     </div>
+    </DocumentNavContext.Provider>
   );
 }
 
@@ -153,7 +188,16 @@ function PrintView({ document, idPrefix }: { document: Document; idPrefix: strin
     const head = { text: tab.title, level: 1, anchor: tabAnchor(idPrefix, tab) };
     return [head, ...own];
   });
+  const nav = useMemo<DocumentNav>(
+    () => ({
+      openBlock: () => {},
+      openTab: () => {},
+      describe: (target) => describeTarget(document, target),
+    }),
+    [document],
+  );
   return (
+    <DocumentNavContext.Provider value={nav}>
     <div className="document document-print">
       <Toc entries={entries} />
       {document.tabs.map((tab) => (
@@ -167,5 +211,6 @@ function PrintView({ document, idPrefix }: { document: Document; idPrefix: strin
         </section>
       ))}
     </div>
+    </DocumentNavContext.Provider>
   );
 }

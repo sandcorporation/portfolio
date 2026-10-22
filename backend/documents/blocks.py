@@ -33,6 +33,12 @@ class BlockBase(BaseModel):
         """Cross-field checks that a field type alone cannot express. Empty when valid."""
         return []
 
+    def document_problems(
+        self, tab_ids: frozenset[str], block_ids: frozenset[str]
+    ) -> list[Problem]:
+        """Checks that need the whole document (ids of every tab and block). Empty when valid."""
+        return []
+
 
 class CoverBlock(BlockBase):
     """Opening of a document: who it is for, its title and a short subtitle."""
@@ -327,6 +333,72 @@ class StepsBlock(BlockBase):
         return out
 
 
+class CtaTargetBlock(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="CtaTargetBlock")
+
+    kind: Literal["block"]
+    block_id: BlockId = Field(
+        description="A block of this document; opens its tab and scrolls to it"
+    )
+
+
+class CtaTargetTab(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="CtaTargetTab")
+
+    kind: Literal["tab"]
+    tab_id: BlockId = Field(description="A tab of this document")
+
+
+class CtaTargetUrl(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="CtaTargetUrl")
+
+    kind: Literal["url"]
+    href: str = Field(
+        pattern=r"^(https://|mailto:|tel:)\S+$",
+        description="Only https:, mailto: or tel: addresses; opens in a new window",
+    )
+
+
+CtaTarget = Annotated[CtaTargetBlock | CtaTargetTab | CtaTargetUrl, Field(discriminator="kind")]
+
+
+class CtaItem(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="CtaItem")
+
+    label: str = Field(min_length=1, max_length=40, description="Button text, one short line")
+    target: CtaTarget
+    style: Literal["primary", "secondary"] = "primary"
+
+
+class CtaBlock(BlockBase):
+    """One to three link buttons that move the reader to another block or tab of this document,
+    or to an outside address. On paper they become link text. Not in the table of contents."""
+
+    model_config = ConfigDict(title="CtaBlock")
+
+    type: Literal["cta"]
+    items: list[CtaItem] = Field(min_length=1, max_length=3)
+
+    def document_problems(
+        self, tab_ids: frozenset[str], block_ids: frozenset[str]
+    ) -> list[Problem]:
+        out: list[Problem] = []
+        for i, item in enumerate(self.items):
+            target = item.target
+            if isinstance(target, CtaTargetBlock) and target.block_id not in block_ids:
+                out.append(
+                    (
+                        f"items[{i}].target.block_id",
+                        f"문서에 없는 블록 id '{target.block_id}'입니다",
+                    )
+                )
+            elif isinstance(target, CtaTargetTab) and target.tab_id not in tab_ids:
+                out.append(
+                    (f"items[{i}].target.tab_id", f"문서에 없는 탭 id '{target.tab_id}'입니다")
+                )
+        return out
+
+
 # Every block type, discriminated by `type`. Add a new block class here.
 Block = Annotated[
     CoverBlock
@@ -340,7 +412,8 @@ Block = Annotated[
     | AudioCompareBlock
     | VideoBlock
     | HtmlBlock
-    | StepsBlock,
+    | StepsBlock
+    | CtaBlock,
     Field(discriminator="type"),
 ]
 

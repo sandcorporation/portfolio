@@ -150,6 +150,22 @@ EXAMPLES: dict[str, dict[str, JSON]] = {
             },
         ],
     },
+    "cta": {
+        "id": "next-actions",
+        "type": "cta",
+        "items": [
+            {
+                "label": "제작 흐름 보기 →",
+                "target": {"kind": "block", "block_id": "lecture-flow"},
+                "style": "primary",
+            },
+            {
+                "label": "회사 소개 보기",
+                "target": {"kind": "url", "href": "https://example.com/about"},
+                "style": "secondary",
+            },
+        ],
+    },
     "case-ref": {
         "id": "cases",
         "type": "case-ref",

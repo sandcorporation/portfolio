@@ -216,3 +216,20 @@ def test_tools_need_the_admin_scope(client: Client, auth_server: FakeAuthServer)
         headers={**auth_server.bearer(scope="login"), "Accept": "application/json"},
     )
     assert response.status_code == 403
+
+
+def test_deleting_a_cta_target_is_refused_with_the_cta_path(mcp: McpClient) -> None:
+    proposal = new_proposal(mcp)
+    slug = proposal["slug"]
+    ok(mcp, "add_tab", {"slug": slug, "title": "부록", "tab_id": "extra"})
+    cta = {
+        "type": "cta",
+        "items": [{"label": "부록 보기", "target": {"kind": "tab", "tab_id": "extra"}}],
+    }
+    tab_id, _ = first_block(proposal)
+    ok(mcp, "insert_block", {"slug": slug, "tab_id": tab_id, "block": {"id": "go", **cta}})
+
+    text = refused(mcp, "delete_tab", {"slug": slug, "tab_id": "extra"})
+    assert text.startswith("저장하지 않았습니다") and "items[0].target.tab_id" in text
+    assert ok(mcp, "delete_block", {"slug": slug, "block_id": "go"})
+    assert ok(mcp, "delete_tab", {"slug": slug, "tab_id": "extra"})
