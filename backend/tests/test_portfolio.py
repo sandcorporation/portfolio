@@ -6,8 +6,10 @@ from xml.etree import ElementTree
 import pytest
 from django.test import Client
 
-from content.models import PortfolioItem
+from adapters.fake_storage import FakeObjectStorage
+from content.models import Media, PortfolioItem
 from documents.validation import JSON, normalized, validate_document
+from services import media as media_service
 from services.portfolio import all_items, get_item, public_slugs
 
 pytestmark = pytest.mark.django_db
@@ -18,7 +20,7 @@ def make(
     order: int = 0,
     public: bool = True,
     body: dict[str, JSON] | None = None,
-    **fields: str,
+    **fields: str | Media,
 ) -> PortfolioItem:
     fields.setdefault("title", slug.upper())
     item = PortfolioItem(slug=slug, sort_order=order, is_public=public, **fields)
@@ -76,13 +78,14 @@ def test_hidden_item_detail_is_404_but_data_remains(client: Client) -> None:
 
 
 def test_detail_shell_carries_item_og_meta_and_body(
-    client: Client, example_document: dict[str, JSON]
+    client: Client, example_document: dict[str, JSON], fake_storage: FakeObjectStorage
 ) -> None:
+    cover = media_service.upload("c.png", "image/png", b"x", is_public=True)
     make(
         "voice",
         title="녹취 분석",
         summary="채권추심 녹취를 분석합니다",
-        cover_url="/static/cover.png",
+        cover=cover,
         body=example_document,
     )
 
@@ -93,11 +96,23 @@ def test_detail_shell_carries_item_og_meta_and_body(
     assert "<title>녹취 분석 | Sandcorp</title>" in html
     assert '<meta property="og:title" content="녹취 분석 | Sandcorp">' in html
     assert '<meta property="og:description" content="채권추심 녹취를 분석합니다">' in html
-    assert '<meta property="og:image" content="http://testserver/static/cover.png">' in html
+    assert (
+        f'<meta property="og:image" content="{fake_storage.public_url(cover.object_key)}">' in html
+    )
     assert '<meta property="og:url" content="http://testserver/work/voice">' in html
     assert '<meta name="robots" content="index, follow">' in html
     data = page_data(html)
-    assert data["body"] == normalized(validate_document(example_document))
+    # Serving adds each gallery image's public url; apart from that the body is the stored one.
+    gallery = data["body"]["tabs"][1]["blocks"][3]["images"]
+    assert [image["url"] for image in gallery] == [
+        fake_storage.public_url(f"example-{n}.png") for n in (1, 2, 3)
+    ]
+    for image in gallery:
+        image["url"] = None
+    expected: Any = normalized(validate_document(example_document))  # Any: test pokes into JSON
+    for image in expected["tabs"][1]["blocks"][3]["images"]:
+        image["url"] = None
+    assert data["body"] == expected
 
 
 def test_detail_without_cover_has_no_og_image(client: Client) -> None:

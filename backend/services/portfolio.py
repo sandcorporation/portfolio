@@ -8,6 +8,7 @@ from typing import TypedDict
 
 from content.models import PortfolioItem
 from documents.validation import JSON
+from services import media
 
 
 class PortfolioCard(TypedDict):
@@ -27,19 +28,19 @@ class PortfolioDetail(TypedDict):
 
 
 def card_of(item: PortfolioItem) -> PortfolioCard:
-    # The only place that reads cover_url; #10 swaps it for a media reference here.
+    # The only place that reads the cover: a media reference turned into its public URL.
     return PortfolioCard(
         slug=item.slug,
         title=item.title,
         summary=item.summary,
-        cover_url=item.cover_url,
+        cover_url=(media.public_url(item.cover) or "") if item.cover else "",
         tags=item.tag_list(),
         period=item.period,
     )
 
 
 def detail_of(item: PortfolioItem) -> PortfolioDetail:
-    return PortfolioDetail(card=card_of(item), body=item.body)
+    return PortfolioDetail(card=card_of(item), body=media.resolve_document(item.body))
 
 
 # --- full lookups: include hidden items ---
@@ -57,7 +58,7 @@ def get_item(slug: str) -> PortfolioItem | None:
 
 
 def public_items() -> list[PortfolioItem]:
-    return list(PortfolioItem.objects.filter(is_public=True))
+    return list(PortfolioItem.objects.filter(is_public=True).select_related("cover"))
 
 
 def public_cards() -> list[PortfolioCard]:

@@ -26,6 +26,7 @@
   --color-accent-tint: #f6e6d6;
   --color-on-accent: #fffdf9;
   --color-focus: #c2652b;
+  --color-scrim: rgb(23 20 15 / 0.92);
   /* brand mark */
   --color-mark-bg: #9a4a1c;
   --color-mark-far: #e3b98a;

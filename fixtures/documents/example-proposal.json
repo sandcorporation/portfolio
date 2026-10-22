@@ -99,6 +99,16 @@
           "type": "callout",
           "kind": "info",
           "body": "수행 사례의 수치는 고객사 동의를 받아 공개합니다."
+        },
+        {
+          "id": "case-gallery",
+          "type": "gallery",
+          "title": "사례 화면",
+          "images": [
+            { "media_id": 1, "alt": "라마바 분석 대시보드", "caption": "통화 분석 대시보드", "url": "https://public.example/gallery-1.png" },
+            { "media_id": 2, "alt": "녹취 검수 화면", "url": "https://public.example/gallery-2.png" },
+            { "media_id": 3, "alt": "아직 올리는 중인 화면" }
+          ]
         }
       ]
     }

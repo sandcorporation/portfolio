@@ -9,6 +9,7 @@
 - 검증은 `backend/documents/validation.py`의 `validate_document`. 실패하면 `InvalidDocument.errors`에 `(path, reason)` 목록이 담긴다. 경로는 `tabs[0].blocks[3].rows[2]` 모양이다. 필드 하나로 표현할 수 없는 검사(행의 칸 수, 강조 열 범위)는 블록 클래스의 `problems()`가 맡는다.
 - `registry.ts`가 블록 타입마다 렌더러와 목차 줄(`toc`)을 하나씩 묶는다. 매핑 타입이라 스키마에 있는 타입이 여기 빠지면 `tsc`가 실패한다.
 - 목차는 저장하지 않는다. `toc.ts`가 렌더링할 때 블록 제목에서 계산한다(markdown은 `level`대로, kpi·table 제목은 3수준).
+- `gallery` 블록은 `media_id`로 미디어를 가리킨다. 저장된 문서에는 `url`이 없고, 서버가 문서를 내보낼 때(`services/media.resolve_document`) 공개 URL을 채운다. `url`이 없는 이미지는 그리지 않는다.
 - 이 빌드가 모르는 블록 타입(더 새 데이터)은 건너뛰고 나머지를 그린다.
 - 예시 문서 픽스처: 저장소 루트 `fixtures/documents/example-proposal.json`. 백엔드 검증 시험(`backend/tests/conftest.py`의 `example_document`)과 렌더러 시험(`testing.ts`의 `exampleDocument`)이 같은 파일을 읽는다. Docker 빌드도 `tsc`를 돌리므로 Dockerfile이 `fixtures/`를 복사한다.
 

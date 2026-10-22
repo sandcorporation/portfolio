@@ -575,3 +575,111 @@ h3.block-heading {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.block-gallery {
+  margin: var(--space-5) 0;
+}
+
+.gallery-grid {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.gallery-thumb {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-tint);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.gallery-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.gallery-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.gallery-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--color-scrim);
+}
+
+.gallery-figure {
+  position: relative;
+  margin: 0;
+  max-width: min(100%, 1100px);
+  max-height: 100%;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+}
+
+.gallery-figure img {
+  max-width: 100%;
+  max-height: calc(100vh - 160px);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+}
+
+.gallery-figure figcaption {
+  color: var(--color-on-accent);
+  font-size: var(--text-sm);
+}
+
+.gallery-count {
+  position: absolute;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: var(--color-on-accent);
+  font-size: var(--text-sm);
+}
+
+.gallery-close,
+.gallery-prev,
+.gallery-next {
+  position: absolute;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.gallery-close {
+  top: var(--space-4);
+  right: var(--space-4);
+}
+
+.gallery-prev,
+.gallery-next {
+  top: 50%;
+}
+
+.gallery-prev {
+  left: var(--space-4);
+}
+
+.gallery-next {
+  right: var(--space-4);
+}

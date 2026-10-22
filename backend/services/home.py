@@ -5,6 +5,7 @@ from typing import TypedDict
 
 from content.models import SiteProfile
 from documents.validation import JSON
+from services import media
 from services.portfolio import PortfolioCard, public_cards
 
 DEFAULT_DESCRIPTION = "샌드코퍼레이션 포트폴리오"
@@ -37,8 +38,8 @@ def home_page() -> HomePage:
     return HomePage(
         description=profile.tagline or DEFAULT_DESCRIPTION,
         data=HomeData(
-            company_intro=profile.company_intro,
-            ceo_intro=profile.ceo_intro,
+            company_intro=media.resolve_document(profile.company_intro),
+            ceo_intro=media.resolve_document(profile.ceo_intro),
             contact=Contact(
                 email=profile.contact_email,
                 phone=profile.contact_phone,

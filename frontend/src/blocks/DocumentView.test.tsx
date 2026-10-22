@@ -42,6 +42,7 @@ test("탭을 누르면 그 탭의 블록과 목차로 바뀐다", async () => {
   expect(within(toc).getAllByRole("link").map((l) => l.textContent)).toEqual([
     "가나다상사 소개",
     "라마바유통 구축 사례",
+    "사례 화면",
   ]);
 });
 

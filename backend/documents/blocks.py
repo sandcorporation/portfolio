@@ -124,9 +124,31 @@ class DetailsBlock(BlockBase):
     body: str = Field(description="Markdown (GFM)")
 
 
+class GalleryImage(BaseModel):
+    model_config = ConfigDict(extra="forbid", title="GalleryImage")
+
+    media_id: int = Field(ge=1, description="Id of an uploaded public media item")
+    alt: str = Field(min_length=1, description="Text for readers who cannot see the image")
+    caption: str | None = None
+    url: str | None = Field(
+        default=None,
+        description="Filled in by the server when the document is served; never stored.",
+    )
+
+
+class GalleryBlock(BlockBase):
+    """Images in a grid; selecting one opens a larger viewer. Public media only."""
+
+    model_config = ConfigDict(title="GalleryBlock")
+
+    type: Literal["gallery"]
+    title: str | None = Field(default=None, description="Listed in the table of contents")
+    images: list[GalleryImage] = Field(min_length=1, max_length=30)
+
+
 # Every block type, discriminated by `type`. Add a new block class here.
 Block = Annotated[
-    CoverBlock | KpiBlock | MarkdownBlock | TableBlock | CalloutBlock | DetailsBlock,
+    CoverBlock | KpiBlock | MarkdownBlock | TableBlock | CalloutBlock | DetailsBlock | GalleryBlock,
     Field(discriminator="type"),
 ]
 

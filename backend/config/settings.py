@@ -99,6 +99,15 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
+# Object storage (OCI S3-compatible API). Without these the site runs and only media is off.
+STORAGE_ENDPOINT_URL = env("STORAGE_ENDPOINT_URL")
+STORAGE_REGION = env("STORAGE_REGION", "ap-chuncheon-1")
+STORAGE_ACCESS_KEY = env("STORAGE_ACCESS_KEY")
+STORAGE_SECRET_KEY = env("STORAGE_SECRET_KEY")
+STORAGE_PUBLIC_BUCKET = env("STORAGE_PUBLIC_BUCKET")
+STORAGE_PRIVATE_BUCKET = env("STORAGE_PRIVATE_BUCKET")
+STORAGE_PUBLIC_BASE_URL = env("STORAGE_PUBLIC_BASE_URL")
+
 # HTML shell <-> Vite. In dev, point VITE_DEV_SERVER_URL at `pnpm dev` (http://localhost:5173);
 # otherwise the shell reads the build manifest.
 VITE_DEV_SERVER_URL = env("VITE_DEV_SERVER_URL").rstrip("/")

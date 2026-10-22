@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import { Callout } from "./Callout";
 import { Cover } from "./Cover";
 import { Details } from "./Details";
+import { Gallery } from "./Gallery";
 import { Kpi } from "./Kpi";
 import { MarkdownSection } from "./MarkdownSection";
 import { Table } from "./Table";
@@ -38,6 +39,7 @@ export const registry: Registry = {
   table: { Render: Table, toc: titled(3) },
   callout: { Render: Callout },
   details: { Render: Details },
+  gallery: { Render: Gallery, toc: titled(3) },
 };
 
 /** The entry for a block, or null for a type this build does not know (newer data). */

@@ -127,6 +127,92 @@
       "title": "DetailsBlock",
       "type": "object"
     },
+    "GalleryBlock": {
+      "additionalProperties": false,
+      "description": "Images in a grid; selecting one opens a larger viewer. Public media only.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "gallery",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Listed in the table of contents"
+        },
+        "images": {
+          "items": {
+            "$ref": "#/$defs/GalleryImage"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "images"
+      ],
+      "title": "GalleryBlock",
+      "type": "object"
+    },
+    "GalleryImage": {
+      "additionalProperties": false,
+      "properties": {
+        "media_id": {
+          "description": "Id of an uploaded public media item",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "alt": {
+          "description": "Text for readers who cannot see the image",
+          "minLength": 1,
+          "type": "string"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Filled in by the server when the document is served; never stored."
+        }
+      },
+      "required": [
+        "media_id",
+        "alt"
+      ],
+      "title": "GalleryImage",
+      "type": "object"
+    },
     "KpiBlock": {
       "additionalProperties": false,
       "description": "Two to four headline figures shown as cards.",
@@ -267,6 +353,7 @@
                 "callout": "#/$defs/CalloutBlock",
                 "cover": "#/$defs/CoverBlock",
                 "details": "#/$defs/DetailsBlock",
+                "gallery": "#/$defs/GalleryBlock",
                 "kpi": "#/$defs/KpiBlock",
                 "markdown": "#/$defs/MarkdownBlock",
                 "table": "#/$defs/TableBlock"
@@ -291,6 +378,9 @@
               },
               {
                 "$ref": "#/$defs/DetailsBlock"
+              },
+              {
+                "$ref": "#/$defs/GalleryBlock"
               }
             ]
           },

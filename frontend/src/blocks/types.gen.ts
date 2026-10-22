@@ -20,7 +20,9 @@ export interface Tab {
    */
   id: string;
   title: string;
-  blocks: (CoverBlock | KpiBlock | MarkdownBlock | TableBlock | CalloutBlock | DetailsBlock)[];
+  blocks: (
+    CoverBlock | KpiBlock | MarkdownBlock | TableBlock | CalloutBlock | DetailsBlock | GalleryBlock
+  )[];
 }
 /**
  * Opening of a document: who it is for, its title and a short subtitle.
@@ -178,4 +180,45 @@ export interface DetailsBlock {
    * Markdown (GFM)
    */
   body: string;
+}
+/**
+ * Images in a grid; selecting one opens a larger viewer. Public media only.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "GalleryBlock".
+ */
+export interface GalleryBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "gallery";
+  /**
+   * Listed in the table of contents
+   */
+  title?: string | null;
+  /**
+   * @minItems 1
+   * @maxItems 30
+   */
+  images: GalleryImage[];
+}
+/**
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "GalleryImage".
+ */
+export interface GalleryImage {
+  /**
+   * Id of an uploaded public media item
+   */
+  media_id: number;
+  /**
+   * Text for readers who cannot see the image
+   */
+  alt: string;
+  caption?: string | null;
+  /**
+   * Filled in by the server when the document is served; never stored.
+   */
+  url?: string | null;
 }
