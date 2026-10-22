@@ -7,3 +7,4 @@ ninja API(`core/api.py`와 이후 앱의 api)와 MCP 도구는 **같은 서비�
 - 외부 의존(객체 저장소·Discord·PDF 렌더러)은 함수 인자나 `adapters/`의 등록 지점을 통해 받는다.
 - 블록 문서의 스키마·검증은 `documents/`(순수 Pydantic, Django 무관)에 있고, 서비스와 모델이 `validate_document`를 부른다.
 - 예: `home.py`는 사이트 프로필에서 홈 셸에 심을 데이터(`HomeData`)를 만든다.
+- 예: `portfolio.py`는 포트폴리오 항목을 읽는다. 공개 조회(`public_cards`·`public_detail`·`public_slugs`)와 숨긴 항목까지 보는 전체 조회(`all_items`·`get_item`)를 나눠 두었다. 제안서 `case-ref`와 MCP 도구는 전체 조회를 쓴다.

@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 
-from content.models import SiteProfile
+from content.models import PortfolioItem, SiteProfile
 
 # ModelAdmin is generic only in django-stubs; at runtime it is not subscriptable.
 if TYPE_CHECKING:
@@ -30,3 +30,27 @@ class SiteProfileAdmin(_ProfileAdmin):
 
     def has_delete_permission(self, request: HttpRequest, obj: SiteProfile | None = None) -> bool:
         return False
+
+
+if TYPE_CHECKING:
+    _ItemAdmin = admin.ModelAdmin[PortfolioItem]
+else:
+    _ItemAdmin = admin.ModelAdmin
+
+
+@admin.register(PortfolioItem)
+class PortfolioItemAdmin(_ItemAdmin):
+    list_display = ("title", "slug", "is_public", "sort_order", "period")
+    list_editable = ("is_public", "sort_order")
+    prepopulated_fields = {"slug": ("title",)}
+    fields = (
+        "title",
+        "slug",
+        "summary",
+        "cover_url",
+        "tags",
+        "period",
+        "is_public",
+        "sort_order",
+        "body",
+    )

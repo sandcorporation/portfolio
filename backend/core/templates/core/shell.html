@@ -10,6 +10,7 @@
   <meta property="og:title" content="{{ meta.title }}">
   <meta property="og:description" content="{{ meta.description }}">
   <meta property="og:type" content="website">
+  {% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
   <meta property="og:url" content="{{ canonical }}">
   <meta property="og:site_name" content="{{ site_name }}">
   <meta property="og:locale" content="ko_KR">

@@ -1,5 +1,6 @@
 import { Wordmark } from "../brand/Logo";
 import { DocumentView } from "../blocks/DocumentView";
+import { PortfolioCards } from "../work/PortfolioCards";
 import type { HomeData } from "./types";
 
 export function HomePage({ data }: { data: HomeData }) {
@@ -25,6 +26,14 @@ export function HomePage({ data }: { data: HomeData }) {
         </h2>
         <DocumentView document={data.ceo_intro} idPrefix="ceo-" />
       </section>
+      {data.portfolio.length > 0 && (
+        <section className="sheet" aria-labelledby="home-portfolio">
+          <h2 id="home-portfolio" className="page-section-title">
+            포트폴리오
+          </h2>
+          <PortfolioCards cards={data.portfolio} />
+        </section>
+      )}
       {hasContact && (
         <section className="sheet" aria-labelledby="home-contact">
           <h2 id="home-contact" className="page-section-title">

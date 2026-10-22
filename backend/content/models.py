@@ -58,3 +58,42 @@ class SiteProfile(models.Model):
                 problems[name] = [f"{e.path}: {e.reason}" for e in exc.errors]
         if problems:
             raise ValidationError(problems)
+
+
+class PortfolioItem(models.Model):
+    """One portfolio entry. Hidden entries keep their data; only the public views skip them."""
+
+    slug = models.SlugField("주소", unique=True, help_text="/work/<주소> 로 열린다.")
+    title = models.CharField("제목", max_length=120)
+    summary = models.CharField("요약", max_length=300, blank=True, help_text="카드와 OG 설명.")
+    cover_url = models.CharField(
+        "대표 이미지 URL", max_length=500, blank=True, help_text="비워 둘 수 있다."
+    )
+    tags = models.CharField("태그", max_length=200, blank=True, help_text="쉼표로 구분.")
+    period = models.CharField("기간", max_length=60, blank=True, help_text="예: 2025.03 ~ 2025.08")
+    is_public = models.BooleanField("공개", default=True)
+    sort_order = models.IntegerField("정렬 순서", default=0, help_text="작을수록 먼저.")
+    body = models.JSONField("본문 문서", default=empty_document)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "포트폴리오 항목"
+        verbose_name_plural = "포트폴리오 항목"
+        ordering = ("sort_order", "id")
+
+    def __str__(self) -> str:
+        return self.title
+
+    def save(self, **kwargs: Any) -> None:  # Any: forwarded unchanged to Model.save
+        self.body = normalized(validate_document(self.body))
+        self.tags = ", ".join(self.tag_list())
+        super().save(**kwargs)
+
+    def clean(self) -> None:
+        try:
+            self.body = normalized(validate_document(self.body))
+        except InvalidDocument as exc:
+            raise ValidationError({"body": [f"{e.path}: {e.reason}" for e in exc.errors]}) from exc
+
+    def tag_list(self) -> list[str]:
+        return [tag for tag in (t.strip() for t in self.tags.split(",")) if tag]

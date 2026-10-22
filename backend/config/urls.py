@@ -10,5 +10,8 @@ urlpatterns = [
     path("api/", api.urls),
     # HTML shell routes: Django fills per-route meta, React takes over in the browser.
     path("", shell.home, name="home"),
+    path("work/<slug:slug>", shell.work, name="work"),
+    path("robots.txt", shell.robots_txt),
+    path("sitemap.xml", shell.sitemap_xml),
     path("p/<slug:slug>", shell.proposal, name="proposal"),
 ]

@@ -5,6 +5,7 @@ from typing import TypedDict
 
 from content.models import SiteProfile
 from documents.validation import JSON
+from services.portfolio import PortfolioCard, public_cards
 
 DEFAULT_DESCRIPTION = "샌드코퍼레이션 포트폴리오"
 
@@ -21,6 +22,7 @@ class HomeData(TypedDict):
     company_intro: dict[str, JSON]
     ceo_intro: dict[str, JSON]
     contact: Contact
+    portfolio: list[PortfolioCard]
 
 
 @dataclass(frozen=True)
@@ -42,5 +44,6 @@ def home_page() -> HomePage:
                 phone=profile.contact_phone,
                 address=profile.address,
             ),
+            portfolio=public_cards(),
         ),
     )
