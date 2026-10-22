@@ -1,0 +1,81 @@
+/*
+ * Sandcorp design tokens. The ONLY file that may contain raw color values
+ * (enforced by src/tokens.test.ts). Everything else uses var(--color-*).
+ *
+ * Palette: warm sand neutrals + one accent (dune, a burnt sienna).
+ * Contrast (checked in tokens.test.ts): text/ink/muted >= 4.5:1 on canvas, paper and tint;
+ * accent >= 4.5:1 on paper and tint.
+ */
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+
+:root {
+  color-scheme: light dark;
+
+  /* surfaces */
+  --color-canvas: #f7f4ee;
+  --color-paper: #fffdf9;
+  --color-tint: #f1ebdf;
+  --color-line: #e2d9c8;
+  --color-line-strong: #c9bca4;
+  /* text */
+  --color-ink: #2b2620;
+  --color-text: #483f34;
+  --color-muted: #6b6155;
+  /* accent */
+  --color-accent: #9a4a1c;
+  --color-accent-tint: #f6e6d6;
+  --color-on-accent: #fffdf9;
+  --color-focus: #c2652b;
+  /* brand mark */
+  --color-mark-bg: #9a4a1c;
+  --color-mark-far: #e3b98a;
+  --color-mark-near: #fbf3e4;
+
+  /* type */
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Apple SD Gothic Neo",
+    "Malgun Gothic", sans-serif;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2.125rem;
+  --leading: 1.8;
+
+  /* space (4px scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+
+  /* shape and layout */
+  --radius: 6px;
+  --radius-lg: 10px;
+  --measure: 760px;
+  --page-width: 960px;
+  --masthead-height: 56px;
+  --tabs-height: 48px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #17140f;
+    --color-paper: #1f1b15;
+    --color-tint: #2a251d;
+    --color-line: #3a3329;
+    --color-line-strong: #5a5042;
+    --color-ink: #f6efe3;
+    --color-text: #d9cfbe;
+    --color-muted: #aea28f;
+    --color-accent: #e8a46b;
+    --color-accent-tint: #3a2b1e;
+    --color-on-accent: #17140f;
+    --color-focus: #f0b887;
+    --color-mark-bg: #e8a46b;
+    --color-mark-far: #b9703a;
+    --color-mark-near: #1f1b15;
+  }
+}

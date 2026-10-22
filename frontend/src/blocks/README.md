@@ -25,4 +25,8 @@
 
 ## 스타일
 
-`src/styles.css`의 CSS 변수만 쓴다. 디자인 토큰·브랜드는 #5가 정한다.
+- 토큰은 `frontend/src/tokens.css` 하나다(색·글꼴·글자 크기·간격·모서리·폭). 라이트가 기본, 다크는 `prefers-color-scheme`만 따른다. **원시 색 값(`#fff`, `rgb()` 등)은 이 파일에만 둔다** — 컴포넌트 CSS·TSX에 쓰면 `src/tokens.test.ts`가 실패한다. 같은 시험이 본문·강조 색의 대비(4.5:1 이상)를 라이트·다크 모두 확인한다.
+- 색 역할: `--color-canvas`(페이지 바탕) / `--color-paper`(카드·시트) / `--color-tint`(목차·KPI·표 머리) / `--color-line` / `--color-ink`(제목) / `--color-text`(본문) / `--color-muted`(보조) / `--color-accent`(링크·강조, 하나뿐) / `--color-accent-tint`(강조 열·경고 바탕). 간격은 `--space-1..8`(4px 단위).
+- 컴포넌트 스타일은 `src/styles.css`. 새 블록은 루트에 `.block-<타입>`을 달고, 보조 글자는 `--color-muted`, 테두리는 `--color-line`, 작은 글씨는 `--text-sm`을 쓴다. 표는 반드시 `.table-scroll` 안에 둔다(마크다운 표는 `Prose`가 자동으로 감싼다).
+- 글꼴은 Pretendard Variable(dynamic subset)을 npm 패키지로 **자체 호스팅**한다(CDN 의존·외부 요청 없음, 쓰는 글자 조각만 `unicode-range`로 내려받는다).
+- 로고: `frontend/src/brand/Logo.tsx`(`Wordmark`, `LogoMark`)는 토큰 색을 따라 다크에서 바뀐다. 파비콘·독립 로고 파일은 `backend/core/static/core/{favicon,logo}.svg`(셸이 파비콘을 건다).

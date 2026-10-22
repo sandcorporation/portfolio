@@ -59,13 +59,13 @@ function Toc({ tab, prefix }: { tab: Tab; prefix: string }) {
   if (entries.length === 0) return null;
   return (
     <nav className="document-toc" aria-label="목차">
-      <ol>
+      <ul>
         {entries.map((entry) => (
           <li key={entry.anchor} data-level={entry.level}>
             <a href={`#${entry.anchor}`}>{entry.text}</a>
           </li>
         ))}
-      </ol>
+      </ul>
     </nav>
   );
 }

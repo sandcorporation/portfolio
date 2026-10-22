@@ -1,3 +1,4 @@
+import { Wordmark } from "../brand/Logo";
 import { DocumentView } from "../blocks/DocumentView";
 import type { HomeData } from "./types";
 
@@ -5,21 +6,27 @@ export function HomePage({ data }: { data: HomeData }) {
   const { contact } = data;
   const hasContact = Boolean(contact.email || contact.phone || contact.address);
   return (
-    <main className="page home">
-      <section aria-labelledby="home-company">
+    <>
+      <header className="masthead">
+        <div className="masthead-inner">
+          <Wordmark />
+        </div>
+      </header>
+      <main className="page home">
+      <section className="sheet" aria-labelledby="home-company">
         <h2 id="home-company" className="page-section-title">
           회사 소개
         </h2>
         <DocumentView document={data.company_intro} idPrefix="company-" />
       </section>
-      <section aria-labelledby="home-ceo">
+      <section className="sheet" aria-labelledby="home-ceo">
         <h2 id="home-ceo" className="page-section-title">
           대표 소개
         </h2>
         <DocumentView document={data.ceo_intro} idPrefix="ceo-" />
       </section>
       {hasContact && (
-        <section aria-labelledby="home-contact">
+        <section className="sheet" aria-labelledby="home-contact">
           <h2 id="home-contact" className="page-section-title">
             연락처
           </h2>
@@ -50,5 +57,6 @@ export function HomePage({ data }: { data: HomeData }) {
         </section>
       )}
     </main>
+    </>
   );
 }

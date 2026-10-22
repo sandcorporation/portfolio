@@ -1,12 +1,21 @@
-import Markdown from "react-markdown";
+import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+// Tables scroll inside their own box so a wide one never widens the page.
+const components: Components = {
+  table: ({ children }) => (
+    <div className="table-scroll">
+      <table>{children}</table>
+    </div>
+  ),
+};
 
 /** Markdown (GFM) body text. Raw HTML in the source is not rendered. */
 export function Prose({ source }: { source: string }) {
   if (!source.trim()) return null;
   return (
     <div className="prose">
-      <Markdown remarkPlugins={[remarkGfm]} skipHtml>
+      <Markdown remarkPlugins={[remarkGfm]} skipHtml components={components}>
         {source}
       </Markdown>
     </div>
