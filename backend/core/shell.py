@@ -20,7 +20,7 @@ from services.portfolio import public_detail, public_slugs
 SITE_NAME = "Sandcorp"
 INDEX = "index, follow"
 NOINDEX = "noindex, nofollow"
-DEFAULT_WORK_DESCRIPTION = "샌드코퍼레이션 수행 사례"
+DEFAULT_WORK_DESCRIPTION = "샌드코프 수행 사례"
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ class PageMeta:
 
 # Proposal pages never leak customer names or amounts into meta or link previews.
 _PROPOSAL_META = PageMeta(
-    title=f"제안서 | {SITE_NAME}", description="샌드코퍼레이션 제안서", robots=NOINDEX
+    title=f"제안서 | {SITE_NAME}", description="샌드코프 제안서", robots=NOINDEX
 )
 
 

@@ -101,8 +101,16 @@ CACHES = {
 # follow-up to #7 removes it. See core/admin_ratelimit.py.
 ADMIN_LOGIN_MAX_FAILURES = 5
 ADMIN_LOGIN_WINDOW_SECONDS = 15 * 60
-# Proxies in front of Django that append to X-Forwarded-For (NPMplus = 1).
-ADMIN_LOGIN_PROXY_HOPS = int(env("ADMIN_LOGIN_PROXY_HOPS", "1"))
+# Proxies in front of Django that append to X-Forwarded-For (NPMplus = 1). Every IP rate limit
+# reads it through core/clientip.py. The old name still works so existing .env files keep working.
+PROXY_HOPS = int(env("PROXY_HOPS", env("ADMIN_LOGIN_PROXY_HOPS", "1")))
+
+# Inquiry form (issue #17). Server-to-server posts (news site) prove themselves with the shared
+# secret; empty means no one can. The Discord webhook URL is secret too; empty skips alerts only.
+INQUIRY_SHARED_SECRET = env("INQUIRY_SHARED_SECRET")
+INQUIRY_RATE_LIMIT = 5  # browser submissions per IP per window
+INQUIRY_RATE_WINDOW_SECONDS = 60 * 60
+DISCORD_WEBHOOK_URL = env("DISCORD_WEBHOOK_URL")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -157,5 +165,5 @@ LOGGING = {
 
 # Proposals: the supplier named on every cover, and how long a signed preview link lives. Thirty
 # minutes covers reading a draft through; an older link is simply issued again from the admin.
-SUPPLIER_NAME = env("SUPPLIER_NAME", "샌드코퍼레이션")
+SUPPLIER_NAME = env("SUPPLIER_NAME", "샌드코프")
 PROPOSAL_PREVIEW_MAX_AGE = 30 * 60

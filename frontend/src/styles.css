@@ -738,3 +738,91 @@ h3.block-heading {
     gap: var(--space-6);
   }
 }
+
+/* ---- home: inquiry form ---- */
+.inquiry-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.inquiry-form label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.inquiry-form .optional {
+  font-weight: 400;
+}
+
+.inquiry-form input,
+.inquiry-form select,
+.inquiry-form textarea {
+  font: inherit;
+  font-size: var(--text-base);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.inquiry-form textarea {
+  resize: vertical;
+}
+
+.inquiry-form button {
+  justify-self: start;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border: 0;
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-6);
+  cursor: pointer;
+}
+
+.inquiry-form button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.inquiry-form .wide {
+  grid-column: 1 / -1;
+}
+
+.inquiry-trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.inquiry-error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.inquiry-done {
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--color-accent-tint);
+  border-radius: var(--radius);
+  color: var(--color-ink);
+}
+
+@media (max-width: 600px) {
+  .inquiry-form {
+    grid-template-columns: 1fr;
+  }
+
+  .inquiry-form button {
+    justify-self: stretch;
+  }
+}

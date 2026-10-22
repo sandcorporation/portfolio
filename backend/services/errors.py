@@ -30,3 +30,7 @@ class Rejected(ServiceError):
 
     def lines(self) -> list[str]:
         return [f"{e.path}: {e.reason}" for e in self.errors]
+
+
+class RateLimited(ServiceError):
+    """Too many requests from one caller; nothing was saved."""

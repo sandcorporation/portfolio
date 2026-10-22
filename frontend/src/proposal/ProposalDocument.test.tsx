@@ -11,7 +11,7 @@ const data: ProposalData = {
   subtitle: "견적과 일정",
   quote_date: "2026-10-01",
   valid_until: "2026-12-31",
-  supplier: { name: "샌드코퍼레이션", email: "hi@sandcorp.co.kr", phone: "", address: "" },
+  supplier: { name: "샌드코프", email: "hi@sandcorp.co.kr", phone: "", address: "" },
   document: exampleDocument,
 };
 
@@ -23,7 +23,7 @@ test("표지에 고객 호칭, 제목, 부제, 견적 기준일, 공급자를 �
   expect(screen.getByText("견적과 일정")).toBeInTheDocument();
   expect(screen.getByText("2026.10.01")).toBeInTheDocument();
   expect(screen.getByText("2026.12.31까지")).toBeInTheDocument();
-  expect(screen.getByText("샌드코퍼레이션")).toBeInTheDocument();
+  expect(screen.getByText("샌드코프")).toBeInTheDocument();
   expect(screen.getByText("hi@sandcorp.co.kr")).toBeInTheDocument();
 });
 

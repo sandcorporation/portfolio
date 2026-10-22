@@ -3,7 +3,8 @@
 Everything for this lives here plus three hooks, all deleted with this file when the
 temporary login goes (follow-up to #7, once sandcorp-auth is live):
   - `core.admin_ratelimit.AdminLoginRateLimitMiddleware` in settings.MIDDLEWARE
-  - `ADMIN_LOGIN_*` and `CACHES` in settings.py
+  - `ADMIN_LOGIN_*` in settings.py (`CACHES` stays: the inquiry limit uses it; the IP rule moved
+    to core/clientip.py)
   - `createcachetable` in deploy/deploy.sh (and tests/test_admin_ratelimit.py)
 
 Counters live in the Django cache, which is a DB cache so both gunicorn workers share them.
@@ -16,18 +17,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse
 
-
-def client_ip(request: HttpRequest) -> str:
-    """The address NPMplus saw. It appends the peer to X-Forwarded-For, so the entry
-    `ADMIN_LOGIN_PROXY_HOPS` from the right is trustworthy; the left part is client-supplied
-    and forgeable. With 0 hops (no proxy) only REMOTE_ADDR is used."""
-    hops: int = settings.ADMIN_LOGIN_PROXY_HOPS
-    forwarded = [
-        p.strip() for p in request.META.get("HTTP_X_FORWARDED_FOR", "").split(",") if p.strip()
-    ]
-    if hops > 0 and len(forwarded) >= hops:
-        return str(forwarded[-hops])
-    return str(request.META.get("REMOTE_ADDR", ""))
+from core.clientip import client_ip
 
 
 def _key(kind: str, value: str) -> str:

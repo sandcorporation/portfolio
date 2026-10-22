@@ -268,3 +268,29 @@ class Proposal(models.Model):
             raise ValidationError(
                 {"document": [f"{e.path}: {e.reason}" for e in exc.errors]}
             ) from exc
+
+
+class Inquiry(models.Model):
+    """A message left on the home form (or relayed by another Sandcorp site). `handled_at` is set
+    once the owner has dealt with it; until then it counts as unhandled."""
+
+    class Kind(models.TextChoices):
+        INQUIRY = "문의", "문의"
+        PROPOSAL = "제안", "제안"
+
+    site = models.CharField("사이트", max_length=40, default="portfolio")
+    kind = models.CharField("구분", max_length=4, choices=Kind, default=Kind.INQUIRY)
+    name = models.CharField("이름", max_length=80)
+    company = models.CharField("회사", max_length=120, blank=True)
+    contact = models.CharField("연락처", max_length=200)
+    message = models.TextField("내용")
+    created_at = models.DateTimeField("접수", auto_now_add=True)
+    handled_at = models.DateTimeField("처리 완료", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "문의"
+        verbose_name_plural = "문의"
+        ordering = ("-id",)
+
+    def __str__(self) -> str:
+        return f"[{self.site}·{self.kind}] {self.name}"

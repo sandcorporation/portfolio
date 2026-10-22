@@ -230,7 +230,7 @@ def test_preview_shows_the_draft_for_the_customer_screen(
         "업무 자동화 제안",
         "2026-10-01",
     )
-    assert data["supplier"]["name"] == "샌드코퍼레이션"
+    assert data["supplier"]["name"] == "샌드코프"
     assert data["document"]["tabs"][0]["id"] == "estimate"
 
 

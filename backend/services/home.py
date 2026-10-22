@@ -8,7 +8,7 @@ from documents.validation import JSON
 from services import media
 from services.portfolio import PortfolioCard, public_cards
 
-DEFAULT_DESCRIPTION = "샌드코퍼레이션 포트폴리오"
+DEFAULT_DESCRIPTION = "샌드코프 포트폴리오"
 
 
 class Contact(TypedDict):

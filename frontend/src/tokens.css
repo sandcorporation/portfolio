@@ -21,6 +21,7 @@
   --color-ink: #2b2620;
   --color-text: #483f34;
   --color-muted: #6b6155;
+  --color-danger: #9b2c1f;
   /* accent */
   --color-accent: #9a4a1c;
   --color-accent-tint: #f6e6d6;
@@ -71,6 +72,7 @@
     --color-ink: #f6efe3;
     --color-text: #d9cfbe;
     --color-muted: #aea28f;
+    --color-danger: #f0a090;
     --color-accent: #e8a46b;
     --color-accent-tint: #3a2b1e;
     --color-on-accent: #17140f;

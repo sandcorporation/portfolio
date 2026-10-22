@@ -8,7 +8,8 @@ from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html
 
 from adapters.storage import StorageNotConfigured, get_storage
-from content.models import Client, Media, PortfolioItem, Proposal, SiteProfile
+from content.models import Client, Inquiry, Media, PortfolioItem, Proposal, SiteProfile
+from services import inquiries as inquiry_service
 from services import media as media_service
 from services import proposals as proposal_service
 from services.errors import ServiceError
@@ -222,3 +223,46 @@ class ProposalAdmin(_ProposalAdmin):
                 self.message_user(request, str(exc), messages.ERROR)
                 return
         self.message_user(request, f"{queryset.count()}건을 초안으로 복제했습니다.")
+
+
+if TYPE_CHECKING:
+    _InquiryAdmin = admin.ModelAdmin[Inquiry]
+else:
+    _InquiryAdmin = admin.ModelAdmin
+
+
+class HandledFilter(admin.SimpleListFilter):
+    title = "처리 상태"
+    parameter_name = "handled"
+
+    def lookups(
+        self, request: HttpRequest, model_admin: "admin.ModelAdmin[Inquiry]"
+    ) -> list[tuple[str, str]]:
+        return [("no", "미처리"), ("yes", "처리 완료")]
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet[Inquiry]) -> QuerySet[Inquiry]:
+        if self.value() == "no":
+            return queryset.filter(handled_at__isnull=True)
+        if self.value() == "yes":
+            return queryset.filter(handled_at__isnull=False)
+        return queryset
+
+
+@admin.register(Inquiry)
+class InquiryAdmin(_InquiryAdmin):
+    list_display = ("created_at", "site", "kind", "name", "company", "contact", "handled_at")
+    list_filter = (HandledFilter, "site", "kind")
+    search_fields = ("name", "company", "contact", "message")
+    readonly_fields = ("site", "kind", "name", "company", "contact", "message", "created_at")
+    fields = (*readonly_fields, "handled_at")
+    actions = ("mark_done",)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    @admin.action(description="처리 완료로 표시")
+    def mark_done(self, request: HttpRequest, queryset: QuerySet[Inquiry]) -> None:
+        ids = list(queryset.values_list("pk", flat=True))
+        for inquiry_id in ids:
+            inquiry_service.mark_handled(inquiry_id)
+        self.message_user(request, f"{len(ids)}건을 처리 완료로 표시했습니다.", messages.SUCCESS)

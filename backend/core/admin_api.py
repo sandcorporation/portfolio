@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 from oauth.bearer import BearerAuth
 from services import portfolio, profile
-from services.errors import Conflict, NotFound, Rejected, ServiceError
+from services.errors import Conflict, NotFound, RateLimited, Rejected, ServiceError
 
 router = Router(auth=BearerAuth("admin"), tags=["admin"])
 
@@ -72,13 +72,15 @@ def set_portfolio_visibility(
 
 
 def install_service_errors(api: NinjaAPI) -> None:
-    """Service failures become HTTP answers: 404, 409, 422 (with block paths)."""
+    """Service failures become HTTP answers: 404, 409, 422 (with block paths), 429."""
 
     def handle(request: HttpRequest, exc: ServiceError | type[ServiceError]) -> HttpResponse:
         if isinstance(exc, NotFound):
             return api.create_response(request, {"detail": str(exc)}, status=404)
         if isinstance(exc, Conflict):
             return api.create_response(request, {"detail": str(exc)}, status=409)
+        if isinstance(exc, RateLimited):
+            return api.create_response(request, {"detail": str(exc)}, status=429)
         if isinstance(exc, Rejected):
             body = {
                 "detail": "저장하지 않았습니다",
@@ -87,5 +89,5 @@ def install_service_errors(api: NinjaAPI) -> None:
             return api.create_response(request, body, status=422)
         raise TypeError(f"not a service error: {exc!r}")
 
-    for error in (NotFound, Conflict, Rejected):
+    for error in (NotFound, Conflict, RateLimited, Rejected):
         api.add_exception_handler(error, handle)

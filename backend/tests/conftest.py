@@ -1,7 +1,7 @@
 """Shared fixtures for backend HTTP-boundary tests.
 
 Static fixture files live in tests/fixtures/.
-Fake adapters are fixtures here (fake_storage, auth_server).
+Fake adapters are fixtures here (fake_storage, auth_server, notifier).
 """
 
 import json
@@ -14,6 +14,7 @@ from django.utils import timezone
 from pytest_django.fixtures import Settings
 
 from adapters.fake_jwks import FakeAuthServer
+from adapters.fake_notify import FakeNotifier
 from adapters.fake_storage import FakeObjectStorage
 from content.models import Media
 from core.vite import _read_manifest
@@ -81,3 +82,11 @@ def auth_server(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> FakeAuth
     monkeypatch.setattr("oauth.bearer.get_jwks_cache", lambda: cache)
     monkeypatch.setattr("oauth.bearer.get_clock", lambda: server.clock)
     return server
+
+
+@pytest.fixture
+def notifier(monkeypatch: pytest.MonkeyPatch) -> FakeNotifier:
+    """Replace the owner-alert channel; assert on `notifier.sent`, set `notifier.failing`."""
+    fake = FakeNotifier()
+    monkeypatch.setattr("services.inquiries.get_notifier", lambda: fake)
+    return fake
