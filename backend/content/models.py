@@ -1,8 +1,10 @@
 """Public content edited in Django admin. Documents are block documents (see documents/)."""
 
+import secrets
 from typing import Any, ClassVar, Self
 
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 
 from documents.blocks import Document, GalleryBlock
@@ -180,3 +182,89 @@ class PortfolioItem(models.Model):
 
     def tag_list(self) -> list[str]:
         return [tag for tag in (t.strip() for t in self.tags.split(",")) if tag]
+
+
+CLIENT_CODE_PATTERN = r"^[A-Z]{2,6}$"
+
+
+class Client(models.Model):
+    """A customer proposals are written for. The code is its short, unique handle."""
+
+    name = models.CharField("고객명", max_length=120)
+    code = models.CharField(
+        "고객코드",
+        max_length=6,
+        unique=True,
+        validators=[RegexValidator(CLIENT_CODE_PATTERN, "대문자 2~6자여야 합니다.")],
+        help_text="대문자 2~6자, 겹칠 수 없다. 예: NEXT",
+    )
+    contact_title = models.CharField(
+        "담당자 호칭", max_length=80, blank=True, help_text="표지에 쓴다. 예: 홍길순 대표님"
+    )
+    memo = models.TextField("메모", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "고객"
+        verbose_name_plural = "고객"
+        ordering = ("code",)
+
+    def __str__(self) -> str:
+        return f"{self.code} · {self.name}"
+
+
+def default_proposal_document() -> dict[str, JSON]:
+    """A new proposal starts with the two tabs every proposal has."""
+    return {
+        "tabs": [
+            {"id": "estimate", "title": "견적 제안", "blocks": []},
+            {"id": "company", "title": "회사소개·수행사례", "blocks": []},
+        ]
+    }
+
+
+def new_proposal_slug() -> str:
+    """An unguessable URL part (128 random bits, URL-safe)."""
+    return secrets.token_urlsafe(16)
+
+
+class Proposal(models.Model):
+    """A quote written for a client. Drafts are visible only through signed previews."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "초안"
+        PUBLISHED = "published", "발행됨"
+        REVOKED = "revoked", "회수됨"
+
+    client = models.ForeignKey(
+        Client, verbose_name="고객", on_delete=models.PROTECT, related_name="proposals"
+    )
+    title = models.CharField("제목", max_length=160)
+    subtitle = models.CharField("부제", max_length=200, blank=True)
+    slug = models.SlugField("주소", unique=True, default=new_proposal_slug, editable=False)
+    document = models.JSONField("제안서 문서", default=default_proposal_document)
+    quote_date = models.DateField("견적 기준일")
+    valid_until = models.DateField("유효기간", null=True, blank=True, help_text="이 날까지 유효.")
+    status = models.CharField("상태", max_length=12, choices=Status, default=Status.DRAFT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "제안서"
+        verbose_name_plural = "제안서"
+        ordering = ("-id",)
+
+    def __str__(self) -> str:
+        return f"{self.client.code} · {self.title}"
+
+    def save(self, **kwargs: Any) -> None:  # Any: forwarded unchanged to Model.save
+        self.document = stored_document(self.document)
+        super().save(**kwargs)
+
+    def clean(self) -> None:
+        try:
+            self.document = stored_document(self.document)
+        except InvalidDocument as exc:
+            raise ValidationError(
+                {"document": [f"{e.path}: {e.reason}" for e in exc.errors]}
+            ) from exc

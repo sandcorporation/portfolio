@@ -1,0 +1,61 @@
+import { DocumentView } from "../blocks/DocumentView";
+import type { Document } from "../blocks/types";
+import type { ProposalData } from "./types";
+
+/** "2026-10-01" -> "2026.10.01". Anything else is shown as written. */
+export function formatDate(iso: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.replaceAll("-", ".") : iso;
+}
+
+/** The cover comes from the proposal's own fields, so a cover block in a tab would repeat it. */
+function withoutCoverBlocks(document: Document): Document {
+  return {
+    tabs: document.tabs.map((tab) => ({
+      ...tab,
+      blocks: tab.blocks.filter((block) => block.type !== "cover"),
+    })),
+  };
+}
+
+/**
+ * The proposal document screen: cover (recipient, title, subtitle, quote date, supplier), then the
+ * tabs with their table of contents. The owner's preview and the customer page both render this.
+ */
+export function ProposalDocument({ data }: { data: ProposalData }) {
+  const { supplier } = data;
+  const contact = [supplier.email, supplier.phone, supplier.address].filter(Boolean);
+  return (
+    <article className="proposal" aria-labelledby="proposal-title">
+      {data.preview && (
+        <p className="proposal-preview-note" role="status">
+          초안 미리보기 · 고객에게 공개되지 않은 화면입니다
+        </p>
+      )}
+      <header className="proposal-cover">
+        {data.recipient && <p className="cover-recipient">{data.recipient}</p>}
+        <h1 id="proposal-title">{data.title}</h1>
+        {data.subtitle && <p className="cover-subtitle">{data.subtitle}</p>}
+        <dl className="proposal-facts">
+          <div>
+            <dt>견적 기준일</dt>
+            <dd>{formatDate(data.quote_date)}</dd>
+          </div>
+          {data.valid_until && (
+            <div>
+              <dt>유효기간</dt>
+              <dd>{formatDate(data.valid_until)}까지</dd>
+            </div>
+          )}
+          <div>
+            <dt>공급자</dt>
+            <dd>
+              {supplier.name}
+              {contact.length > 0 && <span className="proposal-contact">{contact.join(" · ")}</span>}
+            </dd>
+          </div>
+        </dl>
+      </header>
+      <DocumentView document={withoutCoverBlocks(data.document)} idPrefix="proposal-" />
+    </article>
+  );
+}

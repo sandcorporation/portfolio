@@ -11,7 +11,9 @@ from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
 
+from content.models import Proposal
 from core.vite import entry_assets
+from services import proposals
 from services.home import home_page
 from services.portfolio import public_detail, public_slugs
 
@@ -27,6 +29,12 @@ class PageMeta:
     description: str
     robots: str
     image: str = ""
+
+
+# Proposal pages never leak customer names or amounts into meta or link previews.
+_PROPOSAL_META = PageMeta(
+    title=f"제안서 | {SITE_NAME}", description="샌드코퍼레이션 제안서", robots=NOINDEX
+)
 
 
 def render_shell(
@@ -57,15 +65,31 @@ def home(request: HttpRequest) -> HttpResponse:
 
 
 def proposal(request: HttpRequest, slug: str) -> HttpResponse:
-    # Proposal pages never leak customer names or amounts into meta or previews.
-    return render_shell(
-        request,
-        PageMeta(
-            title=f"제안서 | {SITE_NAME}",
-            description="샌드코퍼레이션 제안서",
-            robots=NOINDEX,
-        ),
-    )
+    # Only a published proposal has a customer page (the content arrives with #12). A draft or a
+    # revoked one is a 404, indistinguishable from a slug that never existed.
+    if not Proposal.objects.filter(slug=slug, status=Proposal.Status.PUBLISHED).exists():
+        raise Http404
+    return render_shell(request, _PROPOSAL_META)
+
+
+def proposal_preview(request: HttpRequest, token: str) -> HttpResponse:
+    """A signed, short-lived link to the proposal as the customer will see it."""
+    try:
+        found = proposals.proposal_for_preview(token)
+    except proposals.ExpiredPreviewToken:
+        response = HttpResponse(
+            "미리보기 링크가 만료되었습니다. 관리자 화면에서 다시 열어 주세요.",
+            status=410,
+            content_type="text/plain; charset=utf-8",
+        )
+    except proposals.BadPreviewToken:
+        raise Http404 from None
+    else:
+        data = proposals.page_data(found, preview=True)
+        response = render_shell(request, _PROPOSAL_META, data=data.model_dump(mode="json"))
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = NOINDEX
+    return response
 
 
 def work(request: HttpRequest, slug: str) -> HttpResponse:
@@ -86,7 +110,10 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
 
 
 def robots_txt(request: HttpRequest) -> HttpResponse:
-    body = f"User-agent: *\nDisallow: /p/\n\nSitemap: {settings.SITE_URL}/sitemap.xml\n"
+    body = (
+        "User-agent: *\nDisallow: /p/\nDisallow: /preview/\n\n"
+        f"Sitemap: {settings.SITE_URL}/sitemap.xml\n"
+    )
     return HttpResponse(body, content_type="text/plain; charset=utf-8")
 
 

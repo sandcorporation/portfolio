@@ -1,5 +1,7 @@
 import { HomePage } from "./home/HomePage";
 import { isHomeData } from "./home/types";
+import { ProposalPage } from "./proposal/ProposalPage";
+import { isProposalData } from "./proposal/types";
 import { WorkPage } from "./work/WorkPage";
 import { isWorkData } from "./work/types";
 
@@ -7,6 +9,9 @@ import { isWorkData } from "./work/types";
 export function App({ path, data }: { path: string; data: unknown }) {
   if (path === "/" && isHomeData(data)) return <HomePage data={data} />;
   if (path.startsWith("/work/") && isWorkData(data)) return <WorkPage data={data} />;
+  if ((path.startsWith("/preview/") || path.startsWith("/p/")) && isProposalData(data)) {
+    return <ProposalPage data={data} />;
+  }
   return (
     <main className="placeholder">
       <h1>Sandcorp</h1>

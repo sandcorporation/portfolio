@@ -1,9 +1,11 @@
 import re
+from datetime import date
 
 import pytest
 from django.test import Client
 
-from content.models import SiteProfile
+from content.models import Client as Client_
+from content.models import Proposal, SiteProfile
 
 
 def meta(html: str, name: str) -> str | None:
@@ -45,14 +47,21 @@ def test_home_shell_is_indexable_and_mounts_react(client: Client) -> None:
     assert '<link rel="stylesheet" href="/static/assets/main-def456.css">' in html
 
 
-def test_proposal_shell_is_noindex_and_keeps_meta_generic(client: Client) -> None:
+@pytest.mark.django_db
+def test_published_proposal_shell_is_noindex_and_keeps_meta_generic(client: Client) -> None:
+    owner = Client_.objects.create(name="가나다상사", code="NEXT")
+    Proposal.objects.create(
+        client=owner,
+        title="가나다상사 견적",
+        slug="ganadatrade-2026",
+        quote_date=date(2026, 10, 1),
+        status=Proposal.Status.PUBLISHED,
+    )
+
     response = client.get("/p/ganadatrade-2026")
     html = response.content.decode()
 
     assert response.status_code == 200
     assert meta(html, "robots") == "noindex, nofollow"
     assert "<title>제안서 | Sandcorp</title>" in html
-    assert "ganadatrade" not in html.split("</head>")[0].replace(
-        '"http://testserver/p/ganadatrade-2026"',
-        "",  # canonical and og:url
-    )
+    assert "가나다상사" not in html

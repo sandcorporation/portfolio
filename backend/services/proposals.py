@@ -1,0 +1,414 @@
+"""Clients and proposals: the owner's side. Drafts live here; the customer page is #12's.
+
+Every write takes a Pydantic input (only `model_fields_set` fields change) and returns a Pydantic
+output, and refuses with `services.errors`. Block and tab edits address blocks by `block_id` and
+tabs by `tab_id`, touch nothing else, and re-validate the whole document before saving.
+Only drafts can be edited; a published proposal changes through revisions (#12).
+"""
+
+import copy
+from datetime import date, datetime, timedelta
+
+from django.conf import settings
+from django.core import signing
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+from pydantic import BaseModel, ConfigDict, Field
+
+from content.models import (
+    CLIENT_CODE_PATTERN,
+    Client,
+    Proposal,
+    SiteProfile,
+    new_proposal_slug,
+    stored_document,
+)
+from documents.validation import JSON, DocumentError, InvalidDocument
+from services import media
+from services.errors import Conflict, NotFound, Rejected
+
+PREVIEW_SALT = "proposal-preview"
+
+
+# --- clients ---
+
+
+class ClientOut(BaseModel):
+    code: str
+    name: str
+    contact_title: str
+    memo: str
+
+
+class NewClient(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(pattern=CLIENT_CODE_PATTERN, description="Uppercase, 2-6 letters; unique.")
+    name: str = Field(min_length=1, max_length=120)
+    contact_title: str = Field(default="", max_length=80, description="e.g. 홍길순 대표님")
+    memo: str = ""
+
+
+class ClientPatch(BaseModel):
+    """Fields left out stay as they are. The code never changes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(default="", min_length=1, max_length=120)
+    contact_title: str = Field(default="", max_length=80)
+    memo: str = ""
+
+
+def _client_out(client: Client) -> ClientOut:
+    return ClientOut(
+        code=client.code, name=client.name, contact_title=client.contact_title, memo=client.memo
+    )
+
+
+def _client_or_404(code: str) -> Client:
+    client = Client.objects.filter(code=code).first()
+    if client is None:
+        raise NotFound(f"고객 {code!r}이(가) 없습니다")
+    return client
+
+
+def list_clients() -> list[ClientOut]:
+    return [_client_out(c) for c in Client.objects.all()]
+
+
+def create_client(new: NewClient) -> ClientOut:
+    try:
+        with transaction.atomic():
+            client = Client.objects.create(**new.model_dump())
+    except IntegrityError:
+        raise Conflict(f"고객코드 {new.code!r}는 이미 쓰고 있습니다") from None
+    return _client_out(client)
+
+
+def update_client(code: str, patch: ClientPatch) -> ClientOut:
+    client = _client_or_404(code)
+    for name in patch.model_fields_set:
+        setattr(client, name, getattr(patch, name))
+    client.save()
+    return _client_out(client)
+
+
+# --- proposals ---
+
+
+class ProposalSummary(BaseModel):
+    slug: str
+    client_code: str
+    title: str
+    subtitle: str
+    quote_date: date
+    valid_until: date | None
+    status: str
+
+
+class ProposalOut(ProposalSummary):
+    document: dict[str, JSON]
+    updated_at: datetime
+
+
+class NewProposal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    client_code: str
+    title: str = Field(min_length=1, max_length=160)
+    subtitle: str = Field(default="", max_length=200)
+    quote_date: date = Field(default_factory=date.today, description="견적 기준일")
+    valid_until: date | None = None
+    document: dict[str, object] | None = Field(
+        default=None, description="Omit to start with the tabs 견적 제안 and 회사소개·수행사례."
+    )
+
+
+class ProposalPatch(BaseModel):
+    """Metadata only (the document has its own functions). `valid_until: null` clears it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(default="", min_length=1, max_length=160)
+    subtitle: str = Field(default="", max_length=200)
+    quote_date: date = Field(default_factory=date.today)
+    valid_until: date | None = None
+
+
+def _summary_fields(p: Proposal) -> dict[str, object]:
+    return {
+        "slug": p.slug,
+        "client_code": p.client.code,
+        "title": p.title,
+        "subtitle": p.subtitle,
+        "quote_date": p.quote_date,
+        "valid_until": p.valid_until,
+        "status": p.status,
+    }
+
+
+def proposal_out(p: Proposal) -> ProposalOut:
+    return ProposalOut.model_validate(
+        {**_summary_fields(p), "document": p.document, "updated_at": p.updated_at}
+    )
+
+
+def _proposal_or_404(slug: str) -> Proposal:
+    p = Proposal.objects.select_related("client").filter(slug=slug).first()
+    if p is None:
+        raise NotFound(f"제안서 {slug!r}이(가) 없습니다")
+    return p
+
+
+def _document(data: object, prefix: str = "document") -> dict[str, JSON]:
+    try:
+        return stored_document(data)
+    except InvalidDocument as exc:
+        raise Rejected([DocumentError(f"{prefix}.{e.path}", e.reason) for e in exc.errors]) from exc
+
+
+def _editable(slug: str) -> Proposal:
+    p = _proposal_or_404(slug)
+    if p.status != Proposal.Status.DRAFT:
+        raise Conflict("초안만 고칠 수 있습니다. 발행된 제안서는 새 리비전으로 고칩니다")
+    return p
+
+
+def list_proposals(client_code: str | None = None) -> list[ProposalSummary]:
+    rows = Proposal.objects.select_related("client")
+    if client_code is not None:
+        rows = rows.filter(client__code=client_code)
+    return [ProposalSummary.model_validate(_summary_fields(p)) for p in rows]
+
+
+def get_proposal(slug: str) -> ProposalOut:
+    return proposal_out(_proposal_or_404(slug))
+
+
+def create_proposal(new: NewProposal) -> ProposalOut:
+    """A draft with a fresh random slug, for an existing client."""
+    client = _client_or_404(new.client_code)
+    p = Proposal(
+        client=client,
+        title=new.title,
+        subtitle=new.subtitle,
+        quote_date=new.quote_date,
+        valid_until=new.valid_until,
+    )
+    if new.document is not None:
+        p.document = _document(new.document)
+    p.save()
+    return proposal_out(p)
+
+
+def duplicate_proposal(slug: str, client_code: str | None = None) -> ProposalOut:
+    """A copy as a new draft with its own slug (for another client when `client_code` is given)."""
+    source = _proposal_or_404(slug)
+    client = _client_or_404(client_code) if client_code else source.client
+    copy_ = Proposal(
+        client=client,
+        title=f"{source.title} (복사)",
+        subtitle=source.subtitle,
+        quote_date=source.quote_date,
+        valid_until=source.valid_until,
+        document=copy.deepcopy(source.document),
+    )
+    copy_.save()
+    return proposal_out(copy_)
+
+
+def update_proposal(slug: str, patch: ProposalPatch) -> ProposalOut:
+    p = _editable(slug)
+    for name in patch.model_fields_set:
+        setattr(p, name, getattr(patch, name))
+    p.save()
+    return proposal_out(p)
+
+
+# --- the document: whole, or a block / tab at a time ---
+
+
+def _tabs(p: Proposal) -> list[dict[str, JSON]]:
+    """The document's own tab list (edit it in place); stored documents hold only tab objects."""
+    tabs: list[dict[str, JSON]] = p.document["tabs"]
+    return tabs
+
+
+def _blocks(tab: dict[str, JSON]) -> list[JSON]:
+    blocks = tab["blocks"]
+    assert isinstance(blocks, list)
+    return blocks
+
+
+def _find_tab(p: Proposal, tab_id: str) -> dict[str, JSON]:
+    for tab in _tabs(p):
+        if tab["id"] == tab_id:
+            return tab
+    raise NotFound(f"탭 {tab_id!r}이(가) 없습니다")
+
+
+def _find_block(p: Proposal, block_id: str) -> tuple[list[JSON], int]:
+    for tab in _tabs(p):
+        blocks = _blocks(tab)
+        for index, block in enumerate(blocks):
+            if isinstance(block, dict) and block.get("id") == block_id:
+                return blocks, index
+    raise NotFound(f"블록 {block_id!r}이(가) 없습니다")
+
+
+def _save_document(p: Proposal, document: object) -> ProposalOut:
+    p.document = _document(document)
+    p.save()
+    return proposal_out(p)
+
+
+def replace_document(slug: str, document: dict[str, object]) -> ProposalOut:
+    return _save_document(_editable(slug), document)
+
+
+def replace_block(slug: str, block_id: str, block: dict[str, object]) -> ProposalOut:
+    """Swap one block in place (same position). A block without an `id` keeps `block_id`."""
+    p = _editable(slug)
+    blocks, index = _find_block(p, block_id)
+    blocks[index] = {"id": block_id, **block}  # type: ignore[dict-item]  # JSON from the caller
+    return _save_document(p, p.document)
+
+
+def insert_block(
+    slug: str, tab_id: str, block: dict[str, object], after_block_id: str | None = None
+) -> ProposalOut:
+    """Add a block to a tab: at the start, or right after `after_block_id` (in that tab)."""
+    p = _editable(slug)
+    blocks = _blocks(_find_tab(p, tab_id))
+    position = 0
+    if after_block_id is not None:
+        ids = [b.get("id") if isinstance(b, dict) else None for b in blocks]
+        if after_block_id not in ids:
+            raise NotFound(f"탭 {tab_id!r}에 블록 {after_block_id!r}이(가) 없습니다")
+        position = ids.index(after_block_id) + 1
+    blocks.insert(position, block)  # type: ignore[arg-type]  # JSON from the caller
+    return _save_document(p, p.document)
+
+
+def delete_block(slug: str, block_id: str) -> ProposalOut:
+    p = _editable(slug)
+    blocks, index = _find_block(p, block_id)
+    del blocks[index]
+    return _save_document(p, p.document)
+
+
+def add_tab(slug: str, title: str, tab_id: str | None = None) -> ProposalOut:
+    """Append an empty tab; its id is generated unless given."""
+    p = _editable(slug)
+    tab: dict[str, JSON] = {"id": tab_id or f"tab-{new_proposal_slug()[:6]}", "title": title}
+    tab["blocks"] = []
+    _tabs(p).append(tab)
+    return _save_document(p, p.document)
+
+
+def delete_tab(slug: str, tab_id: str) -> ProposalOut:
+    """Remove a tab with its blocks. A proposal keeps at least one tab."""
+    p = _editable(slug)
+    tab = _find_tab(p, tab_id)
+    if len(_tabs(p)) == 1:
+        raise Rejected.at("document.tabs", "탭이 하나뿐이라 지울 수 없습니다")
+    _tabs(p).remove(tab)
+    return _save_document(p, p.document)
+
+
+def rename_tab(slug: str, tab_id: str, title: str) -> ProposalOut:
+    p = _editable(slug)
+    _find_tab(p, tab_id)["title"] = title
+    return _save_document(p, p.document)
+
+
+def reorder_tabs(slug: str, tab_ids: list[str]) -> ProposalOut:
+    """Set the tab order. `tab_ids` must name every tab exactly once."""
+    p = _editable(slug)
+    tabs = {str(t["id"]): t for t in _tabs(p)}
+    if sorted(tab_ids) != sorted(tabs):
+        raise Rejected.at("tab_ids", f"모든 탭 id를 한 번씩 적어야 합니다: {', '.join(tabs)}")
+    p.document = {"tabs": [tabs[i] for i in tab_ids]}
+    return _save_document(p, p.document)
+
+
+# --- preview: a signed, short-lived link ---
+
+
+class PreviewLink(BaseModel):
+    url: str
+    expires_at: datetime
+
+
+def issue_preview_url(slug: str) -> PreviewLink:
+    """A link that shows the proposal (draft or not) as the customer will see it, for a while."""
+    p = _proposal_or_404(slug)
+    token = signing.TimestampSigner(salt=PREVIEW_SALT).sign(p.slug)
+    expires_at = timezone.now() + timedelta(seconds=settings.PROPOSAL_PREVIEW_MAX_AGE)
+    return PreviewLink(url=f"/preview/{token}", expires_at=expires_at)
+
+
+class BadPreviewToken(Exception):
+    pass
+
+
+class ExpiredPreviewToken(BadPreviewToken):
+    pass
+
+
+def proposal_for_preview(token: str) -> Proposal:
+    try:
+        slug = signing.TimestampSigner(salt=PREVIEW_SALT).unsign(
+            token, max_age=settings.PROPOSAL_PREVIEW_MAX_AGE
+        )
+    except signing.SignatureExpired:
+        raise ExpiredPreviewToken from None
+    except signing.BadSignature:
+        raise BadPreviewToken from None
+    p = Proposal.objects.select_related("client").filter(slug=slug).first()
+    if p is None:
+        raise BadPreviewToken
+    return p
+
+
+# --- the customer-facing page data (shared by preview and, in #12, /p/<slug>) ---
+
+
+class Supplier(BaseModel):
+    name: str
+    email: str
+    phone: str
+    address: str
+
+
+class ProposalPageData(BaseModel):
+    """Embedded as #page-data. Mirrors frontend/src/proposal/types.ts."""
+
+    preview: bool
+    recipient: str
+    title: str
+    subtitle: str
+    quote_date: date
+    valid_until: date | None
+    supplier: Supplier
+    document: dict[str, JSON]
+
+
+def page_data(p: Proposal, *, preview: bool) -> ProposalPageData:
+    profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
+    title = p.client.contact_title
+    return ProposalPageData(
+        preview=preview,
+        recipient=f"{title}께" if title else p.client.name,
+        title=p.title,
+        subtitle=p.subtitle,
+        quote_date=p.quote_date,
+        valid_until=p.valid_until,
+        supplier=Supplier(
+            name=settings.SUPPLIER_NAME,
+            email=profile.contact_email,
+            phone=profile.contact_phone,
+            address=profile.address,
+        ),
+        document=media.resolve_document(p.document),
+    )

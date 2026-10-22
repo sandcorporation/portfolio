@@ -154,3 +154,8 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", "INFO")},
 }
+
+# Proposals: the supplier named on every cover, and how long a signed preview link lives. Thirty
+# minutes covers reading a draft through; an older link is simply issued again from the admin.
+SUPPLIER_NAME = env("SUPPLIER_NAME", "샌드코퍼레이션")
+PROPOSAL_PREVIEW_MAX_AGE = 30 * 60

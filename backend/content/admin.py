@@ -1,14 +1,17 @@
 from typing import TYPE_CHECKING, Any
 
 from django import forms
-from django.contrib import admin
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
-from django.urls import reverse
+from django.contrib import admin, messages
+from django.db.models import QuerySet
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
+from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html
 
 from adapters.storage import StorageNotConfigured, get_storage
-from content.models import Media, PortfolioItem, SiteProfile
+from content.models import Client, Media, PortfolioItem, Proposal, SiteProfile
 from services import media as media_service
+from services import proposals as proposal_service
+from services.errors import ServiceError
 
 # ModelAdmin is generic only in django-stubs; at runtime it is not subscriptable.
 if TYPE_CHECKING:
@@ -146,3 +149,76 @@ class MediaAdmin(_MediaAdmin):
     def preview(self, obj: Media) -> str:
         url = media_service.public_url(obj)
         return format_html('<img src="{}" alt="" style="max-width:320px">', url) if url else "-"
+
+
+if TYPE_CHECKING:
+    _ClientAdmin = admin.ModelAdmin[Client]
+    _ProposalAdmin = admin.ModelAdmin[Proposal]
+else:
+    _ClientAdmin = admin.ModelAdmin
+    _ProposalAdmin = admin.ModelAdmin
+
+
+@admin.register(Client)
+class ClientAdmin(_ClientAdmin):
+    list_display = ("code", "name", "contact_title")
+    search_fields = ("code", "name")
+    fields = ("code", "name", "contact_title", "memo")
+
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: Client | None = None
+    ) -> tuple[str, ...]:
+        return ("code",) if obj else ()  # the code is the handle proposals and tools use
+
+
+@admin.register(Proposal)
+class ProposalAdmin(_ProposalAdmin):
+    list_display = ("title", "client", "status", "quote_date", "preview_link")
+    list_filter = ("status", "client")
+    search_fields = ("title", "client__name", "client__code")
+    fields = (
+        "client",
+        "title",
+        "subtitle",
+        "quote_date",
+        "valid_until",
+        "status",
+        "slug",
+        "preview_link",
+        "document",
+    )
+    readonly_fields = ("status", "slug", "preview_link")
+    actions = ("duplicate",)
+
+    def get_urls(self) -> list[URLPattern]:
+        # Before the model admin's own `<id>/` catch-all.
+        mine = path(
+            "<int:object_id>/preview/",
+            self.admin_site.admin_view(self.preview),
+            name="content_proposal_preview",
+        )
+        return [mine, *super().get_urls()]
+
+    def preview(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        """Issue a fresh signed link and go there, so a stale admin page never holds a dead one."""
+        found = Proposal.objects.filter(pk=object_id).first()
+        if found is None:
+            raise Http404
+        return HttpResponseRedirect(proposal_service.issue_preview_url(found.slug).url)
+
+    @admin.display(description="미리보기")
+    def preview_link(self, obj: Proposal) -> str:
+        if obj.pk is None:
+            return "-"
+        url = reverse("admin:content_proposal_preview", args=[obj.pk])
+        return format_html('<a href="{}" target="_blank" rel="noopener">미리보기</a>', url)
+
+    @admin.action(description="복제 (새 주소의 초안으로)")
+    def duplicate(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> None:
+        for source in queryset:
+            try:
+                proposal_service.duplicate_proposal(source.slug)
+            except ServiceError as exc:
+                self.message_user(request, str(exc), messages.ERROR)
+                return
+        self.message_user(request, f"{queryset.count()}건을 초안으로 복제했습니다.")
