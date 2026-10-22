@@ -16,8 +16,9 @@ from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse
 
-from content.models import Proposal, ProposalRevision
-from services.publishing import code_matches
+from content.models import Proposal, ProposalEvent, ProposalRevision
+from services import proposal_events as events
+from services.publishing import code_matches, latest_revision
 
 
 class Attempt(enum.Enum):
@@ -26,19 +27,17 @@ class Attempt(enum.Enum):
     BLOCKED = "blocked"
 
 
-# --- hooks for owner alerts (#18 sends them to Discord) ---
+# --- hooks for owner alerts (Discord; the events themselves are `proposal_events`) ---
 
 
 def on_blocked(p: Proposal, ip: str) -> None:
-    """Called once when a proposal + IP pair becomes blocked. #18: alert the owner here."""
-
-
-def on_opened(p: Proposal, revision: ProposalRevision) -> None:
-    """Called when the right code opens a customer session. #18: the "viewed" event goes here."""
+    """Called once when a proposal + IP pair becomes blocked."""
+    events.alert_blocked(p, ip)
 
 
 def on_pdf_downloaded(p: Proposal, revision: ProposalRevision) -> None:
-    """Called when a customer with a session downloads the revision's PDF. #18: alert here."""
+    """Called when a customer with a session downloads the revision's PDF."""
+    events.alert_pdf_downloaded(p, revision)
 
 
 # --- the session cookie ---
@@ -104,7 +103,7 @@ def is_blocked(p: Proposal, ip: str) -> bool:
     return failures >= settings.PROPOSAL_CODE_MAX_FAILURES
 
 
-def _count_failure(p: Proposal, ip: str) -> None:
+def _count_failure(p: Proposal, ip: str, user_agent: str) -> None:
     key = _failures_key(p.slug, ip)
     window: int = settings.PROPOSAL_CODE_BLOCK_SECONDS
     cache.add(key, 0, window)  # starts the window only once
@@ -115,15 +114,26 @@ def _count_failure(p: Proposal, ip: str) -> None:
         failures = 1
     if failures == settings.PROPOSAL_CODE_MAX_FAILURES:
         cache.set(key, failures, window)  # the block lasts a full window from now
+        events.record(
+            p,
+            ProposalEvent.Kind.BLOCKED,
+            ip=ip,
+            user_agent=user_agent,
+            revision=latest_revision(p),
+        )
         on_blocked(p, ip)
 
 
-def try_code(p: Proposal, raw_code: str, ip: str) -> Attempt:
-    """Check a typed code. The caller starts the session on OPENED."""
+def try_code(p: Proposal, raw_code: str, ip: str, user_agent: str = "") -> Attempt:
+    """Check a typed code. The caller starts the session on OPENED. Right and wrong tries (and the
+    start of a block) are logged as events; tries while already blocked are not (no flooding)."""
     if is_blocked(p, ip):
         return Attempt.BLOCKED
+    kind = ProposalEvent.Kind
     if not code_matches(p, raw_code):
-        _count_failure(p, ip)
+        events.record(p, kind.CODE_WRONG, ip=ip, user_agent=user_agent, revision=latest_revision(p))
+        _count_failure(p, ip, user_agent)
         return Attempt.BLOCKED if is_blocked(p, ip) else Attempt.WRONG
     cache.delete(_failures_key(p.slug, ip))
+    events.record(p, kind.CODE_OK, ip=ip, user_agent=user_agent, revision=latest_revision(p))
     return Attempt.OPENED

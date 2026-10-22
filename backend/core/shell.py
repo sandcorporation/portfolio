@@ -3,6 +3,7 @@
 Add a route by adding a view here that builds a PageMeta and calls render_shell.
 """
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from xml.sax.saxutils import escape
@@ -14,11 +15,12 @@ from django.shortcuts import render
 from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import BaseModel
 
-from content.models import Proposal, ProposalRevision
+from content.models import Proposal, ProposalEvent, ProposalRevision
 from core.clientip import client_ip
 from core.vite import entry_assets
 from services import media, pdf, proposals, publishing
 from services import proposal_access as access
+from services import proposal_events as events
 from services.home import home_page
 from services.portfolio import public_detail, public_slugs
 
@@ -82,6 +84,10 @@ def _private(response: HttpResponse) -> HttpResponse:
     return response
 
 
+def _user_agent(request: HttpRequest) -> str:
+    return str(request.META.get("HTTP_USER_AGENT", ""))[: events.USER_AGENT_MAX]
+
+
 def _expired_screen(revision: ProposalRevision) -> proposals.ExpiredScreenData:
     assert revision.valid_until is not None
     return proposals.ExpiredScreenData(
@@ -104,18 +110,20 @@ def proposal(request: HttpRequest, slug: str) -> HttpResponse:
     if found is None or revision is None:
         raise Http404
     if request.method == "POST":
-        attempt = access.try_code(found, request.POST.get("code", ""), client_ip(request))
+        attempt = access.try_code(
+            found, request.POST.get("code", ""), client_ip(request), _user_agent(request)
+        )
         if attempt is access.Attempt.OPENED and publishing.is_expired(revision):
             # The right code is what unlocks the notice; nothing to keep a session for.
             return _customer_page(request, _expired_screen(revision))
         if attempt is access.Attempt.OPENED:
             response = _private(HttpResponseRedirect(request.path))
             access.start_customer_session(response, found)
-            access.on_opened(found, revision)
             return response
         form = proposals.CodeScreenData(error=attempt.value, csrf_token=get_token(request))
         return _customer_page(request, form, 429 if attempt is access.Attempt.BLOCKED else 400)
     if not publishing.is_expired(revision) and access.has_customer_session(request, found):
+        events.record_view(found, revision, ip=client_ip(request), user_agent=_user_agent(request))
         pdf_url = f"/p/{slug}/pdf" if pdf.ready_job(found) else None
         data = proposals.revision_page_data(
             revision, csrf_token=get_token(request), pdf_url=pdf_url
@@ -156,8 +164,46 @@ def proposal_pdf(request: HttpRequest, slug: str) -> HttpResponse:
     if job is None:
         raise Http404
     response = _private(HttpResponseRedirect(pdf.download_url(job)))
+    events.record(
+        found,
+        ProposalEvent.Kind.PDF,
+        ip=client_ip(request),
+        user_agent=_user_agent(request),
+        revision=revision,
+    )
     access.on_pdf_downloaded(found, revision)
     return response
+
+
+@require_POST
+def proposal_tab(request: HttpRequest, slug: str) -> HttpResponse:
+    """The customer page reports a tab switch (`{"tab": "<tab id>"}`, CSRF header). Needs the
+    session like the page does; limited per proposal and IP; 204 on success."""
+    found = Proposal.objects.filter(slug=slug, status=Proposal.Status.PUBLISHED).first()
+    revision = publishing.latest_revision(found) if found else None
+    if found is None or revision is None:
+        raise Http404
+    if publishing.is_expired(revision) or not access.has_customer_session(request, found):
+        return _private(HttpResponse(status=403))
+    ip = client_ip(request)
+    if not events.tab_allowed(found, ip):
+        return _private(HttpResponse(status=429))
+    try:
+        tab = json.loads(request.body).get("tab")
+    except (ValueError, AttributeError):
+        tab = None
+    tab_ids = {t.get("id") for t in revision.document.get("tabs", []) if isinstance(t, dict)}
+    if not isinstance(tab, str) or tab not in tab_ids:
+        return _private(HttpResponse(status=400))
+    events.record(
+        found,
+        ProposalEvent.Kind.TAB,
+        ip=ip,
+        user_agent=_user_agent(request),
+        revision=revision,
+        tab_id=tab,
+    )
+    return _private(HttpResponse(status=204))
 
 
 @require_http_methods(["GET"])

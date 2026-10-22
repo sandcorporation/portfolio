@@ -56,6 +56,12 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
   const [active, setActive] = useState(() => tabOfHash(document, window.location.hash) ?? 0);
   // Bumped on every jump to a block, so a second jump to the same block scrolls again.
   const [jump, setJump] = useState(0);
+  const { onTabChange } = useRenderMode();
+  const open = (index: number) => {
+    setActive(index);
+    const id = document.tabs[index]?.id;
+    if (id) onTabChange?.(id);
+  };
   const tabsId = useId();
 
   // A link `…/p/<slug>#<block id>` (the print QR codes) opens the tab holding that block and
@@ -96,7 +102,7 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
               id={`${tabsId}-tab-${index}`}
               aria-selected={index === active}
               aria-controls={`${tabsId}-panel`}
-              onClick={() => setActive(index)}
+              onClick={() => open(index)}
             >
               {t.title}
             </button>

@@ -16,6 +16,7 @@ from content.models import (
     PdfJob,
     PortfolioItem,
     Proposal,
+    ProposalEvent,
     ProposalRevision,
     SiteProfile,
 )
@@ -218,11 +219,15 @@ if TYPE_CHECKING:
     _ProposalAdmin = admin.ModelAdmin[Proposal]
     _RevisionAdmin = admin.ModelAdmin[ProposalRevision]
     _RevisionInline = admin.TabularInline[ProposalRevision, Proposal]
+    _EventInline = admin.TabularInline[ProposalEvent, Proposal]
+    _EventAdmin = admin.ModelAdmin[ProposalEvent]
 else:
     _ClientAdmin = admin.ModelAdmin
     _ProposalAdmin = admin.ModelAdmin
     _RevisionAdmin = admin.ModelAdmin
     _RevisionInline = admin.TabularInline
+    _EventInline = admin.TabularInline
+    _EventAdmin = admin.ModelAdmin
 
 
 @admin.register(Client)
@@ -252,6 +257,21 @@ class RevisionInline(_RevisionInline):
         return False
 
 
+class EventInline(_EventInline):
+    """The customer's trail on this proposal, oldest first. Read-only."""
+
+    model = ProposalEvent
+    extra = 0
+    can_delete = False
+    verbose_name_plural = "열람 기록 (시간 순)"
+    fields = ("created_at", "kind", "revision", "tab_id", "ip", "user_agent")
+    readonly_fields = fields
+    ordering = ("created_at", "id")
+
+    def has_add_permission(self, request: HttpRequest, obj: Proposal | None = None) -> bool:
+        return False
+
+
 @admin.register(Proposal)
 class ProposalAdmin(_ProposalAdmin):
     list_display = ("title", "client", "status", "latest_doc_number", "quote_date", "preview_link")
@@ -269,7 +289,7 @@ class ProposalAdmin(_ProposalAdmin):
         "document",
     )
     readonly_fields = ("status", "slug", "preview_link")
-    inlines = (RevisionInline,)
+    inlines = (RevisionInline, EventInline)
     actions = ("publish", "reissue_code", "revoke", "duplicate")
 
     def get_readonly_fields(
@@ -501,3 +521,25 @@ class InquiryAdmin(_InquiryAdmin):
         for inquiry_id in ids:
             inquiry_service.mark_handled(inquiry_id)
         self.message_user(request, f"{len(ids)}건을 처리 완료로 표시했습니다.", messages.SUCCESS)
+
+
+@admin.register(ProposalEvent)
+class ProposalEventAdmin(_EventAdmin):
+    """All customers' events, newest first. Read-only."""
+
+    list_display = ("created_at", "proposal", "kind", "revision", "tab_id", "ip")
+    list_filter = ("kind", "proposal__client")
+    search_fields = ("proposal__title", "proposal__client__name", "ip")
+    ordering = ("-created_at", "-id")
+    date_hierarchy = "created_at"
+    fields = ("created_at", "proposal", "revision", "kind", "tab_id", "ip", "user_agent", "first")
+    readonly_fields = fields
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: ProposalEvent | None = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: ProposalEvent | None = None) -> bool:
+        return False

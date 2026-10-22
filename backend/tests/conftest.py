@@ -115,6 +115,7 @@ def notifier(monkeypatch: pytest.MonkeyPatch) -> FakeNotifier:
     """Replace the owner-alert channel; assert on `notifier.sent`, set `notifier.failing`."""
     fake = FakeNotifier()
     monkeypatch.setattr("services.inquiries.get_notifier", lambda: fake)
+    monkeypatch.setattr("services.proposal_events.get_notifier", lambda: fake)
     return fake
 
 

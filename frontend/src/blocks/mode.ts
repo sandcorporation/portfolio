@@ -6,9 +6,11 @@ export interface RenderMode {
   print: boolean;
   /** The customer-facing address of the proposal (`https://…/p/<slug>`); print mode only. */
   shareUrl: string | null;
+  /** Customer page only: told when the reader opens a tab. */
+  onTabChange: ((tabId: string) => void) | null;
 }
 
-export const screenMode: RenderMode = { print: false, shareUrl: null };
+export const screenMode: RenderMode = { print: false, shareUrl: null, onTabChange: null };
 
 export const RenderModeContext = createContext<RenderMode>(screenMode);
 

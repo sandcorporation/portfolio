@@ -295,6 +295,8 @@ def admin_form(**over: Any) -> dict[str, Any]:  # Any: form fields
         # the read-only revisions inline's management form
         "revisions-TOTAL_FORMS": "0",
         "revisions-INITIAL_FORMS": "0",
+        "events-TOTAL_FORMS": "0",
+        "events-INITIAL_FORMS": "0",
         **over,
     }
 

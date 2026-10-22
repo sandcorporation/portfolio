@@ -49,3 +49,29 @@ test("미리보기일 때만 초안 안내를 보인다", () => {
   rerender(<ProposalDocument data={{ ...data, preview: false }} />);
   expect(screen.queryByRole("status")).toBeNull();
 });
+
+test("고객 화면에서 탭을 열면 서버에 알리고, 미리보기에서는 알리지 않는다", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const second = exampleDocument.tabs[1];
+  const customer = { ...data, preview: false, csrf_token: "tok", tab_endpoint: "/p/abc/tab" };
+  const { unmount } = render(<ProposalDocument data={customer} />);
+
+  await userEvent.click(screen.getByRole("tab", { name: second?.title ?? "" }));
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/p/abc/tab",
+    expect.objectContaining({
+      method: "POST",
+      keepalive: true,
+      headers: expect.objectContaining({ "X-CSRFToken": "tok" }),
+      body: JSON.stringify({ tab: second?.id }),
+    }),
+  );
+  unmount();
+
+  fetchMock.mockClear();
+  render(<ProposalDocument data={data} />);
+  await userEvent.click(screen.getByRole("tab", { name: second?.title ?? "" }));
+  expect(fetchMock).not.toHaveBeenCalled();
+  vi.unstubAllGlobals();
+});

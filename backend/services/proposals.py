@@ -443,6 +443,8 @@ class ProposalPageData(BaseModel):
     public_url: str | None = None
     # Customer page only: where the finished PDF of this revision downloads (absent until done).
     pdf_url: str | None = None
+    # Customer page only: where tab switches are reported (POST {"tab": id}, CSRF header).
+    tab_endpoint: str | None = None
 
 
 class CodeScreenData(BaseModel):
@@ -542,6 +544,7 @@ def revision_page_data(
         csrf_token=csrf_token,
         media_endpoint=f"/p/{r.proposal.slug}/media",
         pdf_url=pdf_url,
+        tab_endpoint=f"/p/{r.proposal.slug}/tab",
     )
 
 

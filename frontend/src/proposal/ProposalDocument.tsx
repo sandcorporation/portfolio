@@ -20,6 +20,23 @@ function withoutCoverBlocks(document: Document): Document {
   };
 }
 
+/** Tells the server a tab was opened; light, fire-and-forget, survives leaving the page. */
+function tabReporter(endpoint?: string | null, csrf?: string | null) {
+  if (!endpoint || !csrf) return null;
+  return (tab: string) => {
+    try {
+      void fetch(endpoint, {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+        body: JSON.stringify({ tab }),
+      }).catch(() => undefined);
+    } catch {
+      // reporting is best effort
+    }
+  };
+}
+
 /**
  * The proposal document screen: cover (recipient, title, subtitle, quote date, supplier), then the
  * tabs with their table of contents. The owner's preview and the customer page both render this.
@@ -30,8 +47,11 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
   const endpoint = data.media_endpoint;
   const refreshMedia = useMemo(() => (endpoint ? endpointRefresher(endpoint) : null), [endpoint]);
   const mode: RenderMode = useMemo(
-    () => (data.print_mode ? { print: true, shareUrl: data.public_url ?? null } : screenMode),
-    [data.print_mode, data.public_url],
+    () =>
+      data.print_mode
+        ? { print: true, shareUrl: data.public_url ?? null, onTabChange: null }
+        : { ...screenMode, onTabChange: tabReporter(data.tab_endpoint, data.csrf_token) },
+    [data.print_mode, data.public_url, data.tab_endpoint, data.csrf_token],
   );
   return (
     <article className={data.print_mode ? "proposal proposal-print" : "proposal"} aria-labelledby="proposal-title">

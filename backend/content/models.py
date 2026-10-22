@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Literal, Self
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 
 from documents.blocks import AudioCompareBlock, CaseRefBlock, Document, GalleryBlock, VideoBlock
 from documents.validation import (
@@ -377,6 +378,55 @@ class ProposalRevision(models.Model):
         if not self._state.adding:
             raise ValueError("리비전은 바꿀 수 없습니다")
         super().save(**kwargs)
+
+
+class ProposalEvent(models.Model):
+    """One thing a customer did on a published proposal (#18): code tries, views, tab switches,
+    PDF downloads. Append-only; the owner reads it in admin and (#24) through MCP."""
+
+    class Kind(models.TextChoices):
+        CODE_OK = "code_ok", "코드 인증 성공"
+        CODE_WRONG = "code_wrong", "코드 인증 실패"
+        BLOCKED = "blocked", "코드 차단"
+        VIEWED = "viewed", "열람"
+        TAB = "tab", "탭 전환"
+        PDF = "pdf", "PDF 다운로드"
+
+    proposal = models.ForeignKey(
+        Proposal, verbose_name="제안서", on_delete=models.CASCADE, related_name="events"
+    )
+    revision = models.ForeignKey(
+        ProposalRevision,
+        verbose_name="리비전",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="events",
+    )
+    kind = models.CharField("종류", max_length=12, choices=Kind)
+    tab_id = models.CharField("탭", max_length=60, blank=True)
+    ip = models.CharField("IP", max_length=45, blank=True)
+    user_agent = models.CharField("User-Agent", max_length=255, blank=True)
+    # True on the one view that was the revision's first; the partial unique constraint below
+    # lets exactly one of two simultaneous first views win (and send the alert).
+    first = models.BooleanField("리비전 첫 열람", default=False)
+    created_at = models.DateTimeField("시각", default=timezone.now)
+
+    class Meta:
+        verbose_name = "열람 기록"
+        verbose_name_plural = "열람 기록"
+        ordering = ("created_at", "id")
+        indexes = [models.Index(fields=("proposal", "created_at"), name="event_proposal_time")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("revision",),
+                condition=models.Q(first=True),
+                name="event_first_view_once",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} · {self.created_at:%Y-%m-%d %H:%M}"
 
 
 class Inquiry(models.Model):

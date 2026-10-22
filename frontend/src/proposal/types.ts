@@ -39,6 +39,8 @@ export interface ProposalData {
   public_url?: string | null;
   /** Customer page only: where this revision's PDF downloads, once it has been made. */
   pdf_url?: string | null;
+  /** Customer page only: POST {"tab": id} here (with the CSRF header) when a tab is opened. */
+  tab_endpoint?: string | null;
 }
 
 /** /p/<slug> before the code. Mirrors CodeScreenData. */
