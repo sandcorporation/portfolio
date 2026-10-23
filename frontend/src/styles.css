@@ -286,6 +286,101 @@ img {
   }
 }
 
+/* The contents of a page of several sections (home): a folded box on top, a rail on wide screens. */
+.page-toc {
+  background: var(--color-tint);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.page-toc summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.page-toc ul {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+
+.page-toc li {
+  line-height: 1.6;
+}
+
+.page-toc a {
+  display: block;
+  padding: var(--space-1) 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.page-toc a:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.page-toc li[data-level="1"] a {
+  font-weight: 700;
+}
+
+.page-toc li[data-level="3"] a {
+  color: var(--color-muted);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-line-strong);
+}
+
+.page-toc li a[aria-current="location"] {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+@media screen and (min-width: 1360px) {
+  .page-toc {
+    float: right;
+    position: sticky;
+    top: calc(var(--masthead-height) + var(--tabs-height) + var(--space-4));
+    width: 11rem;
+    margin: var(--space-5) calc(-11rem - var(--space-4)) var(--space-4) var(--space-4);
+    max-height: calc(100vh - var(--masthead-height) - var(--tabs-height) - var(--space-7));
+    overflow-y: auto;
+    padding: 0;
+    background: none;
+    border-radius: 0;
+  }
+
+  .page-toc ul {
+    margin: 0;
+  }
+
+  .page-toc li a,
+  .page-toc li[data-level="3"] a {
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--color-line);
+  }
+
+  .page-toc li[data-level="2"] a {
+    padding-left: var(--space-4);
+    font-weight: 400;
+  }
+
+  .page-toc li[data-level="3"] a {
+    padding-left: var(--space-5);
+  }
+
+  .page-toc li a[aria-current="location"] {
+    border-left-color: var(--color-accent);
+  }
+}
+
+@media print {
+  .page-toc {
+    display: none;
+  }
+}
+
 @media (min-width: 720px) {
   .document-tabs {
     margin-left: calc(var(--space-7) * -1);

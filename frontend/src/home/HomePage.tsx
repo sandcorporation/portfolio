@@ -1,12 +1,28 @@
+import { useState } from "react";
 import { Wordmark } from "../brand/Logo";
 import { DocumentView } from "../blocks/DocumentView";
+import type { TocEntry } from "../blocks/toc";
 import { PortfolioCards } from "../work/PortfolioCards";
 import { InquiryForm } from "./InquiryForm";
+import { PageToc } from "./PageToc";
 import type { HomeData } from "./types";
 
 export function HomePage({ data }: { data: HomeData }) {
   const { contact } = data;
   const hasContact = Boolean(contact.email || contact.phone || contact.address);
+  const [companyToc, setCompanyToc] = useState<TocEntry[]>([]);
+  const [ceoToc, setCeoToc] = useState<TocEntry[]>([]);
+  const section = (text: string, anchor: string): TocEntry => ({ text, level: 1, anchor });
+  // One contents for the whole page: each section title, then the open tab of its document.
+  const entries: TocEntry[] = [
+    section("회사 소개", "home-company"),
+    ...companyToc,
+    section("대표 소개", "home-ceo"),
+    ...ceoToc,
+    ...(data.portfolio.length > 0 ? [section("포트폴리오", "home-portfolio")] : []),
+    section("문의·제안", "home-inquiry"),
+    ...(hasContact ? [section("연락처", "home-contact")] : []),
+  ];
   return (
     <>
       <header className="masthead">
@@ -15,17 +31,18 @@ export function HomePage({ data }: { data: HomeData }) {
         </div>
       </header>
       <main className="page home">
+      <PageToc entries={entries} />
       <section className="sheet" aria-labelledby="home-company">
         <h2 id="home-company" className="page-section-title">
           회사 소개
         </h2>
-        <DocumentView document={data.company_intro} idPrefix="company-" />
+        <DocumentView document={data.company_intro} idPrefix="company-" onToc={setCompanyToc} />
       </section>
       <section className="sheet" aria-labelledby="home-ceo">
         <h2 id="home-ceo" className="page-section-title">
           대표 소개
         </h2>
-        <DocumentView document={data.ceo_intro} idPrefix="ceo-" />
+        <DocumentView document={data.ceo_intro} idPrefix="ceo-" onToc={setCeoToc} />
       </section>
       {data.portfolio.length > 0 && (
         <section className="sheet" aria-labelledby="home-portfolio">

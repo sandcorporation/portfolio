@@ -1,7 +1,9 @@
 import { entryFor, type TocTitle } from "./registry";
 import type { Tab } from "./types";
 
-export interface TocEntry extends TocTitle {
+/** Level 1 is a page section title (the home contents); blocks give 2 and 3. */
+export interface TocEntry extends Omit<TocTitle, "level"> {
+  level: 1 | 2 | 3;
   anchor: string;
 }
 

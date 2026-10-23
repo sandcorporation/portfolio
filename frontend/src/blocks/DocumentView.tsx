@@ -1,26 +1,33 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { DocumentNavContext, describeTarget, type DocumentNav } from "./nav";
 import { useRenderMode } from "./mode";
+import { useCurrentAnchor } from "./useCurrentAnchor";
 import { entryFor } from "./registry";
-import { anchorFor, tableOfContents } from "./toc";
+import { anchorFor, tableOfContents, type TocEntry } from "./toc";
 import type { Document, Tab } from "./types";
 
 interface Props {
   document: Document;
   /** Prefixes heading ids so two documents on one page never share an anchor. */
   idPrefix?: string;
+  /**
+   * When given, the document does not draw its own on-screen contents: the open tab's entries go
+   * to the callback instead, so a page holding several documents can merge them into one contents.
+   * Print layout ignores it.
+   */
+  onToc?: (entries: TocEntry[]) => void;
 }
 
 /**
  * The block renderer: document JSON in, screen out. Unknown block types are skipped. In print mode
  * (see ./mode) every tab is laid out in order under one table of contents, with no tab buttons.
  */
-export function DocumentView({ document, idPrefix = "" }: Props) {
+export function DocumentView({ document, idPrefix = "", onToc }: Props) {
   const { print } = useRenderMode();
   return print ? (
     <PrintView document={document} idPrefix={idPrefix} />
   ) : (
-    <TabbedView document={document} idPrefix={idPrefix} />
+    <TabbedView document={document} idPrefix={idPrefix} onToc={onToc} />
   );
 }
 
@@ -56,7 +63,15 @@ function decodeHash(hash: string): string {
 /** A move the view still has to scroll to: a block of the open tab, or the top of a tab. */
 type Jump = { kind: "block" | "tab"; id: string; n: number };
 
-function TabbedView({ document, idPrefix }: { document: Document; idPrefix: string }) {
+function TabbedView({
+  document,
+  idPrefix,
+  onToc,
+}: {
+  document: Document;
+  idPrefix: string;
+  onToc?: (entries: TocEntry[]) => void;
+}) {
   const [active, setActive] = useState(() => tabOfHash(document, window.location.hash) ?? 0);
   // Bumped on every jump, so a second jump to the same place scrolls again.
   const [jump, setJump] = useState<Jump | null>(() =>
@@ -120,6 +135,11 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
   }, [jump]);
 
   const tab = document.tabs[active] ?? document.tabs[0];
+  const entries = useMemo(() => (tab ? tableOfContents(tab, idPrefix) : []), [tab, idPrefix]);
+  useEffect(() => {
+    onToc?.(entries);
+    return () => onToc?.([]);
+  }, [entries, onToc]);
   if (!tab) return null;
   const several = document.tabs.length > 1;
 
@@ -148,15 +168,13 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
         role={several ? "tabpanel" : undefined}
         aria-labelledby={several ? `${tabsId}-tab-${active}` : undefined}
       >
-        <Toc entries={tableOfContents(tab, idPrefix)} spy />
+        {!onToc && <Toc entries={entries} spy />}
         <Blocks tab={tab} prefix={idPrefix} />
       </div>
     </div>
     </DocumentNavContext.Provider>
   );
 }
-
-type TocEntry = { text: string; level: number; anchor: string };
 
 /**
  * `spy` marks the on-screen table of contents: on wide screens it sits in a side rail and the
@@ -180,37 +198,6 @@ function Toc({ entries, spy = false }: { entries: TocEntry[]; spy?: boolean }) {
   );
 }
 
-/** The last heading that has scrolled past the sticky chrome, or the first one before any has. */
-function useCurrentAnchor(entries: TocEntry[], enabled: boolean): string | null {
-  const [current, setCurrent] = useState<string | null>(null);
-  useEffect(() => {
-    if (!enabled || entries.length === 0) return;
-    let frame = 0;
-    const update = () => {
-      frame = 0;
-      const line = window.innerHeight * 0.25;
-      let found = entries[0]?.anchor ?? null;
-      for (const entry of entries) {
-        const el = window.document.getElementById(entry.anchor);
-        if (el && el.getBoundingClientRect().top <= line) found = entry.anchor;
-      }
-      setCurrent(found);
-    };
-    const onScroll = () => {
-      if (!frame) frame = window.requestAnimationFrame(update);
-    };
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, [entries, enabled]);
-  return current;
-}
-
 function tabAnchor(prefix: string, tab: Tab): string {
   return `${prefix}tab-${tab.id}`;
 }
@@ -225,7 +212,7 @@ function PrintView({ document, idPrefix }: { document: Document; idPrefix: strin
   const entries = document.tabs.flatMap((tab) => {
     const own = tableOfContents(tab, idPrefix).filter((entry) => entry.level === 2);
     if (!several) return own;
-    const head = { text: tab.title, level: 1, anchor: tabAnchor(idPrefix, tab) };
+    const head: TocEntry = { text: tab.title, level: 1, anchor: tabAnchor(idPrefix, tab) };
     return [head, ...own];
   });
   const nav = useMemo<DocumentNav>(
