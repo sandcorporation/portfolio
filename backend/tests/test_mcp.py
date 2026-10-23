@@ -1,6 +1,8 @@
 """/mcp over Streamable HTTP (JSON responses): initialize -> tools/list -> tools/call."""
 
 import json
+import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -8,6 +10,8 @@ from django.test import Client
 
 from adapters.fake_jwks import FakeAuthServer
 from documents.validation import BLOCK_TYPES, JSON, validate_document
+from mcpserver.tools import TOOLS
+from services import blocks
 from services.blocks import EXAMPLES
 
 type Message = dict[str, JSON]
@@ -175,3 +179,106 @@ def test_get_and_delete_are_405_but_still_need_a_token(
 def test_unsupported_protocol_version_header_is_400(mcp: McpClient) -> None:
     mcp.headers["MCP-Protocol-Version"] = "2024-01-01"
     assert mcp.send({"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code == 400
+
+
+# --- proposal_guide (#69) ---------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _obj(value: object) -> dict[str, object]:
+    assert isinstance(value, dict)
+    return value
+
+
+def _list(value: object) -> list[object]:
+    assert isinstance(value, list)
+    return value
+
+
+def _guide(mcp: McpClient) -> tuple[str, list[object]]:
+    result = mcp.call_tool("proposal_guide", {})
+    assert result["isError"] is False
+    found = _obj(result["structuredContent"])
+    guide = found["guide"]
+    assert isinstance(guide, str)
+    return guide, _list(found["skeleton"])
+
+
+def _schema_words(node: object) -> set[str]:
+    """Every property name and enum/const string anywhere in a JSON Schema."""
+    words: set[str] = set()
+    if isinstance(node, dict):
+        props = node.get("properties")
+        if isinstance(props, dict):
+            words |= set(props)
+        for key in ("enum", "const"):
+            value = node.get(key)
+            words |= {
+                one
+                for one in (value if isinstance(value, list) else [value])
+                if isinstance(one, str)
+            }
+        for child in node.values():
+            words |= _schema_words(child)
+    elif isinstance(node, list):
+        for child in node:
+            words |= _schema_words(child)
+    return words
+
+
+def test_proposal_guide_is_a_read_only_tool_that_writers_are_pointed_to(mcp: McpClient) -> None:
+    init = _obj(mcp.request("initialize", {"protocolVersion": "2025-06-18"})["result"])
+    assert "proposal_guide" in str(init["instructions"])
+
+    listed = _list(_obj(mcp.request("tools/list")["result"])["tools"])
+    by_name = {str(tool["name"]): tool for tool in map(_obj, listed)}
+    assert _obj(by_name["proposal_guide"]["annotations"])["readOnlyHint"] is True
+    for writer in (
+        "whoami",
+        "create_proposal",
+        "replace_document",
+        "replace_block",
+        "insert_block",
+    ):
+        assert "proposal_guide" in str(by_name[writer]["description"]), writer
+    whoami = str(by_name["whoami"]["description"])
+    assert whoami.index("proposal_guide") < whoami.index("block_schema")
+
+
+def test_proposal_guide_gives_general_rules_without_the_example_proposal(mcp: McpClient) -> None:
+    guide, _ = _guide(mcp)
+    assert guide.startswith("# 제안서 작성 지침")
+
+    # The example proposal is a real customer's: none of its specific values may leak.
+    example = json.loads((REPO_ROOT / "fixtures/documents/example-proposal.json").read_text())
+    by_id = {b["id"]: b for tab in example["tabs"] for b in tab["blocks"]}
+    cover = by_id["cover"]
+    leaks = [cover["recipient"], cover["recipient"].split()[0], cover["title"], cover["subtitle"]]
+    leaks += [item["value"] for item in by_id["summary-kpi"]["items"]]
+    leaks += [c for row in by_id["price-table"]["rows"] for c in row if any(d.isdigit() for d in c)]
+    leaks.append(by_id["company-intro"]["title"].removesuffix(" 소개"))  # the company's name
+    for leak in leaks:
+        assert leak not in guide, leak
+
+
+def test_proposal_guide_names_only_real_tools_block_types_and_fields(mcp: McpClient) -> None:
+    guide, skeleton = _guide(mcp)
+    known = set(TOOLS) | set(BLOCK_TYPES) | _schema_words(blocks.document_schema())
+    known |= {"contact_title"}  # a client field (list_clients)
+    known |= {"estimate", "company"}  # the default tab ids (create_proposal)
+    known |= {"skeleton"}  # this tool's own answer
+    named = set(re.findall(r"`([A-Za-z][\w-]*)`", guide))
+    assert named - known == set()
+    assert {"list_clients", "list_media", "issue_preview_url", "publish", "case-ref"} <= named
+
+    tabs = list(map(_obj, skeleton))
+    assert [tab["tab_id"] for tab in tabs] == ["estimate", "company"]
+    for tab in tabs:
+        rows = list(map(_obj, _list(tab["blocks"])))
+        assert rows
+        for row in rows:
+            assert row["type"] in BLOCK_TYPES, row
+            assert row["purpose"], row
+    estimate = [row["type"] for row in map(_obj, _list(tabs[0]["blocks"]))]
+    assert estimate[0] == "cover" and estimate[-1] == "cta"

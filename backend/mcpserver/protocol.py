@@ -19,7 +19,9 @@ PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26")
 SERVER_INFO: dict[str, JSON] = {"name": "sandcorp-portfolio", "version": "0.1.0"}
 INSTRUCTIONS = (
     "Sandcorp portfolio site (https://sandcorp.co.kr). Portfolio items and proposals are block "
-    "documents; call block_schema to see the block types before writing one."
+    "documents; call block_schema to see the block types before writing one. Before writing or "
+    "rewriting a proposal, read proposal_guide first: it gives the writing rules and the "
+    "recommended block order."
 )
 
 PARSE_ERROR = -32700

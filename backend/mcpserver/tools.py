@@ -94,9 +94,9 @@ class BlockSchemaInput(BaseModel):
     "whoami",
     "Who am I",
     "The identity this connection acts as: the token's subject, client and scopes. Writing a "
-    "proposal: block_schema -> list_clients/create_client -> create_proposal -> replace_block/"
-    "insert_block/add_tab -> issue_preview_url (look at it) -> publish (the access code is shown "
-    "once; give it to the customer separately).",
+    "proposal: proposal_guide (read it first) -> block_schema -> list_clients/create_client -> "
+    "create_proposal -> replace_block/insert_block/add_tab -> issue_preview_url (look at it) -> "
+    "publish (the access code is shown once; give it to the customer separately).",
     NoInput,
 )
 def whoami(token: AccessToken, args: NoInput) -> ToolResult:
