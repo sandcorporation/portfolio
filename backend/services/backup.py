@@ -143,6 +143,7 @@ def alert_failure(notifier: Notifier, now: datetime, exc: Exception) -> None:
             title="DB 백업 실패",
             text=detail.strip()[-1000:],
             fields=(Field("시각(UTC)", now.astimezone(UTC).strftime("%Y-%m-%d %H:%M")),),
+            severity="alert",
         )
     )
 

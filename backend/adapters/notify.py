@@ -12,7 +12,7 @@ import logging
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from django.conf import settings
 
@@ -33,11 +33,18 @@ class Field:
     inline: bool = False
 
 
+Severity = Literal["alert", "activity"]
+
+
 @dataclass(frozen=True)
 class Notification:
+    """`severity` picks the channel: "alert" is an operational failure (#sandcorp-alerts),
+    "activity" (default) is a visitor or customer event (#sandcorp-activity)."""
+
     title: str
     text: str = ""
     fields: tuple[Field, ...] = ()
+    severity: Severity = "activity"
 
 
 class Notifier(Protocol):
@@ -67,12 +74,21 @@ def discord_payload(notification: Notification) -> dict[str, object]:
 
 
 class DiscordNotifier:
-    def __init__(self, webhook_url: str) -> None:
-        self._url = webhook_url
+    def __init__(self, activity_url: str, alerts_url: str = "") -> None:
+        self._activity_url = activity_url
+        self._alerts_url = alerts_url
+
+    def _url_for(self, severity: Severity) -> str:
+        if severity == "alert":
+            return self._alerts_url or self._activity_url
+        return self._activity_url
 
     def send(self, notification: Notification) -> bool:
+        url = self._url_for(notification.severity)
+        if not url:
+            return False
         request = urllib.request.Request(
-            self._url,
+            url,
             data=json.dumps(discord_payload(notification)).encode(),
             headers={"Content-Type": "application/json", "User-Agent": "sandcorp-portfolio"},
             method="POST",
@@ -93,5 +109,10 @@ class NoNotifier:
 
 
 def get_notifier() -> Notifier:
-    url: str = settings.DISCORD_WEBHOOK_URL
-    return DiscordNotifier(url) if url else NoNotifier()
+    """Alerts go to DISCORD_ALERTS_WEBHOOK_URL, falling back to DISCORD_WEBHOOK_URL; activity
+    goes to DISCORD_WEBHOOK_URL. Both empty: NoNotifier."""
+    activity: str = settings.DISCORD_WEBHOOK_URL
+    alerts: str = settings.DISCORD_ALERTS_WEBHOOK_URL
+    if not activity and not alerts:
+        return NoNotifier()
+    return DiscordNotifier(activity, alerts)

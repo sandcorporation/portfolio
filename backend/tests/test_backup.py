@@ -98,6 +98,7 @@ def test_alert_names_the_failure() -> None:
     backup.alert_failure(notifier, utc(2026, 6, 15, 19, 0), exc)
     assert notifier.sent[0].title == "DB 백업 실패"
     assert "connection refused" in notifier.sent[0].text
+    assert notifier.sent[0].severity == "alert"
 
 
 def test_command_force_alerts_on_failure(monkeypatch: pytest.MonkeyPatch) -> None:

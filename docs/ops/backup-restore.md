@@ -5,7 +5,7 @@
 - 운영 compose의 `backup` 서비스(웹과 같은 이미지, `pg_dump` 17 포함)가 `python manage.py db_backup`을 돈다. 5분마다 「가장 최근 04:00 KST 이후 백업이 있는가」를 버킷 목록으로 보고, 없으면 하나 만든다. 컨테이너가 재시작돼도 하루 두 번 돌지 않고, 쉬었다 켜지면 빠진 몫을 바로 채운다.
 - 객체: 비공개 버킷(`STORAGE_PRIVATE_BUCKET`)의 `backups/YYYY/MM/DD/portfolio-<UTC시각>.dump` (`pg_dump -Fc`, 이미 압축됨). 날짜는 UTC다.
 - 업로드 뒤 30일(UTC 기준)보다 오래된 `backups/` 객체를 지운다. `backups/` 밖은 건드리지 않는다.
-- 실패(덤프·업로드·정리)하면 `DISCORD_WEBHOOK_URL`로 「DB 백업 실패」를 보낸다(같은 04:00 몫에서는 한 번만, 1시간마다 재시도). 웹훅이 비어 있으면 로그만 남는다: `docker compose logs backup`.
+- 실패(덤프·업로드·정리)하면 운영 경보 웹훅(`DISCORD_ALERTS_WEBHOOK_URL`, 비면 `DISCORD_WEBHOOK_URL`)으로 「DB 백업 실패」를 보낸다(같은 04:00 몫에서는 한 번만, 1시간마다 재시도). 두 웹훅이 모두 비어 있으면 로그만 남는다: `docker compose logs backup`.
 - 스토리지 설정(`STORAGE_*`)이 비면 백업이 돌지 못하고 로그에 남는다.
 
 ## 지금 백업하기
