@@ -90,6 +90,7 @@ TAGS_MAX_LENGTH = 200  # the column's width once joined with ", "
 class ItemSummary(BaseModel):
     """One row of the owner's list: hidden items included, with their public flag."""
 
+    id: int  # what a `case-ref` block's `item_id` takes
     slug: str
     title: str
     summary: str
@@ -161,6 +162,7 @@ class ItemPatch(BaseModel):
 
 def _summary_fields(item: PortfolioItem) -> dict[str, object]:
     return {
+        "id": item.pk,
         "slug": item.slug,
         "title": item.title,
         "summary": item.summary,

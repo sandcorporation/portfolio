@@ -280,7 +280,7 @@ export interface CaseRefBlock {
  */
 export interface CaseRefItem {
   /**
-   * Id of a portfolio item (hidden items allowed). Not the slug: slugs change.
+   * Id of a portfolio item (hidden items allowed): the `id` of `list_portfolio`. Not the slug: slugs change.
    */
   item_id: number;
   /**

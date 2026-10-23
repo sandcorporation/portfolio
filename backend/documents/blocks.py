@@ -309,7 +309,8 @@ class CaseRefItem(BaseModel):
 
     item_id: int = Field(
         ge=1,
-        description="Id of a portfolio item (hidden items allowed). Not the slug: slugs change.",
+        description="Id of a portfolio item (hidden items allowed): the `id` of `list_portfolio`. "
+        "Not the slug: slugs change.",
     )
     highlight: str | None = Field(
         default=None,

@@ -217,7 +217,7 @@
       "additionalProperties": false,
       "properties": {
         "item_id": {
-          "description": "Id of a portfolio item (hidden items allowed). Not the slug: slugs change.",
+          "description": "Id of a portfolio item (hidden items allowed): the `id` of `list_portfolio`. Not the slug: slugs change.",
           "minimum": 1,
           "type": "integer"
         },

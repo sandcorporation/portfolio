@@ -282,3 +282,28 @@ def test_proposal_guide_names_only_real_tools_block_types_and_fields(mcp: McpCli
             assert row["purpose"], row
     estimate = [row["type"] for row in map(_obj, _list(tabs[0]["blocks"]))]
     assert estimate[0] == "cover" and estimate[-1] == "cta"
+
+
+@pytest.mark.django_db
+def test_portfolio_tools_give_the_id_a_case_ref_takes(mcp: McpClient) -> None:
+    from documents.blocks import CaseRefItem
+    from services import proposals
+    from tests.test_portfolio import make
+    from tests.test_proposals import make_draft
+
+    item = make("alpha")
+    listed = _list(_obj(mcp.call_tool("list_portfolio", {})["structuredContent"])["items"])
+    got = _obj(mcp.call_tool("get_portfolio", {"slug": "alpha"})["structuredContent"])
+
+    row = _obj(listed[0])
+    assert row["id"] == got["id"] == item.pk
+    assert type(row["id"]) is int  # the same type as case-ref's item_id
+    assert CaseRefItem.model_fields["item_id"].annotation is int
+
+    draft = make_draft()
+    block: dict[str, object] = {
+        "id": "cases",
+        "type": "case-ref",
+        "items": [{"item_id": row["id"]}],
+    }
+    proposals.replace_block(draft.slug, "cases", block)  # validates: the item exists
