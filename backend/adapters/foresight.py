@@ -1,6 +1,8 @@
 """Foresight (news.sandcorp.co.kr) recent articles, read from the news site's public JSON.
 
-`GET {FORESIGHT_API_URL}?limit=N` answers `{"items": [{slug, title, summary, category: {name,
+`GET {FORESIGHT_API_URL}?limit=N&commentary=true` (only published articles with a public AI
+commentary, AI-Trend-News #82; an older news site ignores the flag)
+answers `{"items": [{slug, title, summary, category: {name,
 slug}, image_url, published_at, url, ...}], "site": {...}}` (AI-Trend-News #73). The home page
 shows them, so a slow or broken news site must never break ours: one request with a 3-second
 timeout, the answer cached 10 minutes, and on failure the last good answer (kept 24 hours) or an
@@ -58,7 +60,8 @@ class ForesightUnavailable(Exception):
 
 class ForesightGateway(Protocol):
     def recent(self, limit: int) -> list[ForesightArticle]:
-        """The newest `limit` published articles. Raises ForesightUnavailable."""
+        """The newest `limit` published articles that carry a public AI commentary
+        (`commentary=true`). Raises ForesightUnavailable."""
         ...
 
     def stats(self) -> ForesightStats | None:
@@ -151,7 +154,7 @@ class HttpForesight:
         if not self._base_url:
             return []
         sep = "&" if "?" in self._base_url else "?"
-        url = f"{self._base_url}{sep}{urlencode({'limit': limit})}"
+        url = f"{self._base_url}{sep}{urlencode({'limit': limit, 'commentary': 'true'})}"
         return parse_items(_get_json(url, self._timeout))
 
 
@@ -185,11 +188,11 @@ def get_gateway() -> ForesightGateway:
 
 
 def _key(limit: int) -> str:
-    return f"foresight:recent:{limit}"
+    return f"foresight:recent:commentary:{limit}"
 
 
 def _last_good_key(limit: int) -> str:
-    return f"foresight:last-good:{limit}"
+    return f"foresight:last-good:commentary:{limit}"
 
 
 def _dump(articles: list[ForesightArticle]) -> list[dict[str, str]]:

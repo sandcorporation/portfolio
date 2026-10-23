@@ -54,7 +54,7 @@ def test_recent_articles_are_cached(foresight: FakeForesight) -> None:
 
 def test_a_failure_serves_the_last_good_answer(foresight: FakeForesight) -> None:
     good = adapter.fetch_recent(5)
-    cache.delete("foresight:recent:5")  # the 10 minutes are over
+    cache.delete("foresight:recent:commentary:5")  # the 10 minutes are over
     foresight.failing = True
 
     assert adapter.fetch_recent(5) == good
@@ -93,3 +93,19 @@ def test_an_empty_url_switches_it_off(settings: Settings) -> None:
     assert adapter.fetch_recent() == []
     settings.FORESIGHT_API_URL = "https://news.example/api/public/articles"
     assert isinstance(adapter.get_gateway(), adapter.HttpForesight)
+
+
+def test_the_request_asks_for_commentary_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    urls: list[str] = []
+
+    def fake_get_json(url: str, timeout: float) -> object:
+        urls.append(url)
+        return NEWS_JSON
+
+    monkeypatch.setattr(adapter, "_get_json", fake_get_json)
+    http = adapter.HttpForesight("https://news.example/api/public/articles", 3.0)
+    assert len(http.recent(5)) == 1
+    assert urls == ["https://news.example/api/public/articles?limit=5&commentary=true"]
+    # a base URL that already has a query keeps it
+    adapter.HttpForesight("https://news.example/a?x=1", 3.0).recent(2)
+    assert urls[1] == "https://news.example/a?x=1&limit=2&commentary=true"
