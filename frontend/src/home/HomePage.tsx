@@ -1,4 +1,4 @@
-import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
+import { GITHUB_URL, Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { DocumentView } from "../blocks/DocumentView";
 import { PostRows } from "../blog/PostRows";
 import { PortfolioCards } from "../work/PortfolioCards";
@@ -134,11 +134,28 @@ export function HomePage({ data }: { data: HomeData }) {
             )}
             <section className="page-section inquiry-section" aria-labelledby="home-inquiry">
               <SectionHead index={no("contact")} label="Contact" />
-              <h2 id="home-inquiry" className="page-section-title">
-                문의·제안
-              </h2>
-              <p className="section-lead">프로젝트 문의나 제안을 남겨 주시면 확인 후 답변드립니다.</p>
-              <InquiryForm />
+              <div className="inquiry-layout">
+                <div className="inquiry-intro">
+                  <h2 id="home-inquiry" className="page-section-title">
+                    문의·제안
+                  </h2>
+                  <p className="inquiry-lead">프로젝트 문의나 제안을 남겨 주시면 확인 후 답변드립니다.</p>
+                  {contact.email && (
+                    <div className="inquiry-email">
+                      <p className="inquiry-email-label">이메일</p>
+                      <a href={`mailto:${contact.email}`}>{contact.email}</a>
+                    </div>
+                  )}
+                  <p className="inquiry-links">
+                    <a href={GITHUB_URL} rel="noopener">
+                      GitHub
+                    </a>
+                  </p>
+                </div>
+                <div className="inquiry-body">
+                  <InquiryForm />
+                </div>
+              </div>
             </section>
       </main>
       <SiteFooter>

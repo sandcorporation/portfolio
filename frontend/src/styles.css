@@ -109,6 +109,8 @@ img {
 .pager,
 .post-nav-label,
 .site-footer-links,
+.inquiry-email-label,
+.inquiry-links,
 .site-footer-copy,
 .site-contact-title,
 .document-tabs button,
@@ -1434,11 +1436,70 @@ h3.block-heading {
   border-top: 2px solid var(--color-line-strong) !important;
 }
 
+.inquiry-layout {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.inquiry-intro .page-section-title {
+  margin-bottom: var(--space-3);
+}
+
+.inquiry-lead {
+  margin: 0 0 var(--space-5);
+  color: var(--color-muted);
+  max-width: var(--measure);
+}
+
+.inquiry-email {
+  margin: 0 0 var(--space-4);
+}
+
+.inquiry-email-label {
+  margin: 0 0 var(--space-1);
+  color: var(--color-muted);
+}
+
+.inquiry-email a {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-ink);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.inquiry-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.inquiry-body {
+  min-width: 0;
+}
+
 .inquiry-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
-  max-width: 52rem;
+  max-width: 40rem;
+}
+
+@media (min-width: 1024px) {
+  .inquiry-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 0;
+  }
+
+  .inquiry-intro {
+    padding-right: var(--space-6);
+  }
+
+  .inquiry-body {
+    padding-left: var(--space-6);
+    border-left: 1px solid var(--color-line);
+  }
 }
 
 .inquiry-form label {

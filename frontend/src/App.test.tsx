@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { App } from "./App";
 import { exampleDocument } from "./blocks/testing";
 import type { HomeData } from "./home/types";
@@ -38,10 +38,9 @@ test("홈은 셸에 심긴 프로필로 회사 소개, 대표 소개, 연락처�
     "채권추심 녹취 분석 시스템 구축 제안",
   );
   expect(screen.getByRole("region", { name: "대표 소개" })).toHaveTextContent("음성 처리 개발자");
-  expect(screen.getByRole("link", { name: "hello@sandcorp.co.kr" })).toHaveAttribute(
-    "href",
-    "mailto:hello@sandcorp.co.kr",
-  );
+  for (const link of screen.getAllByRole("link", { name: "hello@sandcorp.co.kr" })) {
+    expect(link).toHaveAttribute("href", "mailto:hello@sandcorp.co.kr");
+  }
   expect(screen.getByRole("link", { name: "010-1234-5678" })).toHaveAttribute(
     "href",
     "tel:01012345678",
@@ -106,4 +105,31 @@ test("지금이 0이면 점을 흐리게, 숫자가 없으면 아무 자리도 �
   render(<App path="/" data={{ ...home, visits: null }} />);
   expect(document.querySelector(".masthead") as HTMLElement).not.toHaveTextContent("누적");
   expect(screen.getByRole("link", { name: /녹취 분석/ })).not.toHaveTextContent("오늘");
+});
+
+test("홈 문의 섹션은 왼쪽 소개·연락처, 오른쪽 폼의 두 단이다", () => {
+  const { container } = render(<App path="/" data={home} />);
+
+  const section = container.querySelector(".inquiry-section") as HTMLElement;
+  const intro = section.querySelector(".inquiry-intro") as HTMLElement;
+  const body = section.querySelector(".inquiry-body") as HTMLElement;
+  expect(intro.nextElementSibling).toBe(body);
+  expect(within(intro).getByRole("heading", { name: "문의·제안" })).toBeInTheDocument();
+  expect(within(intro).getByText("이메일")).toBeInTheDocument();
+  expect(within(intro).getByRole("link", { name: "hello@sandcorp.co.kr" })).toHaveAttribute(
+    "href",
+    "mailto:hello@sandcorp.co.kr",
+  );
+  expect(within(intro).getByRole("link", { name: "GitHub" })).toHaveAttribute("href", expect.stringContaining("github.com"));
+  expect(within(intro).queryByRole("button")).toBeNull();
+  expect(within(body).getByRole("button", { name: "보내기" })).toBeInTheDocument();
+});
+
+test("연락 이메일이 없으면 왼쪽 단에 이메일 블록을 그리지 않는다", () => {
+  const { container } = render(
+    <App path="/" data={{ ...home, contact: { email: "", phone: "", address: "" } }} />,
+  );
+
+  expect(container.querySelector(".inquiry-intro .inquiry-email")).toBeNull();
+  expect(container.querySelector(".inquiry-body form")).not.toBeNull();
 });
