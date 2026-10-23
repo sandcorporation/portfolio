@@ -148,7 +148,7 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
         role={several ? "tabpanel" : undefined}
         aria-labelledby={several ? `${tabsId}-tab-${active}` : undefined}
       >
-        <Toc entries={tableOfContents(tab, idPrefix)} />
+        <Toc entries={tableOfContents(tab, idPrefix)} spy />
         <Blocks tab={tab} prefix={idPrefix} />
       </div>
     </div>
@@ -156,19 +156,59 @@ function TabbedView({ document, idPrefix }: { document: Document; idPrefix: stri
   );
 }
 
-function Toc({ entries }: { entries: { text: string; level: number; anchor: string }[] }) {
+type TocEntry = { text: string; level: number; anchor: string };
+
+/**
+ * `spy` marks the on-screen table of contents: on wide screens it sits in a side rail and the
+ * entry for the section being read is highlighted (`aria-current`). The print copy never spies.
+ */
+function Toc({ entries, spy = false }: { entries: TocEntry[]; spy?: boolean }) {
+  const current = useCurrentAnchor(entries, spy);
   if (entries.length === 0) return null;
   return (
-    <nav className="document-toc" aria-label="목차">
+    <nav className="document-toc" aria-label="목차" data-spy={spy ? "" : undefined}>
       <ul>
         {entries.map((entry) => (
           <li key={entry.anchor} data-level={entry.level}>
-            <a href={`#${entry.anchor}`}>{entry.text}</a>
+            <a href={`#${entry.anchor}`} aria-current={entry.anchor === current ? "location" : undefined}>
+              {entry.text}
+            </a>
           </li>
         ))}
       </ul>
     </nav>
   );
+}
+
+/** The last heading that has scrolled past the sticky chrome, or the first one before any has. */
+function useCurrentAnchor(entries: TocEntry[], enabled: boolean): string | null {
+  const [current, setCurrent] = useState<string | null>(null);
+  useEffect(() => {
+    if (!enabled || entries.length === 0) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = window.innerHeight * 0.25;
+      let found = entries[0]?.anchor ?? null;
+      for (const entry of entries) {
+        const el = window.document.getElementById(entry.anchor);
+        if (el && el.getBoundingClientRect().top <= line) found = entry.anchor;
+      }
+      setCurrent(found);
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [entries, enabled]);
+  return current;
 }
 
 function tabAnchor(prefix: string, tab: Tab): string {

@@ -75,3 +75,10 @@ test("고객 화면에서 탭을 열면 서버에 알리고, 미리보기에서�
   expect(fetchMock).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
 });
+
+test("화면 목차는 읽고 있는 절 하나만 aria-current로 표시한다", () => {
+  render(<ProposalDocument data={data} />);
+
+  const toc = screen.getByRole("navigation", { name: "목차" });
+  expect(toc.querySelectorAll('a[aria-current="location"]')).toHaveLength(1);
+});

@@ -243,6 +243,49 @@ img {
   border-left: 2px solid var(--color-line-strong);
 }
 
+/* Wide screens: the on-screen contents float into the empty margin right of the sheet and stay
+   put while the document scrolls; the entry for the section being read is highlighted. The body
+   width does not change. Print and narrow screens keep the boxed list above the text. */
+.document-toc li a[aria-current="location"] {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+@media screen and (min-width: 1360px) {
+  .document:not(.document-print) .document-toc[data-spy] {
+    float: right;
+    position: sticky;
+    top: calc(var(--masthead-height) + var(--tabs-height) + var(--space-4));
+    width: 11rem;
+    margin: 0 calc(-11rem - var(--space-7) - var(--space-4)) var(--space-4) var(--space-4);
+    max-height: calc(100vh - var(--masthead-height) - var(--tabs-height) - var(--space-7));
+    overflow-y: auto;
+    padding: 0;
+    background: none;
+    border-radius: 0;
+    font-size: var(--text-sm);
+  }
+
+  .document:not(.document-print) .document-toc[data-spy]::before {
+    display: none;
+  }
+
+  /* the rail is each link's left border, so the accent mark on the current one needs no overflow */
+  .document:not(.document-print) .document-toc[data-spy] li a,
+  .document:not(.document-print) .document-toc[data-spy] li[data-level="3"] a {
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--color-line);
+  }
+
+  .document:not(.document-print) .document-toc[data-spy] li[data-level="3"] a {
+    padding-left: var(--space-5);
+  }
+
+  .document:not(.document-print) .document-toc[data-spy] li a[aria-current="location"] {
+    border-left-color: var(--color-accent);
+  }
+}
+
 @media (min-width: 720px) {
   .document-tabs {
     margin-left: calc(var(--space-7) * -1);
