@@ -28,7 +28,7 @@ test("보내면 JSON으로 POST하고 접수 확인을 보여 준다", async () 
     name: "김대표",
     contact: "a@b.kr",
     message: "견적 부탁드립니다",
-    kind: "문의",
+    kind: "신규 개발",
     website: "",
   });
 });
@@ -41,4 +41,16 @@ test("요청 제한에 걸리면 안내를 보여 주고 입력은 남긴다", a
 
   expect(await screen.findByRole("alert")).toHaveTextContent("잠시 후 다시");
   expect(screen.getByLabelText("이름")).toHaveValue("김대표");
+});
+
+test("구분은 신규 개발 · 유지보수 · 제안 · 기타 순이고 기본은 신규 개발이다", () => {
+  render(<InquiryForm />);
+  const select = screen.getByLabelText("구분");
+  expect(Array.from(select.querySelectorAll("option")).map((o) => o.value)).toEqual([
+    "신규 개발",
+    "유지보수",
+    "제안",
+    "기타",
+  ]);
+  expect(select).toHaveValue("신규 개발");
 });

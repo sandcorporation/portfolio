@@ -3,35 +3,51 @@ import { workPath } from "./types";
 
 const NUMBER = new Intl.NumberFormat("ko-KR");
 
-/** Portfolio list: one hairline row per item — thumbnail · mono № · title → · meta · summary,
- * tags stacked on the right on wide screens. */
+/** Portfolio list: one hairline row per item. From 1024px three columns — [thumbnail] · period and
+ * status / title → and the result line (the summary without one) / visit counts and up to four
+ * tags, right-aligned. Narrower, one stack in the same order. */
 export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
   return (
     <ul className="work-list">
-      {cards.map((card, index) => (
+      {cards.map((card) => (
         <li key={card.slug}>
-          <a className="work-row" href={workPath(card.slug)}>
-            <span className="work-row-thumb" aria-hidden="true">
-              {card.cover_url && <img src={card.cover_url} alt="" loading="lazy" />}
-            </span>
-            <span className="work-row-body">
-              <span className="work-row-no">№ {String(index + 1).padStart(2, "0")}</span>
-              <span className="work-row-title">{card.title} →</span>
-              {card.period && <span className="work-row-meta">{card.period}</span>}
-              {card.visits && (
-                <span className="work-row-meta work-row-visits">
-                  오늘 {NUMBER.format(card.visits.today)} · 누적 {NUMBER.format(card.visits.total)}
-                </span>
-              )}
-              {card.summary && <span className="work-row-summary">{card.summary}</span>}
-            </span>
-            {card.tags.length > 0 && (
-              <span className="work-row-tags">
-                {card.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
+          <a className="work-row portfolio-row" href={workPath(card.slug)}>
+            {card.cover_url && (
+              <span className="portfolio-row-thumb" aria-hidden="true">
+                <img src={card.cover_url} alt="" loading="lazy" />
               </span>
             )}
+            {/* The side columns stay (empty) so the titles line up from row to row. */}
+            <span className="portfolio-row-when">
+              {card.period && <span className="work-row-meta">{card.period}</span>}
+              {card.status_label && (
+                <span
+                  className={`work-row-meta portfolio-row-status${card.status === "live" ? " is-live" : ""}`}
+                >
+                  {card.status_label}
+                </span>
+              )}
+            </span>
+            <span className="work-row-body">
+              <span className="work-row-title">{card.title} →</span>
+              {(card.outcome || card.summary) && (
+                <span className="work-row-summary">{card.outcome || card.summary}</span>
+              )}
+            </span>
+            <span className="portfolio-row-side">
+                {card.visits && (
+                  <span className="work-row-meta work-row-visits">
+                    오늘 {NUMBER.format(card.visits.today)} · 누적 {NUMBER.format(card.visits.total)}
+                  </span>
+                )}
+                {card.tags.length > 0 && (
+                  <span className="work-row-tags">
+                    {card.tags.slice(0, 4).map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </span>
+                )}
+            </span>
           </a>
         </li>
       ))}
@@ -42,6 +58,11 @@ export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
 /** The mono meta row of a work page: period · service address · tags. */
 export function CardMeta({ card, serviceUrl }: { card: PortfolioCard; serviceUrl?: string }) {
   const parts = [
+    card.status_label && (
+      <span key="status" className="status-badge">
+        {card.status_label}
+      </span>
+    ),
     card.period && <span key="period">{card.period}</span>,
     serviceUrl && (
       <a key="url" href={serviceUrl} rel="noopener">

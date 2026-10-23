@@ -307,3 +307,24 @@ def test_portfolio_tools_give_the_id_a_case_ref_takes(mcp: McpClient) -> None:
         "items": [{"item_id": row["id"]}],
     }
     proposals.replace_block(draft.slug, "cases", block)  # validates: the item exists
+
+
+@pytest.mark.django_db
+def test_portfolio_tools_take_and_give_status_and_outcome(mcp: McpClient) -> None:
+    created = _obj(
+        mcp.call_tool(
+            "create_portfolio",
+            {"slug": "st", "title": "ST", "status": "live", "outcome": "결과 한 줄"},
+        )["structuredContent"]
+    )
+    assert (created["status"], created["outcome"]) == ("live", "결과 한 줄")
+
+    updated = _obj(
+        mcp.call_tool("update_portfolio", {"slug": "st", "status": "ended"})["structuredContent"]
+    )
+    assert (updated["status"], updated["outcome"]) == ("ended", "결과 한 줄")
+
+    got = _obj(mcp.call_tool("get_portfolio", {"slug": "st"})["structuredContent"])
+    listed = _obj(_list(_obj(mcp.call_tool("list_portfolio", {})["structuredContent"])["items"])[0])
+    assert got["status"] == listed["status"] == "ended"
+    assert got["outcome"] == listed["outcome"] == "결과 한 줄"

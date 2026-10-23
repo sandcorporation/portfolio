@@ -46,9 +46,11 @@ export function InquiryForm() {
     <form className="inquiry-form" onSubmit={(e) => void submit(e)}>
       <label>
         구분
-        <select name="kind" defaultValue="문의">
-          <option value="문의">문의</option>
+        <select name="kind" defaultValue="신규 개발">
+          <option value="신규 개발">신규 개발</option>
+          <option value="유지보수">유지보수</option>
           <option value="제안">제안</option>
+          <option value="기타">기타</option>
         </select>
       </label>
       <label>

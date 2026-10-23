@@ -5,7 +5,7 @@ be cited in a proposal. Public pages use `public_cards` / `public_detail` / `pub
 """
 
 from datetime import datetime
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from django.db import transaction
 from django.db.models import Max
@@ -33,6 +33,9 @@ class PortfolioCard(TypedDict):
     cover_url: str
     tags: list[str]
     period: str
+    status: str  # "live" | "building" | "ended" | "" (not shown)
+    status_label: str  # the Korean label of `status`, "" when there is none
+    outcome: str
     visits: Visits | None  # None: no site key, not in the counts, or the numbers are off
 
 
@@ -53,6 +56,9 @@ def card_of(item: PortfolioItem, stats: Stats | None = None) -> PortfolioCard:
         cover_url=(media.public_url(item.cover) or "") if item.cover else "",
         tags=item.tag_list(),
         period=item.period,
+        status=item.status,
+        status_label=item.get_status_display() if item.status else "",
+        outcome=item.outcome,
         visits=visits_of(item, stats),
     )
 
@@ -106,6 +112,7 @@ def public_detail(slug: str) -> PortfolioDetail | None:
 
 # --- writes (MCP tools and the admin API call these) ---
 
+ItemStatus = Literal["", "live", "building", "ended"]  # PortfolioItem.Status values, or none
 SLUG_PATTERN = r"^[-a-zA-Z0-9_]+$"
 TAGS_MAX_LENGTH = 200  # the column's width once joined with ", "
 
@@ -119,6 +126,8 @@ class ItemSummary(BaseModel):
     summary: str
     tags: list[str]
     period: str
+    status: str
+    outcome: str
     service_url: str
     metrics_site_key: str
     is_public: bool
@@ -142,6 +151,15 @@ class NewItem(BaseModel):
     summary: str = Field(default="", max_length=300, description="Card and OG description.")
     tags: list[str] = Field(default_factory=list)
     period: str = Field(default="", max_length=60, description="e.g. 2025.03 ~ 2025.08")
+    status: ItemStatus = Field(
+        default="",
+        description='"live" (운영 중), "building" (진행 중), "ended" (서비스 종료); "" shows none.',
+    )
+    outcome: str = Field(
+        default="",
+        max_length=160,
+        description="One-line result shown under the title on the home row instead of the summary.",
+    )
     service_url: str = Field(
         default="",
         max_length=300,
@@ -178,6 +196,8 @@ class ItemPatch(BaseModel):
     summary: str = Field(default="", max_length=300)
     tags: list[str] = Field(default_factory=list)
     period: str = Field(default="", max_length=60)
+    status: ItemStatus = Field(default="", description='"" clears it.')
+    outcome: str = Field(default="", max_length=160, description='"" clears it.')
     service_url: str = Field(default="", max_length=300, description='"" clears it.')
     metrics_site_key: str = Field(
         default="", max_length=40, description='sandcorp-metrics site key; "" clears it.'
@@ -201,6 +221,8 @@ def _summary_fields(item: PortfolioItem) -> dict[str, object]:
         "summary": item.summary,
         "tags": item.tag_list(),
         "period": item.period,
+        "status": item.status,
+        "outcome": item.outcome,
         "service_url": item.service_url,
         "metrics_site_key": item.metrics_site_key,
         "is_public": item.is_public,
@@ -276,6 +298,8 @@ def create_item(new: NewItem) -> ItemAdmin:
         summary=new.summary,
         tags=", ".join(clean_tags(new.tags)),
         period=new.period,
+        status=new.status,
+        outcome=new.outcome.strip(),
         service_url=new.service_url,
         metrics_site_key=new.metrics_site_key.strip(),
         cover=cover_media(new.cover_media_id),
@@ -296,6 +320,10 @@ def update_item(slug: str, patch: ItemPatch) -> ItemAdmin:
         item.summary = patch.summary
     if "period" in given:
         item.period = patch.period
+    if "status" in given:
+        item.status = patch.status
+    if "outcome" in given:
+        item.outcome = patch.outcome.strip()
     if "service_url" in given:
         item.service_url = patch.service_url
     if "metrics_site_key" in given:

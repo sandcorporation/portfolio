@@ -9,6 +9,12 @@ export interface PortfolioCard {
   cover_url: string;
   tags: string[];
   period: string;
+  /** "live" | "building" | "ended"; "" shows no status. */
+  status?: string;
+  /** The Korean label of `status`. */
+  status_label?: string;
+  /** One line under the row title instead of the summary. */
+  outcome?: string;
   /** Visitors today / since the count began; null leaves the row without numbers. */
   visits?: { today: number; total: number } | null;
 }
@@ -27,3 +33,9 @@ export function isWorkData(value: unknown): value is WorkData {
 }
 
 export const workPath = (slug: string) => `/work/${slug}`;
+
+/** The section head's meta: "N projects", plus "운영 중 N" when any item is live. */
+export function portfolioMeta(cards: PortfolioCard[]): string {
+  const live = cards.filter((card) => card.status === "live").length;
+  return live > 0 ? `${cards.length} projects · 운영 중 ${live}` : `${cards.length} projects`;
+}

@@ -72,7 +72,7 @@ else:
 
 @admin.register(PortfolioItem)
 class PortfolioItemAdmin(_ItemAdmin):
-    list_display = ("title", "slug", "is_public", "sort_order", "period")
+    list_display = ("title", "slug", "is_public", "sort_order", "period", "status")
     list_editable = ("is_public", "sort_order")
     prepopulated_fields = {"slug": ("title",)}
     fields = (
@@ -82,6 +82,8 @@ class PortfolioItemAdmin(_ItemAdmin):
         "cover",
         "tags",
         "period",
+        "status",
+        "outcome",
         "service_url",
         "metrics_site_key",
         "is_public",

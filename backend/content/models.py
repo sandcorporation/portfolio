@@ -223,6 +223,11 @@ class SiteProfile(models.Model):
 class PortfolioItem(models.Model):
     """One portfolio entry. Hidden entries keep their data; only the public views skip them."""
 
+    class Status(models.TextChoices):
+        LIVE = "live", "운영 중"
+        BUILDING = "building", "진행 중"
+        ENDED = "ended", "서비스 종료"
+
     slug = models.SlugField("주소", unique=True, help_text="/work/<주소> 로 열린다.")
     title = models.CharField("제목", max_length=120)
     summary = models.CharField("요약", max_length=300, blank=True, help_text="카드와 OG 설명.")
@@ -238,6 +243,19 @@ class PortfolioItem(models.Model):
     )
     tags = models.CharField("태그", max_length=200, blank=True, help_text="쉼표로 구분.")
     period = models.CharField("기간", max_length=60, blank=True, help_text="예: 2025.03 ~ 2025.08")
+    status = models.CharField(
+        "상태",
+        max_length=10,
+        choices=Status,
+        blank=True,
+        help_text="비우면 표시하지 않는다.",
+    )
+    outcome = models.CharField(
+        "결과 한 줄",
+        max_length=160,
+        blank=True,
+        help_text="행 제목 아래에 요약 대신 보인다. 비우면 요약이 보인다.",
+    )
     service_url = models.URLField(
         "서비스 주소",
         max_length=300,
@@ -551,9 +569,12 @@ class Inquiry(models.Model):
     class Kind(models.TextChoices):
         INQUIRY = "문의", "문의"
         PROPOSAL = "제안", "제안"
+        NEW = "신규 개발", "신규 개발"
+        MAINTENANCE = "유지보수", "유지보수"
+        OTHER = "기타", "기타"
 
     site = models.CharField("사이트", max_length=40, default="portfolio")
-    kind = models.CharField("구분", max_length=4, choices=Kind, default=Kind.INQUIRY)
+    kind = models.CharField("구분", max_length=10, choices=Kind, default=Kind.INQUIRY)
     name = models.CharField("이름", max_length=80)
     company = models.CharField("회사", max_length=120, blank=True)
     contact = models.CharField("연락처", max_length=200)

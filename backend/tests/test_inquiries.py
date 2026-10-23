@@ -212,3 +212,33 @@ def test_admin_action_marks_inquiries_handled(owner_client: Client) -> None:
     )
     a.refresh_from_db()
     assert a.handled_at == first
+
+
+@pytest.mark.parametrize("kind", ["문의", "제안", "신규 개발", "유지보수", "기타"])
+def test_every_inquiry_kind_is_accepted_saved_and_named_in_the_alert(
+    client: Client, notifier: FakeNotifier, kind: str
+) -> None:
+    assert post(client, {**FORM, "kind": kind}) == 201
+
+    assert Inquiry.objects.get().kind == kind
+    assert kind in notifier.sent[0].title
+    assert ("구분", kind) in [(f.name, f.value) for f in notifier.sent[0].fields]
+
+
+def test_an_unknown_kind_is_still_refused_and_the_default_stays_inquiry(client: Client) -> None:
+    assert post(client, {**FORM, "kind": "광고"}) == 422
+    assert Inquiry.objects.count() == 0
+    without_kind = {k: v for k, v in FORM.items() if k != "kind"}
+    assert post(client, without_kind) == 201
+    assert Inquiry.objects.get().kind == Inquiry.Kind.INQUIRY
+
+
+def test_admin_lists_and_filters_the_new_kinds(owner_client: Client) -> None:
+    Inquiry.objects.create(kind="신규 개발", name="가나", contact="a", message="m")
+    Inquiry.objects.create(kind="문의", name="다라", contact="b", message="m")
+
+    page = owner_client.get("/admin/content/inquiry/").content.decode()
+    assert "신규 개발" in page and "유지보수" in page  # list rows and the filter's choices
+
+    filtered = owner_client.get("/admin/content/inquiry/", {"kind": "신규 개발"}).content.decode()
+    assert "가나" in filtered and "다라" not in filtered

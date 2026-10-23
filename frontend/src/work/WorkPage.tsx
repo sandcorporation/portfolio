@@ -22,6 +22,7 @@ export function WorkPage({ data }: { data: WorkData }) {
               {card.title}
             </h1>
             {card.summary && <p className="work-summary">{card.summary}</p>}
+            {card.outcome && <p className="work-outcome">{card.outcome}</p>}
             <div className="accent-rule" aria-hidden="true" />
           </header>
           {card.cover_url && <img className="work-cover" src={card.cover_url} alt="" />}

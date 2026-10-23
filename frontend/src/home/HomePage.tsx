@@ -2,6 +2,7 @@ import { GITHUB_URL, Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Ma
 import { DocumentView } from "../blocks/DocumentView";
 import { PostRows } from "../blog/PostRows";
 import { PortfolioCards } from "../work/PortfolioCards";
+import { portfolioMeta } from "../work/types";
 import { InquiryEmail } from "./InquiryEmail";
 import { InquiryForm } from "./InquiryForm";
 import { NewsRows } from "./NewsRows";
@@ -121,7 +122,7 @@ export function HomePage({ data }: { data: HomeData }) {
             )}
             {hasPortfolio && (
               <section className="page-section" aria-labelledby="home-portfolio">
-                <SectionHead index={no("work")} label="Work" meta={`${data.portfolio.length} projects`} />
+                <SectionHead index={no("work")} label="Work" meta={portfolioMeta(data.portfolio)} />
                 <h2 id="home-portfolio" className="page-section-title">
                   포트폴리오
                 </h2>

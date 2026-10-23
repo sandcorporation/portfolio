@@ -1030,6 +1030,90 @@ h3.block-heading {
   }
 }
 
+/* Home portfolio rows: [thumb 40px] · period / status · title / result · visits / tags.
+   Below 1024px one stack in the same order; the empty side columns drop out. */
+.work-list .work-row.portfolio-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.portfolio-row-thumb {
+  display: block;
+  width: 40px;
+  height: 40px;
+  background: var(--color-tint);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.portfolio-row-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.portfolio-row-when,
+.portfolio-row-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.portfolio-row-when:empty,
+.portfolio-row-side:empty {
+  display: none;
+}
+
+.portfolio-row-status.is-live {
+  color: var(--color-accent);
+}
+
+.portfolio-row-side .work-row-tags {
+  flex-direction: row;
+}
+
+@media (min-width: 1024px) {
+  .work-list .work-row.portfolio-row {
+    grid-template-columns: 8.5rem minmax(0, 1fr) 11rem;
+    gap: var(--space-5);
+  }
+
+  .work-list .work-row.portfolio-row:has(.portfolio-row-thumb) {
+    grid-template-columns: 40px 8.5rem minmax(0, 1fr) 11rem;
+  }
+
+  .portfolio-row-when:empty,
+  .portfolio-row-side:empty {
+    display: block;
+  }
+
+  .portfolio-row-side {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .portfolio-row-side .work-row-tags {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}
+
+/* work page: the status badge in the meta row, and the result line under the summary */
+.status-badge {
+  border: 1px solid var(--color-line);
+  padding: 0 var(--space-2);
+}
+
+.work-outcome {
+  color: var(--color-muted);
+  max-width: var(--measure);
+  margin: var(--space-2) 0 0;
+}
+
 .back-link {
   display: inline-block;
   color: var(--color-muted);

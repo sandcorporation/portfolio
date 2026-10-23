@@ -194,3 +194,51 @@ def test_home_without_a_profile_has_empty_tagline_and_stack(client: Client) -> N
     data = page_data(client.get("/").content.decode())
 
     assert (data["tagline"], data["stack"]) == ("", [])
+
+
+def test_status_and_outcome_reach_the_shell_card_and_blank_ones_stay_empty(client: Client) -> None:
+    make("live", order=1, status="live", outcome="월 3천 건 처리")
+    make("plain", order=2)
+
+    cards = page_data(client.get("/").content.decode())["portfolio"]
+
+    assert (cards[0]["status"], cards[0]["status_label"], cards[0]["outcome"]) == (
+        "live",
+        "운영 중",
+        "월 3천 건 처리",
+    )
+    assert (cards[1]["status"], cards[1]["status_label"], cards[1]["outcome"]) == ("", "", "")
+
+
+def test_the_work_page_data_carries_status_and_outcome(client: Client) -> None:
+    make("ended", status="ended", outcome="2025년 종료")
+
+    card = page_data(client.get("/work/ended").content.decode())["card"]
+
+    assert (card["status_label"], card["outcome"]) == ("서비스 종료", "2025년 종료")
+
+
+def test_status_values_are_the_three_choices_plus_none() -> None:
+    from pydantic import ValidationError
+
+    from services.portfolio import ItemPatch, NewItem
+
+    for value in ("", "live", "building", "ended"):
+        assert NewItem(slug="a", title="A", status=value).status == value
+    with pytest.raises(ValidationError):
+        ItemPatch(status="paused")  # type: ignore[arg-type]
+    with pytest.raises(ValidationError):
+        ItemPatch(outcome="가" * 161)
+
+
+def test_create_and_update_set_and_clear_status_and_outcome() -> None:
+    from services.portfolio import ItemPatch, NewItem, create_item, update_item
+
+    made = create_item(NewItem(slug="s", title="S", status="building", outcome=" 한 줄 "))
+    assert (made.status, made.outcome) == ("building", "한 줄")
+
+    kept = update_item("s", ItemPatch(title="S2"))
+    assert (kept.status, kept.outcome) == ("building", "한 줄")  # left out: unchanged
+
+    cleared = update_item("s", ItemPatch(status="", outcome=""))
+    assert (cleared.status, cleared.outcome) == ("", "")
