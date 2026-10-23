@@ -6,6 +6,7 @@ Add a route by adding a view here that builds a PageMeta and calls render_shell.
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from email.utils import format_datetime
 from xml.sax.saxutils import escape
 
 from django.conf import settings
@@ -18,7 +19,7 @@ from pydantic import BaseModel
 from content.models import Proposal, ProposalEvent, ProposalRevision
 from core.clientip import client_ip
 from core.vite import entry_assets
-from services import media, pdf, proposals, publishing
+from services import blog, media, pdf, proposals, publishing
 from services import proposal_access as access
 from services import proposal_events as events
 from services.home import home_page
@@ -312,10 +313,52 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
 
 
 def sitemap_xml(request: HttpRequest) -> HttpResponse:
-    paths = ["/", *(f"/work/{slug}" for slug in public_slugs())]
+    posts = blog.public_slugs()
+    paths = [
+        "/",
+        *(f"/work/{slug}" for slug in public_slugs()),
+        *(["/blog"] if posts else []),  # an empty blog is not worth a crawl
+        *(f"/blog/{slug}" for slug in posts),
+    ]
     urls = "".join(f"<url><loc>{escape(settings.SITE_URL + path)}</loc></url>" for path in paths)
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     )
     return HttpResponse(body, content_type="application/xml; charset=utf-8")
+
+
+BLOG_TITLE = f"{SITE_NAME} 기록"
+BLOG_DESCRIPTION = "샌드코프가 만들며 배운 것을 적는 블로그"
+FEED_SIZE = 30
+
+
+def blog_feed(request: HttpRequest) -> HttpResponse:
+    """RSS 2.0 of the newest published posts. Absolute links from SITE_URL (no request host)."""
+    items = blog.feed_items(FEED_SIZE)
+    home = f"{settings.SITE_URL}/blog"
+
+    def item_xml(post: blog.FeedItem) -> str:
+        link = escape(f"{home}/{post.slug}")
+        categories = "".join(f"<category>{escape(tag)}</category>" for tag in post.tags)
+        return (
+            f"<item><title>{escape(post.title)}</title><link>{link}</link>"
+            f"<description>{escape(post.summary)}</description>"
+            f"<pubDate>{format_datetime(post.published_at)}</pubDate>"
+            f'<guid isPermaLink="true">{link}</guid>{categories}</item>'
+        )
+
+    last_build = (
+        f"<lastBuildDate>{format_datetime(items[0].published_at)}</lastBuildDate>" if items else ""
+    )
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>'
+        f"<title>{escape(BLOG_TITLE)}</title><link>{escape(home)}</link>"
+        f"<description>{escape(BLOG_DESCRIPTION)}</description><language>ko</language>"
+        f'<atom:link href="{escape(home)}/feed.xml" rel="self" type="application/rss+xml"/>'
+        f"{last_build}{''.join(item_xml(p) for p in items)}</channel></rss>"
+    )
+    response = HttpResponse(body, content_type="application/rss+xml; charset=utf-8")
+    response["Cache-Control"] = "public, max-age=300"
+    return response

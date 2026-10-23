@@ -267,6 +267,81 @@ class PortfolioItem(models.Model):
         return [tag for tag in (t.strip() for t in self.tags.split(",")) if tag]
 
 
+class BlogPost(models.Model):
+    """A post of the blog 「기록」 (/blog/<slug>), written as a block document like portfolio items.
+
+    Rules (slug generation, publishing) live in services/blog.py; the model only keeps the stored
+    document and cover valid, the same way PortfolioItem does. A draft is never shown publicly.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "초안"
+        PUBLISHED = "published", "발행"
+
+    slug = models.SlugField("주소", max_length=80, unique=True, help_text="/blog/<주소> 로 열린다.")
+    title = models.CharField("제목", max_length=120)
+    summary = models.CharField("요약", max_length=300, blank=True, help_text="목록과 OG 설명.")
+    tags = models.CharField("태그", max_length=200, blank=True, help_text="쉼표로 구분.")
+    cover = models.ForeignKey(
+        Media,
+        verbose_name="대표 이미지",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        limit_choices_to={"is_public": True, "uploaded_at__isnull": False},
+        help_text="업로드가 끝난 공개 미디어. 비워 둘 수 있다.",
+    )
+    body = models.JSONField("본문 문서", default=empty_document)
+    status = models.CharField("상태", max_length=10, choices=Status, default=Status.DRAFT)
+    published_at = models.DateTimeField(
+        "발행 시각",
+        null=True,
+        blank=True,
+        help_text="첫 발행 때 채워지고 그 뒤 유지된다(목록 순서).",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "블로그 글"
+        verbose_name_plural = "블로그 글"
+        ordering = ("-published_at", "-id")
+        indexes = [models.Index(fields=["status", "published_at"], name="blogpost_status_pub")]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def save(self, **kwargs: Any) -> None:  # Any: forwarded unchanged to Model.save
+        self.check_cover()
+        self.body = stored_document(self.body)
+        self.tags = ", ".join(self.tag_list())
+        if self.status == self.Status.PUBLISHED and self.published_at is None:
+            self.published_at = timezone.now()  # first publication; kept from then on
+        super().save(**kwargs)
+
+    def check_cover(self) -> None:
+        cover = self.cover
+        if cover is not None and not (
+            cover.is_public and cover.is_complete and media_kind(cover.content_type) == "image"
+        ):
+            raise ValidationError({"cover": "업로드가 끝난 공개 이미지만 쓸 수 있습니다."})
+
+    def clean(self) -> None:
+        self.check_cover()
+        try:
+            self.body = stored_document(self.body)
+        except InvalidDocument as exc:
+            raise ValidationError({"body": [f"{e.path}: {e.reason}" for e in exc.errors]}) from exc
+
+    def tag_list(self) -> list[str]:
+        return [tag for tag in (t.strip() for t in self.tags.split(",")) if tag]
+
+    @property
+    def is_published(self) -> bool:
+        return self.status == self.Status.PUBLISHED
+
+
 CLIENT_CODE_PATTERN = r"^[A-Z]{2,6}$"
 
 

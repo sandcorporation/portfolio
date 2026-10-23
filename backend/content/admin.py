@@ -10,6 +10,7 @@ from django.utils.html import format_html
 
 from adapters.storage import StorageNotConfigured, get_storage
 from content.models import (
+    BlogPost,
     Client,
     Inquiry,
     Media,
@@ -84,6 +85,23 @@ class PortfolioItemAdmin(_ItemAdmin):
         "sort_order",
         "body",
     )
+
+
+if TYPE_CHECKING:
+    _PostAdmin = admin.ModelAdmin[BlogPost]
+else:
+    _PostAdmin = admin.ModelAdmin
+
+
+@admin.register(BlogPost)
+class BlogPostAdmin(_PostAdmin):
+    """Posts are usually written through MCP; here the same fields, the document as JSON."""
+
+    list_display = ("title", "status", "published_at", "tags", "slug")
+    list_filter = ("status",)
+    search_fields = ("title", "slug", "tags")
+    prepopulated_fields = {"slug": ("title",)}
+    fields = ("title", "slug", "summary", "cover", "tags", "status", "published_at", "body")
 
 
 if TYPE_CHECKING:

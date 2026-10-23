@@ -22,7 +22,14 @@ from adapters.storage import (
     StorageNotConfigured,
     get_storage,
 )
-from content.models import Media, PortfolioItem, Proposal, ProposalRevision, SiteProfile
+from content.models import (
+    BlogPost,
+    Media,
+    PortfolioItem,
+    Proposal,
+    ProposalRevision,
+    SiteProfile,
+)
 from documents.validation import JSON
 from services.errors import Rejected
 
@@ -171,8 +178,8 @@ class MediaInUse(Rejected):
 @dataclass(frozen=True)
 class MediaUsage:
     """Where one media item is used. `revisions` are document numbers (published or revoked: they
-    never change), `drafts` are proposal addresses (still editable), `pages` are live portfolio
-    items and the profile."""
+    never change), `drafts` are proposal addresses and draft blog posts (still editable), `pages`
+    are live portfolio items, published blog posts and the profile."""
 
     revisions: tuple[str, ...] = ()
     drafts: tuple[str, ...] = ()
@@ -196,8 +203,8 @@ class MediaUsage:
 
 
 def usage_of(media_ids: Iterable[int]) -> dict[int, MediaUsage]:
-    """Where each media item is used. One pass over revisions, proposals, portfolio and profile
-    however many ids are asked, so a bulk delete costs the same as a single one."""
+    """Where each media item is used. One pass over revisions, proposals, portfolio, blog posts and
+    profile     however many ids are asked, so a bulk delete costs the same as a single one."""
     keys = dict(Media.objects.filter(pk__in=set(media_ids)).values_list("object_key", "pk"))
     found: dict[int, dict[str, list[str]]] = {
         pk: {"revisions": [], "drafts": [], "pages": []} for pk in keys.values()
@@ -218,6 +225,10 @@ def usage_of(media_ids: Iterable[int]) -> dict[int, MediaUsage]:
         note("drafts", slug, document)
     for title, cover_id, body in PortfolioItem.objects.values_list("title", "cover_id", "body"):
         note("pages", f"포트폴리오 「{title}」", body, cover_id)
+    posts = BlogPost.objects.values_list("title", "status", "cover_id", "body")
+    for title, status, cover_id, body in posts:
+        kind = "pages" if status == BlogPost.Status.PUBLISHED else "drafts"
+        note(kind, f"블로그 「{title}」", body, cover_id)
     profile = SiteProfile.objects.first()
     if profile is not None:
         for field in SiteProfile.DOCUMENT_FIELDS:

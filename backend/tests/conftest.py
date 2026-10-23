@@ -15,6 +15,8 @@ from django.test import override_settings
 from django.utils import timezone
 from pytest_django.fixtures import Settings
 
+from adapters import foresight as foresight_adapter
+from adapters.fake_foresight import FakeForesight
 from adapters.fake_jwks import FakeAuthServer
 from adapters.fake_notify import FakeNotifier
 from adapters.fake_renderer import FakeRenderer
@@ -125,3 +127,13 @@ def renderer(monkeypatch: pytest.MonkeyPatch) -> FakeRenderer:
     fake = FakeRenderer()
     monkeypatch.setattr("services.pdf.get_renderer", lambda: fake)
     return fake
+
+
+@pytest.fixture(autouse=True)
+def foresight() -> Iterator[FakeForesight]:
+    """No test reaches news.sandcorp.co.kr: the Foresight gateway is always this fake.
+    Assert on `foresight.calls`, set `foresight.failing` or `foresight.articles`."""
+    fake = FakeForesight()
+    foresight_adapter.set_gateway(fake)
+    yield fake
+    foresight_adapter.set_gateway(None)

@@ -206,7 +206,7 @@ def _item_or_404(slug: str) -> PortfolioItem:
     return item
 
 
-def _clean_tags(tags: list[str]) -> list[str]:
+def clean_tags(tags: list[str]) -> list[str]:
     cleaned = [tag.strip() for tag in tags if tag.strip()]
     if any("," in tag for tag in cleaned):
         raise Rejected.at("tags", "태그에 쉼표를 넣을 수 없습니다")
@@ -215,7 +215,7 @@ def _clean_tags(tags: list[str]) -> list[str]:
     return cleaned
 
 
-def _cover(media_id: int | None) -> Media | None:
+def cover_media(media_id: int | None) -> Media | None:
     if media_id is None:
         return None
     found = Media.objects.filter(pk=media_id).first()
@@ -245,10 +245,10 @@ def create_item(new: NewItem) -> ItemAdmin:
         slug=new.slug,
         title=new.title,
         summary=new.summary,
-        tags=", ".join(_clean_tags(new.tags)),
+        tags=", ".join(clean_tags(new.tags)),
         period=new.period,
         service_url=new.service_url,
-        cover=_cover(new.cover_media_id),
+        cover=cover_media(new.cover_media_id),
         body=_body(new.body),
         is_public=new.is_public,
         sort_order=(PortfolioItem.objects.aggregate(top=Max("sort_order"))["top"] or 0) + 10,
@@ -269,9 +269,9 @@ def update_item(slug: str, patch: ItemPatch) -> ItemAdmin:
     if "service_url" in given:
         item.service_url = patch.service_url
     if "tags" in given:
-        item.tags = ", ".join(_clean_tags(patch.tags))
+        item.tags = ", ".join(clean_tags(patch.tags))
     if "cover_media_id" in given:
-        item.cover = _cover(patch.cover_media_id)
+        item.cover = cover_media(patch.cover_media_id)
     if "body" in given:
         item.body = _body(patch.body)
     item.save()

@@ -29,7 +29,7 @@ from content.models import (
     stored_document,
 )
 from documents.validation import JSON, DocumentError, InvalidDocument
-from services import case_refs, media
+from services import case_refs, document_edit, media
 from services.errors import Conflict, NotFound, Rejected
 from services.profile import get_profile
 
@@ -261,31 +261,11 @@ def update_proposal(slug: str, patch: ProposalPatch) -> ProposalOut:
 
 
 def _tabs(p: Proposal) -> list[dict[str, JSON]]:
-    """The document's own tab list (edit it in place); stored documents hold only tab objects."""
-    tabs: list[dict[str, JSON]] = p.document["tabs"]
-    return tabs
-
-
-def _blocks(tab: dict[str, JSON]) -> list[JSON]:
-    blocks = tab["blocks"]
-    assert isinstance(blocks, list)
-    return blocks
+    return document_edit.tabs(p.document)
 
 
 def _find_tab(p: Proposal, tab_id: str) -> dict[str, JSON]:
-    for tab in _tabs(p):
-        if tab["id"] == tab_id:
-            return tab
-    raise NotFound(f"탭 {tab_id!r}이(가) 없습니다")
-
-
-def _find_block(p: Proposal, block_id: str) -> tuple[list[JSON], int]:
-    for tab in _tabs(p):
-        blocks = _blocks(tab)
-        for index, block in enumerate(blocks):
-            if isinstance(block, dict) and block.get("id") == block_id:
-                return blocks, index
-    raise NotFound(f"블록 {block_id!r}이(가) 없습니다")
+    return document_edit.find_tab(p.document, tab_id)
 
 
 def _save_document(p: Proposal, document: object) -> ProposalOut:
@@ -301,8 +281,7 @@ def replace_document(slug: str, document: dict[str, object]) -> ProposalOut:
 def replace_block(slug: str, block_id: str, block: dict[str, object]) -> ProposalOut:
     """Swap one block in place (same position). A block without an `id` keeps `block_id`."""
     p = _editable(slug)
-    blocks, index = _find_block(p, block_id)
-    blocks[index] = {"id": block_id, **block}  # type: ignore[dict-item]  # JSON from the caller
+    document_edit.replace_block(p.document, block_id, block)
     return _save_document(p, p.document)
 
 
@@ -311,21 +290,13 @@ def insert_block(
 ) -> ProposalOut:
     """Add a block to a tab: at the start, or right after `after_block_id` (in that tab)."""
     p = _editable(slug)
-    blocks = _blocks(_find_tab(p, tab_id))
-    position = 0
-    if after_block_id is not None:
-        ids = [b.get("id") if isinstance(b, dict) else None for b in blocks]
-        if after_block_id not in ids:
-            raise NotFound(f"탭 {tab_id!r}에 블록 {after_block_id!r}이(가) 없습니다")
-        position = ids.index(after_block_id) + 1
-    blocks.insert(position, block)  # type: ignore[arg-type]  # JSON from the caller
+    document_edit.insert_block(p.document, tab_id, block, after_block_id)
     return _save_document(p, p.document)
 
 
 def delete_block(slug: str, block_id: str) -> ProposalOut:
     p = _editable(slug)
-    blocks, index = _find_block(p, block_id)
-    del blocks[index]
+    document_edit.delete_block(p.document, block_id)
     return _save_document(p, p.document)
 
 

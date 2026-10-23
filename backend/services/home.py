@@ -5,8 +5,10 @@ from typing import TypedDict
 
 from content.models import SiteProfile
 from documents.validation import JSON
-from services import media
+from services import blog, media
 from services.portfolio import PortfolioCard, public_cards
+
+RECENT_POSTS = 3
 
 DEFAULT_DESCRIPTION = "샌드코프 포트폴리오"
 
@@ -57,3 +59,8 @@ def home_page() -> HomePage:
             portfolio=public_cards(),
         ),
     )
+
+
+def recent_posts(limit: int = RECENT_POSTS) -> list[blog.PostCard]:
+    """The home page's newest blog posts (published only); #75 shows them."""
+    return blog.public_cards(limit=limit)
