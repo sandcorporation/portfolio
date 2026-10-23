@@ -100,7 +100,9 @@ def test_initialize_list_and_call_tools(mcp: McpClient) -> None:
     assert found["example"] == EXAMPLES["table"]
     example_rows = EXAMPLES["table"]["rows"]
     assert isinstance(example_rows, list)
-    assert any(isinstance(cell, dict) for row in example_rows for cell in row)  # a merged cell
+    assert any(
+        isinstance(cell, dict) for row in example_rows if isinstance(row, list) for cell in row
+    )  # a merged cell
 
 
 def test_initialize_falls_back_to_newest_known_version(mcp: McpClient) -> None:
