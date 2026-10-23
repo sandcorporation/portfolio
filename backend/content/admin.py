@@ -38,7 +38,15 @@ else:
 class SiteProfileAdmin(_ProfileAdmin):
     """A singleton: the list page jumps straight to the one profile."""
 
-    fields = ("tagline", "company_intro", "ceo_intro", "contact_email", "contact_phone", "address")
+    fields = (
+        "tagline",
+        "company_intro",
+        "ceo_intro",
+        "contact_email",
+        "contact_phone",
+        "address",
+        "github",
+    )
 
     def changelist_view(
         self, request: HttpRequest, extra_context: dict[str, object] | None = None
@@ -71,6 +79,7 @@ class PortfolioItemAdmin(_ItemAdmin):
         "cover",
         "tags",
         "period",
+        "service_url",
         "is_public",
         "sort_order",
         "body",

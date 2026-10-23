@@ -9,8 +9,9 @@ from typing import TypedDict
 
 from django.db import transaction
 from django.db.models import Max
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from content.github_profile import http_url
 from content.models import Media, PortfolioItem, empty_document, media_kind, stored_document
 from documents.validation import JSON, DocumentError, InvalidDocument
 from services import media
@@ -94,6 +95,7 @@ class ItemSummary(BaseModel):
     summary: str
     tags: list[str]
     period: str
+    service_url: str
     is_public: bool
     sort_order: int
     cover_media_id: int | None
@@ -115,6 +117,12 @@ class NewItem(BaseModel):
     summary: str = Field(default="", max_length=300, description="Card and OG description.")
     tags: list[str] = Field(default_factory=list)
     period: str = Field(default="", max_length=60, description="e.g. 2025.03 ~ 2025.08")
+    service_url: str = Field(
+        default="",
+        max_length=300,
+        description="Address of the running service (e.g. https://codemit.kr); lists it in the "
+        "GitHub README's services table.",
+    )
     cover_media_id: int | None = Field(
         default=None, description="Id of a finished, public upload; omit for no cover."
     )
@@ -123,6 +131,11 @@ class NewItem(BaseModel):
         description="Block document (see block_schema).",
     )
     is_public: bool = Field(default=False, description="Created hidden unless true.")
+
+    @field_validator("service_url")
+    @classmethod
+    def _service_url(cls, value: str) -> str:
+        return http_url(value)
 
 
 class ItemPatch(BaseModel):
@@ -134,10 +147,16 @@ class ItemPatch(BaseModel):
     summary: str = Field(default="", max_length=300)
     tags: list[str] = Field(default_factory=list)
     period: str = Field(default="", max_length=60)
+    service_url: str = Field(default="", max_length=300, description='"" clears it.')
     cover_media_id: int | None = None
     body: dict[str, object] = Field(
         default_factory=dict, description="Whole block document (see block_schema)."
     )
+
+    @field_validator("service_url")
+    @classmethod
+    def _service_url(cls, value: str) -> str:
+        return http_url(value)
 
 
 def _summary_fields(item: PortfolioItem) -> dict[str, object]:
@@ -147,6 +166,7 @@ def _summary_fields(item: PortfolioItem) -> dict[str, object]:
         "summary": item.summary,
         "tags": item.tag_list(),
         "period": item.period,
+        "service_url": item.service_url,
         "is_public": item.is_public,
         "sort_order": item.sort_order,
         "cover_media_id": item.cover_id,
@@ -220,6 +240,7 @@ def create_item(new: NewItem) -> ItemAdmin:
         summary=new.summary,
         tags=", ".join(_clean_tags(new.tags)),
         period=new.period,
+        service_url=new.service_url,
         cover=_cover(new.cover_media_id),
         body=_body(new.body),
         is_public=new.is_public,
@@ -238,6 +259,8 @@ def update_item(slug: str, patch: ItemPatch) -> ItemAdmin:
         item.summary = patch.summary
     if "period" in given:
         item.period = patch.period
+    if "service_url" in given:
+        item.service_url = patch.service_url
     if "tags" in given:
         item.tags = ", ".join(_clean_tags(patch.tags))
     if "cover_media_id" in given:

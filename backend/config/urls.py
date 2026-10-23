@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import path
 
-from core import shell
+from core import github_readme, shell
 from core.api import api
 from mcpserver.views import mcp_endpoint
 from oauth import login as oauth_login
@@ -27,6 +27,8 @@ urlpatterns = [
     # HTML shell routes: Django fills per-route meta, React takes over in the browser.
     path("", shell.home, name="home"),
     path("work/<slug:slug>", shell.work, name="work"),
+    path("github/readme/personal.md", github_readme.personal, name="github_readme_personal"),
+    path("github/readme/org.md", github_readme.org, name="github_readme_org"),
     path("robots.txt", shell.robots_txt),
     path("sitemap.xml", shell.sitemap_xml),
     path("p/<slug:slug>", shell.proposal, name="proposal"),

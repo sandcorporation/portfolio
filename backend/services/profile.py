@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from pydantic import BaseModel, ConfigDict, Field
 
+from content.github_profile import GithubProfile, InvalidGithubProfile, stored_github
 from content.models import SiteProfile, stored_document
 from documents.validation import JSON, DocumentError, InvalidDocument
 from services.errors import Rejected
@@ -18,6 +19,7 @@ class Profile(BaseModel):
     contact_email: str
     contact_phone: str
     address: str
+    github: GithubProfile
 
 
 class ProfilePatch(BaseModel):
@@ -37,6 +39,14 @@ class ProfilePatch(BaseModel):
     contact_email: str = Field(default="", max_length=254)
     contact_phone: str = Field(default="", max_length=40)
     address: str = Field(default="", max_length=200)
+    github: GithubProfile = Field(
+        default_factory=GithubProfile,
+        description=(
+            "GitHub profile README data; replaces the whole object. personal_intro (markdown), "
+            "stack_badges (names), public_projects ([{name, url, description, "
+            "scope personal|org|both}]), contact_note."
+        ),
+    )
 
 
 def _profile_of(row: SiteProfile) -> Profile:
@@ -47,6 +57,7 @@ def _profile_of(row: SiteProfile) -> Profile:
         contact_email=row.contact_email,
         contact_phone=row.contact_phone,
         address=row.address,
+        github=GithubProfile.model_validate(row.github or {}),
     )
 
 
@@ -65,6 +76,12 @@ def update_profile(patch: ProfilePatch) -> Profile:
                 value = stored_document(value)
             except InvalidDocument as exc:
                 errors += [DocumentError(f"{name}.{e.path}", e.reason) for e in exc.errors]
+                continue
+        elif name == "github":
+            try:
+                value = stored_github(patch.github.model_dump(mode="json"))
+            except InvalidGithubProfile as exc:
+                errors += [DocumentError(f"github.{path}", reason) for path, reason in exc.errors]
                 continue
         elif name == "contact_email" and value:
             try:

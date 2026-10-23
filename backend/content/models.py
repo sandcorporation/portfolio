@@ -8,6 +8,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
+from content.github_profile import InvalidGithubProfile, stored_github
 from documents.blocks import AudioCompareBlock, CaseRefBlock, Document, GalleryBlock, VideoBlock
 from documents.validation import (
     JSON,
@@ -161,6 +162,12 @@ class SiteProfile(models.Model):
     contact_email = models.EmailField("연락 이메일", blank=True)
     contact_phone = models.CharField("연락 전화", max_length=40, blank=True)
     address = models.CharField("주소", max_length=200, blank=True)
+    github = models.JSONField(
+        "GitHub README 데이터",
+        default=dict,
+        blank=True,
+        help_text="personal_intro, stack_badges, public_projects, contact_note (JSON).",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -175,6 +182,7 @@ class SiteProfile(models.Model):
         self.pk = 1
         for name in self.DOCUMENT_FIELDS:
             setattr(self, name, stored_document(getattr(self, name)))
+        self.github = stored_github(self.github)
         super().save(**kwargs)
 
     @classmethod
@@ -189,6 +197,10 @@ class SiteProfile(models.Model):
                 setattr(self, name, stored_document(getattr(self, name)))
             except InvalidDocument as exc:
                 problems[name] = [f"{e.path}: {e.reason}" for e in exc.errors]
+        try:
+            self.github = stored_github(self.github)
+        except InvalidGithubProfile as exc:
+            problems["github"] = [f"{path}: {reason}" for path, reason in exc.errors]
         if problems:
             raise ValidationError(problems)
 
@@ -211,6 +223,12 @@ class PortfolioItem(models.Model):
     )
     tags = models.CharField("태그", max_length=200, blank=True, help_text="쉼표로 구분.")
     period = models.CharField("기간", max_length=60, blank=True, help_text="예: 2025.03 ~ 2025.08")
+    service_url = models.URLField(
+        "서비스 주소",
+        max_length=300,
+        blank=True,
+        help_text="서비스의 바깥 주소(예 https://codemit.kr). README 서비스 표에 쓴다.",
+    )
     is_public = models.BooleanField("공개", default=True)
     sort_order = models.IntegerField("정렬 순서", default=0, help_text="작을수록 먼저.")
     body = models.JSONField("본문 문서", default=empty_document)
