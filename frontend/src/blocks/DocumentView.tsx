@@ -10,24 +10,20 @@ interface Props {
   document: Document;
   /** Prefixes heading ids so two documents on one page never share an anchor. */
   idPrefix?: string;
-  /**
-   * When given, the document does not draw its own on-screen contents: the open tab's entries go
-   * to the callback instead, so a page holding several documents can merge them into one contents.
-   * Print layout ignores it.
-   */
-  onToc?: (entries: TocEntry[]) => void;
+  /** Do not draw the document's own on-screen contents (the home page holds two documents). Print layout ignores it. */
+  hideToc?: boolean;
 }
 
 /**
  * The block renderer: document JSON in, screen out. Unknown block types are skipped. In print mode
  * (see ./mode) every tab is laid out in order under one table of contents, with no tab buttons.
  */
-export function DocumentView({ document, idPrefix = "", onToc }: Props) {
+export function DocumentView({ document, idPrefix = "", hideToc }: Props) {
   const { print } = useRenderMode();
   return print ? (
     <PrintView document={document} idPrefix={idPrefix} />
   ) : (
-    <TabbedView document={document} idPrefix={idPrefix} onToc={onToc} />
+    <TabbedView document={document} idPrefix={idPrefix} hideToc={hideToc} />
   );
 }
 
@@ -66,11 +62,11 @@ type Jump = { kind: "block" | "tab"; id: string; n: number };
 function TabbedView({
   document,
   idPrefix,
-  onToc,
+  hideToc,
 }: {
   document: Document;
   idPrefix: string;
-  onToc?: (entries: TocEntry[]) => void;
+  hideToc?: boolean;
 }) {
   const [active, setActive] = useState(() => tabOfHash(document, window.location.hash) ?? 0);
   // Bumped on every jump, so a second jump to the same place scrolls again.
@@ -136,10 +132,6 @@ function TabbedView({
 
   const tab = document.tabs[active] ?? document.tabs[0];
   const entries = useMemo(() => (tab ? tableOfContents(tab, idPrefix) : []), [tab, idPrefix]);
-  useEffect(() => {
-    onToc?.(entries);
-    return () => onToc?.([]);
-  }, [entries, onToc]);
   if (!tab) return null;
   const several = document.tabs.length > 1;
 
@@ -169,7 +161,7 @@ function TabbedView({
         role={several ? "tabpanel" : undefined}
         aria-labelledby={several ? `${tabsId}-tab-${active}` : undefined}
       >
-        {!onToc && <Toc entries={entries} spy />}
+        {!hideToc && <Toc entries={entries} spy />}
         <div className="document-blocks">
           <Blocks tab={tab} prefix={idPrefix} />
         </div>

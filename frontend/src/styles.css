@@ -113,7 +113,6 @@ img {
 .site-contact-title,
 .document-tabs button,
 .document-toc::before,
-.page-toc,
 .kpi-label,
 .table-unit,
 .callout-kind,
@@ -457,24 +456,6 @@ img {
   }
 }
 
-/* ---- page with a contents rail: one column, a left rail from 1024px ---- */
-.page-body {
-  min-width: 0;
-}
-
-.page-sections {
-  min-width: 0;
-}
-
-@media screen and (min-width: 1024px) {
-  .page-body {
-    display: grid;
-    grid-template-columns: var(--rail-width) minmax(0, 1fr);
-    gap: var(--space-7);
-    border-top: 1px solid var(--color-line);
-  }
-}
-
 /* ---- document shell: tabs and table of contents ---- */
 .document {
   min-width: 0;
@@ -525,35 +506,30 @@ img {
   margin-bottom: var(--space-1);
 }
 
-.document-toc ul,
-.page-toc ul {
+.document-toc ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.document-toc li,
-.page-toc li {
+.document-toc li {
   margin: 0;
   line-height: 1.5;
 }
 
-.document-toc a,
-.page-toc a {
+.document-toc a {
   display: block;
   padding: var(--space-1) 0;
   color: var(--color-text);
   text-decoration: none;
 }
 
-.document-toc a:hover,
-.page-toc a:hover {
+.document-toc a:hover {
   color: var(--color-accent);
 }
 
 /* level-3 entries read as children: muted and set in */
-.document-toc li[data-level="3"] a,
-.page-toc li[data-level="3"] a {
+.document-toc li[data-level="3"] a {
   color: var(--color-muted);
   padding-left: var(--space-4);
 }
@@ -562,8 +538,7 @@ img {
   font-weight: 700;
 }
 
-.document-toc li a[aria-current="location"],
-.page-toc li a[aria-current="location"] {
+.document-toc li a[aria-current="location"] {
   color: var(--color-ink);
   font-weight: 600;
 }
@@ -577,8 +552,7 @@ img {
     gap: var(--space-7);
   }
 
-  .document:not(.document-print) .document-toc[data-spy],
-  .page-toc {
+  .document:not(.document-print) .document-toc[data-spy] {
     position: sticky;
     top: calc(var(--masthead-height) + var(--tabs-height) + var(--space-4));
     align-self: start;
@@ -589,68 +563,27 @@ img {
     border: 0;
   }
 
-  .document:not(.document-print) .document-toc[data-spy] li a,
-  .page-toc li a {
+  .document:not(.document-print) .document-toc[data-spy] li a {
     padding-left: var(--space-3);
     border-left: 1px solid var(--color-line);
   }
 
-  .document:not(.document-print) .document-toc[data-spy] li[data-level="3"] a,
-  .page-toc li[data-level="3"] a {
+  .document:not(.document-print) .document-toc[data-spy] li[data-level="3"] a {
     padding-left: var(--space-5);
   }
 
-  .document:not(.document-print) .document-toc[data-spy] li a[aria-current="location"],
-  .page-toc li a[aria-current="location"] {
+  .document:not(.document-print) .document-toc[data-spy] li a[aria-current="location"] {
     border-left: 2px solid var(--color-accent);
     padding-left: calc(var(--space-3) - 1px);
   }
 
-  .document:not(.document-print) .document-toc[data-spy] li[data-level="3"] a[aria-current="location"],
-  .page-toc li[data-level="3"] a[aria-current="location"] {
+  .document:not(.document-print) .document-toc[data-spy] li[data-level="3"] a[aria-current="location"] {
     padding-left: calc(var(--space-5) - 1px);
   }
 
-  .page-toc {
-    padding-top: var(--space-section);
-  }
-}
-
-/* The contents of a page of several sections (home): a folded list on top, a rail on wide screens. */
-.page-toc {
-  color: var(--color-muted);
-  border-top: 1px solid var(--color-line);
-  border-bottom: 1px solid var(--color-line);
-  padding: var(--space-3) 0;
-  margin-top: var(--space-5);
-}
-
-.page-toc summary {
-  cursor: pointer;
-}
-
-.page-toc a {
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.page-toc li[data-level="1"] a {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--color-muted);
-  padding-top: var(--space-2);
-}
-
-.page-toc li[data-level="1"] a[aria-current="location"] {
-  color: var(--color-ink);
 }
 
 @media print {
-  .page-toc,
   .site-nav,
   .site-footer {
     display: none;

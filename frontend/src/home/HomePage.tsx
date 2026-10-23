@@ -1,12 +1,9 @@
-import { useState } from "react";
 import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { DocumentView } from "../blocks/DocumentView";
-import type { TocEntry } from "../blocks/toc";
 import { PostRows } from "../blog/PostRows";
 import { PortfolioCards } from "../work/PortfolioCards";
 import { InquiryForm } from "./InquiryForm";
 import { NewsRows } from "./NewsRows";
-import { PageToc } from "./PageToc";
 import type { HomeData } from "./types";
 
 /** Mono label (left) over a section title; on the right a meta text or a link to the whole list. */
@@ -37,9 +34,6 @@ const FORESIGHT_URL = "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medi
 export function HomePage({ data }: { data: HomeData }) {
   const { contact } = data;
   const hasContact = Boolean(contact.email || contact.phone || contact.address);
-  const [companyToc, setCompanyToc] = useState<TocEntry[]>([]);
-  const [ceoToc, setCeoToc] = useState<TocEntry[]>([]);
-  const section = (text: string, anchor: string): TocEntry => ({ text, level: 1, anchor });
   const hasPortfolio = data.portfolio.length > 0;
   const posts = data.posts ?? [];
   const news = data.news ?? [];
@@ -49,24 +43,12 @@ export function HomePage({ data }: { data: HomeData }) {
   const shown = [
     "company",
     "ceo",
-    ...(hasPortfolio ? ["work"] : []),
     ...(hasPosts ? ["notes"] : []),
     ...(hasNews ? ["news"] : []),
+    ...(hasPortfolio ? ["work"] : []),
     "contact",
   ];
   const no = (key: string) => String(shown.indexOf(key) + 1).padStart(2, "0");
-  // One contents for the whole page: each section title, then the open tab of its document.
-  const entries: TocEntry[] = [
-    section("회사 소개", "home-company"),
-    ...companyToc,
-    section("대표 소개", "home-ceo"),
-    ...ceoToc,
-    ...(hasPortfolio ? [section("포트폴리오", "home-portfolio")] : []),
-    ...(hasPosts ? [section("만들면서 남긴 기록", "home-notes")] : []),
-    ...(hasNews ? [section("Foresight · 최근 뉴스", "home-news")] : []),
-    section("문의·제안", "home-inquiry"),
-    ...(hasContact ? [section("연락처", "home-contact")] : []),
-  ];
   const stack = data.stack ?? [];
   return (
     <>
@@ -96,36 +78,25 @@ export function HomePage({ data }: { data: HomeData }) {
           )}
           <p className="link-row">
             <a href="#home-company">회사 소개 →</a>
+            {hasPosts && <a href="#home-notes">기록 →</a>}
             {hasPortfolio && <a href="#home-portfolio">포트폴리오 →</a>}
             <a href="#home-inquiry">문의 →</a>
           </p>
         </section>
-        <div className="page-body">
-          <PageToc entries={entries} />
-          <div className="page-sections">
             <section className="page-section" aria-labelledby="home-company">
               <SectionHead index={no("company")} label="Company" />
               <h2 id="home-company" className="page-section-title">
                 회사 소개
               </h2>
-              <DocumentView document={data.company_intro} idPrefix="company-" onToc={setCompanyToc} />
+              <DocumentView document={data.company_intro} idPrefix="company-" hideToc />
             </section>
             <section className="page-section" aria-labelledby="home-ceo">
               <SectionHead index={no("ceo")} label="CEO" />
               <h2 id="home-ceo" className="page-section-title">
                 대표 소개
               </h2>
-              <DocumentView document={data.ceo_intro} idPrefix="ceo-" onToc={setCeoToc} />
+              <DocumentView document={data.ceo_intro} idPrefix="ceo-" hideToc />
             </section>
-            {hasPortfolio && (
-              <section className="page-section" aria-labelledby="home-portfolio">
-                <SectionHead index={no("work")} label="Work" meta={`${data.portfolio.length} projects`} />
-                <h2 id="home-portfolio" className="page-section-title">
-                  포트폴리오
-                </h2>
-                <PortfolioCards cards={data.portfolio} />
-              </section>
-            )}
             {hasPosts && (
               <section className="page-section" aria-labelledby="home-notes">
                 <SectionHead
@@ -152,6 +123,15 @@ export function HomePage({ data }: { data: HomeData }) {
                 <NewsRows items={news} />
               </section>
             )}
+            {hasPortfolio && (
+              <section className="page-section" aria-labelledby="home-portfolio">
+                <SectionHead index={no("work")} label="Work" meta={`${data.portfolio.length} projects`} />
+                <h2 id="home-portfolio" className="page-section-title">
+                  포트폴리오
+                </h2>
+                <PortfolioCards cards={data.portfolio} />
+              </section>
+            )}
             <section className="page-section inquiry-section" aria-labelledby="home-inquiry">
               <SectionHead index={no("contact")} label="Contact" />
               <h2 id="home-inquiry" className="page-section-title">
@@ -160,8 +140,6 @@ export function HomePage({ data }: { data: HomeData }) {
               <p className="section-lead">프로젝트 문의나 제안을 남겨 주시면 확인 후 답변드립니다.</p>
               <InquiryForm />
             </section>
-          </div>
-        </div>
       </main>
       <SiteFooter>
         {hasContact && (

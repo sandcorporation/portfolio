@@ -51,21 +51,28 @@ export function SiteMeta({ visits }: { visits?: SiteVisits | null }) {
   );
 }
 
+export const FORESIGHT_NAV_URL = "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medium=nav";
+
 const SITE_NAV = [
   { key: "company", href: "/#home-company", label: "회사 소개" },
-  { key: "work", href: "/#home-portfolio", label: "포트폴리오" },
   { key: "blog", href: "/blog", label: "기록" },
+  { key: "foresight", href: FORESIGHT_NAV_URL, label: "Foresight ↗", external: true },
+  { key: "work", href: "/#home-portfolio", label: "포트폴리오" },
   { key: "inquiry", href: "/#home-inquiry", label: "문의" },
 ] as const;
 
 /** The mono row under the masthead; the current item carries the accent square. */
-export function SiteNav({ current }: { current?: (typeof SITE_NAV)[number]["key"] }) {
+export function SiteNav({ current }: { current?: "company" | "blog" | "work" | "inquiry" }) {
   return (
     <nav className="site-nav" aria-label="사이트">
       <ul>
         {SITE_NAV.map((item) => (
           <li key={item.key}>
-            <a href={item.href} aria-current={item.key === current ? "page" : undefined}>
+            <a
+              href={item.href}
+              rel={"external" in item ? "noopener" : undefined}
+              aria-current={item.key === current ? "page" : undefined}
+            >
               {item.label}
             </a>
           </li>

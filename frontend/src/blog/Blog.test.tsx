@@ -103,12 +103,58 @@ test("글이 없거나 뉴스가 비면 그 섹션을 통째로 뺀다", () => {
   expect(screen.getByText(/Contact/)).toHaveTextContent("03 — Contact");
 });
 
-test("머리띠 내비에 「기록」이 있다", () => {
+test("상단 내비는 회사 소개 · 기록 · Foresight ↗ · 포트폴리오 · 문의 순서로 주소를 건다", () => {
   render(<App path="/" data={home()} />);
 
+  const links = within(screen.getByRole("navigation", { name: "사이트" })).getAllByRole("link");
+  expect(links.map((l) => [l.textContent, l.getAttribute("href")])).toEqual([
+    ["회사 소개", "/#home-company"],
+    ["기록", "/blog"],
+    ["Foresight ↗", "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medium=nav"],
+    ["포트폴리오", "/#home-portfolio"],
+    ["문의", "/#home-inquiry"],
+  ]);
+  expect(links[2]).toHaveAttribute("rel", "noopener");
+  expect(links[2]).not.toHaveAttribute("target");
+});
+
+test("홈 섹션은 기록 · Foresight가 포트폴리오보다 위이고 목차 레일이 없다", () => {
+  const data = home({
+    portfolio: [
+      { slug: "voice", title: "녹취 분석", summary: "요약", cover_url: "", tags: [], period: "2025.03" },
+    ],
+  });
+  const { container } = render(<App path="/" data={data} />);
+
+  const h2 = Array.from(container.querySelectorAll("main h2.page-section-title")).map((h) => h.textContent);
+  expect(h2).toEqual([
+    "회사 소개",
+    "대표 소개",
+    "만들면서 남긴 기록",
+    "Foresight · 최근 뉴스",
+    "포트폴리오",
+    "문의·제안",
+  ]);
+  expect(Array.from(container.querySelectorAll(".section-head")).map((e) => e.textContent?.slice(0, 2))).toEqual([
+    "01", "02", "03", "04", "05", "06",
+  ]);
+  expect(container.querySelector(".page-toc")).toBeNull();
+  expect(container.querySelector(".document-toc")).toBeNull();
+  const row = container.querySelector(".link-row") as HTMLElement;
+  expect(Array.from(row.querySelectorAll("a")).map((a) => a.textContent)).toEqual([
+    "회사 소개 →",
+    "기록 →",
+    "포트폴리오 →",
+    "문의 →",
+  ]);
+});
+
+test("기록 화면은 내비의 기록에 현재 표시를 단다", () => {
+  render(<App path="/blog" data={index({ posts: [card("a")], total: 1 })} />);
+
   expect(within(screen.getByRole("navigation", { name: "사이트" })).getByRole("link", { name: "기록" })).toHaveAttribute(
-    "href",
-    "/blog",
+    "aria-current",
+    "page",
   );
 });
 
