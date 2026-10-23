@@ -36,6 +36,7 @@ export function SiteMeta() {
 const SITE_NAV = [
   { key: "company", href: "/#home-company", label: "회사 소개" },
   { key: "work", href: "/#home-portfolio", label: "포트폴리오" },
+  { key: "blog", href: "/blog", label: "기록" },
   { key: "inquiry", href: "/#home-inquiry", label: "문의" },
 ] as const;
 

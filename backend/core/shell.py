@@ -13,6 +13,7 @@ from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import render
+from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import BaseModel
 
@@ -37,6 +38,9 @@ class PageMeta:
     description: str
     robots: str
     image: str = ""
+    og_type: str = "website"
+    # schema.org JSON-LD for search engines; None for pages without one
+    jsonld: Mapping[str, object] | None = None
 
 
 # Proposal pages never leak customer names or amounts into meta or link previews.
@@ -57,10 +61,19 @@ def render_shell(
         "data": data,
         "meta": meta,
         "og_image": request.build_absolute_uri(meta.image) if meta.image else "",
+        "jsonld": _jsonld(meta.jsonld),
         "canonical": request.build_absolute_uri(request.path),
         "assets": entry_assets(),
     }
     return render(request, "core/shell.html", context, status=status)
+
+
+def _jsonld(value: Mapping[str, object] | None) -> str:
+    """The JSON-LD body, safe inside a <script>: `<` and friends can never close the tag."""
+    if value is None:
+        return ""
+    text = json.dumps(value, ensure_ascii=False)
+    return mark_safe(text.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))  # noqa: S308
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -326,6 +339,84 @@ def sitemap_xml(request: HttpRequest) -> HttpResponse:
         f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     )
     return HttpResponse(body, content_type="application/xml; charset=utf-8")
+
+
+def _absolute(request: HttpRequest, path: str) -> str:
+    return request.build_absolute_uri(path)
+
+
+def _publisher() -> dict[str, str]:
+    return {"@type": "Organization", "name": SITE_NAME, "url": settings.SITE_URL}
+
+
+def blog_index(request: HttpRequest) -> HttpResponse:
+    """/blog: the newest-first list, `?tag=` narrows it, `?page=` pages it (20 per page)."""
+    tag = request.GET.get("tag", "").strip()
+    try:
+        page = int(request.GET.get("page", "1"))
+    except ValueError:
+        raise Http404 from None
+    listing = blog.public_listing(tag, page)
+    if listing is None:
+        raise Http404
+    narrowed = bool(tag) or page > 1  # the same posts as /blog: keep them out of the index
+    title = f"{tag} · {BLOG_TITLE}" if tag else BLOG_TITLE
+    return render_shell(
+        request,
+        PageMeta(
+            title=f"{title} | {SITE_NAME}",
+            description=BLOG_DESCRIPTION,
+            robots="noindex, follow" if narrowed else INDEX,
+            jsonld={
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                "name": BLOG_TITLE,
+                "description": BLOG_DESCRIPTION,
+                "url": _absolute(request, "/blog"),
+                "inLanguage": "ko",
+                "isPartOf": {
+                    "@type": "Blog",
+                    "name": BLOG_TITLE,
+                    "url": _absolute(request, "/blog"),
+                },
+                "publisher": _publisher(),
+            },
+        ),
+        data=listing,
+    )
+
+
+def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
+    detail = blog.public_detail(slug)
+    if detail is None:
+        raise Http404
+    card = detail["card"]
+    description = card["summary"] or BLOG_DESCRIPTION
+    return render_shell(
+        request,
+        PageMeta(
+            title=f"{card['title']} | {SITE_NAME}",
+            description=description,
+            robots=INDEX,
+            image=card["cover_url"],
+            og_type="article",
+            jsonld={
+                "@context": "https://schema.org",
+                "@type": "BlogPosting",
+                "headline": card["title"],
+                "description": description,
+                "datePublished": card["published_at"],
+                "url": _absolute(request, f"/blog/{slug}"),
+                "mainEntityOfPage": _absolute(request, f"/blog/{slug}"),
+                "inLanguage": "ko",
+                "keywords": ", ".join(card["tags"]),
+                "author": _publisher(),
+                "publisher": _publisher(),
+                **({"image": card["cover_url"]} if card["cover_url"] else {}),
+            },
+        ),
+        data=detail,
+    )
 
 
 BLOG_TITLE = f"{SITE_NAME} 기록"

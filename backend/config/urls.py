@@ -32,6 +32,8 @@ urlpatterns = [
     path("robots.txt", shell.robots_txt),
     path("sitemap.xml", shell.sitemap_xml),
     path("blog/feed.xml", shell.blog_feed, name="blog_feed"),
+    path("blog", shell.blog_index, name="blog_index"),
+    path("blog/<slug:slug>", shell.blog_post, name="blog_post"),
     path("p/<slug:slug>", shell.proposal, name="proposal"),
     path("p/<slug:slug>/lock", shell.proposal_lock, name="proposal_lock"),
     path("p/<slug:slug>/media/<int:media_id>", shell.proposal_media, name="proposal_media"),

@@ -6,6 +6,8 @@ import type { HomeData } from "./home/types";
 const home: HomeData = {
   tagline: "",
   stack: [],
+  posts: [],
+  news: [],
   company_intro: exampleDocument,
   ceo_intro: {
     tabs: [

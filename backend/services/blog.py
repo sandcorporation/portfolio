@@ -380,6 +380,39 @@ def public_tags() -> list[TagCount]:
     ]
 
 
+PAGE_SIZE = 20
+
+
+class PostListing(TypedDict):
+    """For /blog (#75): one page of the newest-first list, the tags to filter by and which one is
+    on. Mirrored by frontend/src/blog/types.ts."""
+
+    posts: list[PostCard]
+    tags: list[TagCount]
+    tag: str  # "" for all posts
+    page: int  # 1-based
+    pages: int  # at least 1 (an empty list is one empty page)
+    total: int
+
+
+def public_listing(tag: str = "", page: int = 1, per_page: int = PAGE_SIZE) -> PostListing | None:
+    """One page of the public list; None when `page` is past the last one (or below 1)."""
+    tag = tag.strip()
+    cards = public_cards(tag=tag)
+    pages = max(1, -(-len(cards) // per_page))
+    if not 1 <= page <= pages:
+        return None
+    start = (page - 1) * per_page
+    return PostListing(
+        posts=cards[start : start + per_page],
+        tags=public_tags(),
+        tag=tag,
+        page=page,
+        pages=pages,
+        total=len(cards),
+    )
+
+
 @dataclass(frozen=True)
 class FeedItem:
     slug: str

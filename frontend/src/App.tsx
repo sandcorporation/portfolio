@@ -1,3 +1,6 @@
+import { BlogIndexPage } from "./blog/BlogIndexPage";
+import { BlogPostPage } from "./blog/BlogPostPage";
+import { isBlogIndexData, isBlogPostData } from "./blog/types";
 import { HomePage } from "./home/HomePage";
 import { isHomeData } from "./home/types";
 import { ProposalCodeScreen, ProposalExpiredScreen } from "./proposal/ProposalGate";
@@ -10,6 +13,8 @@ import { isWorkData } from "./work/types";
 /** Picks the page for the current path. `data` is the shell's #page-data. */
 export function App({ path, data }: { path: string; data: unknown }) {
   if (path === "/" && isHomeData(data)) return <HomePage data={data} />;
+  if (path === "/blog" && isBlogIndexData(data)) return <BlogIndexPage data={data} />;
+  if (path.startsWith("/blog/") && isBlogPostData(data)) return <BlogPostPage data={data} />;
   if (path.startsWith("/work/") && isWorkData(data)) return <WorkPage data={data} />;
   if (path.startsWith("/p/")) {
     if (isCodeScreen(data)) return <ProposalCodeScreen data={data} action={path} />;
