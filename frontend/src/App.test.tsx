@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import { App } from "./App";
 import { exampleDocument } from "./blocks/testing";
@@ -121,7 +123,7 @@ test("홈 문의 섹션은 왼쪽 소개·연락처, 오른쪽 폼의 두 단이
     "mailto:hello@sandcorp.co.kr",
   );
   expect(within(intro).getByRole("link", { name: "GitHub" })).toHaveAttribute("href", expect.stringContaining("github.com"));
-  expect(within(intro).queryByRole("button")).toBeNull();
+  expect(within(intro).getAllByRole("button").map((b) => b.textContent)).toEqual(["주소 복사"]);
   expect(within(body).getByRole("button", { name: "보내기" })).toBeInTheDocument();
 });
 
@@ -131,5 +133,64 @@ test("연락 이메일이 없으면 왼쪽 단에 이메일 블록을 그리지 
   );
 
   expect(container.querySelector(".inquiry-intro .inquiry-email")).toBeNull();
+  expect(container.querySelector(".inquiry-intro button")).toBeNull();
   expect(container.querySelector(".inquiry-body form")).not.toBeNull();
+});
+
+test("히어로 왼쪽 소개 문장과 문의 응답 약속 문구가 이슈 문구 그대로다", () => {
+  render(<App path="/" data={home} />);
+
+  expect(
+    screen.getByText(
+      "웹·모바일 서비스를 기획부터 설계·개발·배포·운영까지 한 번에 맡는 1인 개발사. 재하청 없이 대표가 직접 합니다.",
+    ),
+  ).toHaveClass("hero-lead");
+  expect(screen.getByText("프로젝트 문의나 제안을 남겨 주시면 영업일 1일 안에 답합니다.")).toBeInTheDocument();
+});
+
+const availability = { text: "새 프로젝트 받는 중", updated: "2026.10" };
+
+test("머리띠는 방문 지표 바로 뒤에 점·가용 상태·갱신 월을 보인다", () => {
+  const visits = { live: 3, today: 12, total: 345 };
+  render(<App path="/" data={{ ...home, visits, availability }} />);
+
+  const meta = document.querySelector(".masthead-meta") as HTMLElement;
+  const badge = meta.querySelector(".availability") as HTMLElement;
+  expect(badge).toHaveTextContent("● 새 프로젝트 받는 중 · 갱신 2026.10");
+  expect(meta.querySelector(".visit-counts")?.nextElementSibling).toBe(badge);
+  expect(badge.querySelector(".availability-dot")).toHaveAttribute("aria-hidden", "true");
+  expect(badge.querySelector(".availability-updated")).toHaveTextContent("갱신 2026.10");
+});
+
+test("가용 상태가 없거나 비면 아무 자리도 만들지 않고, 날짜가 없으면 갱신 표시도 없다", () => {
+  const { unmount } = render(<App path="/" data={{ ...home, availability: null }} />);
+  expect(document.querySelector(".availability")).toBeNull();
+  unmount();
+
+  const { unmount: second } = render(<App path="/" data={{ ...home, availability: { text: "", updated: "" } }} />);
+  expect(document.querySelector(".availability")).toBeNull();
+  second();
+
+  render(<App path="/" data={{ ...home, availability: { text: "새 프로젝트 받는 중", updated: "" } }} />);
+  expect(document.querySelector(".availability")).toHaveTextContent(/^● 새 프로젝트 받는 중$/);
+  expect(document.querySelector(".availability-updated")).toBeNull();
+});
+
+test("목록·상세 같은 다른 공개 페이지의 머리띠에도 보인다", () => {
+  const blog = { posts: [], tags: [], tag: "", page: 1, pages: 1, total: 0, availability };
+  const { unmount } = render(<App path="/blog" data={blog} />);
+  expect(document.querySelector(".masthead .availability")).toHaveTextContent("새 프로젝트 받는 중");
+  unmount();
+
+  render(<App path="/work/voice" data={{ card: home.portfolio[0], body: exampleDocument, service_url: "", availability }} />);
+  expect(document.querySelector(".masthead .availability")).toHaveTextContent("갱신 2026.10");
+});
+
+test("좁은 화면에서는 갱신 월을 숨겨 한 줄을 지키고 새 색은 쓰지 않는다", () => {
+  const css = readFileSync(resolve(__dirname, "styles.css"), "utf8");
+  const narrow = css.slice(css.indexOf("@media (max-width: 767px)"));
+  const block = narrow.slice(0, narrow.indexOf("/* ---- page layout ---- */"));
+
+  expect(block).toMatch(/\.availability-updated\s*{\s*display:\s*none;/);
+  expect(css).toMatch(/\.availability-dot\s*{\s*color:\s*var\(--color-accent\);/);
 });

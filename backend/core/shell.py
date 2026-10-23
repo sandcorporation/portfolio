@@ -23,7 +23,7 @@ from core.vite import entry_assets
 from services import blog, media, pdf, proposals, publishing
 from services import proposal_access as access
 from services import proposal_events as events
-from services.home import home_page
+from services.home import home_page, site_availability
 from services.portfolio import public_detail, public_slugs
 
 SITE_NAME = "Sandcorp"
@@ -321,7 +321,7 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
             robots=INDEX,
             image=card["cover_url"],
         ),
-        data=detail,
+        data={**detail, "availability": site_availability()},
         count_visit=True,
     )
 
@@ -391,7 +391,7 @@ def blog_index(request: HttpRequest) -> HttpResponse:
                 "publisher": _publisher(),
             },
         ),
-        data=listing,
+        data={**listing, "availability": site_availability()},
         count_visit=True,
     )
 
@@ -425,7 +425,7 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
                 **({"image": card["cover_url"]} if card["cover_url"] else {}),
             },
         ),
-        data=detail,
+        data={**detail, "availability": site_availability()},
         count_visit=True,
     )
 

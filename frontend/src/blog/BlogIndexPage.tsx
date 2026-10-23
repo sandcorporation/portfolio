@@ -8,7 +8,7 @@ export function BlogIndexPage({ data }: { data: BlogIndexData }) {
   return (
     <>
       <Masthead>
-        <SiteMeta />
+        <SiteMeta availability={data.availability} />
       </Masthead>
       <SiteNav current="blog" />
       <main className="page blog-index">

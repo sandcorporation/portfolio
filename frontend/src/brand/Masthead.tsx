@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { SiteVisits } from "../home/types";
+import type { Availability, SiteVisits } from "../home/types";
 import { Wordmark } from "./Logo";
 
 export const GITHUB_URL = "https://github.com/sandcorporation";
@@ -38,11 +38,33 @@ export function VisitCounts({ visits }: { visits: SiteVisits }) {
   );
 }
 
-/** The site meta on the right of the masthead (home and work pages). */
-export function SiteMeta({ visits }: { visits?: SiteVisits | null }) {
+/** 「● 새 프로젝트 받는 중 · 갱신 2026.10」: the accent dot, the profile's text, its month. */
+export function AvailabilityBadge({ availability }: { availability: Availability }) {
+  return (
+    <span className="availability">
+      <span className="availability-dot" aria-hidden="true">
+        ●
+      </span>{" "}
+      {availability.text}
+      {availability.updated && (
+        <span className="availability-updated"> · 갱신 {availability.updated}</span>
+      )}
+    </span>
+  );
+}
+
+/** The site meta on the right of the masthead (every public page). */
+export function SiteMeta({
+  visits,
+  availability,
+}: {
+  visits?: SiteVisits | null;
+  availability?: Availability | null;
+}) {
   return (
     <p className="masthead-meta">
       {visits && <VisitCounts visits={visits} />}
+      {availability && availability.text && <AvailabilityBadge availability={availability} />}
       <span>sandcorp.co.kr</span>
       <a href={GITHUB_URL} rel="noopener">
         GitHub

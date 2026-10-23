@@ -1,4 +1,5 @@
 import type { Document } from "../blocks/types";
+import type { Availability } from "../home/types";
 
 /** One post in a list. Mirrors PostCard in backend/services/blog.py. */
 export interface PostCard {
@@ -25,6 +26,7 @@ export interface BlogIndexData {
   page: number;
   pages: number;
   total: number;
+  availability?: Availability | null;
 }
 
 export interface PostNeighbor {
@@ -39,6 +41,7 @@ export interface BlogPostData {
   body: Document;
   prev: PostNeighbor | null;
   next: PostNeighbor | null;
+  availability?: Availability | null;
 }
 
 export function isBlogIndexData(value: unknown): value is BlogIndexData {

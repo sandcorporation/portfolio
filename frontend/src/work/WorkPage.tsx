@@ -8,7 +8,7 @@ export function WorkPage({ data }: { data: WorkData }) {
   return (
     <>
       <Masthead>
-        <SiteMeta />
+        <SiteMeta availability={data.availability} />
       </Masthead>
       <SiteNav current="work" />
       <main className="page work">

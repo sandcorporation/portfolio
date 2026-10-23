@@ -342,6 +342,28 @@ def test_profile_update_reaches_the_home_page(door: Door, client: Client) -> Non
     assert door.update_profile({"address": "서울"}).data["tagline"] == "웹을 만듭니다"
 
 
+def test_availability_is_read_and_written_through_every_door(door: Door, client: Client) -> None:
+    before = door.get_profile().data
+    assert before["availability"] == "" and before["availability_updated_on"] is None
+    assert page_data(client.get("/").content.decode())["availability"] is None
+
+    given = door.update_profile(
+        {"availability": "새 프로젝트 받는 중", "availability_updated_on": "2026-09-30"}
+    )
+
+    assert given.ok, given.error
+    assert given.data["availability"] == "새 프로젝트 받는 중"
+    assert given.data["availability_updated_on"] == "2026-09-30"
+    assert page_data(client.get("/").content.decode())["availability"] == {
+        "text": "새 프로젝트 받는 중",
+        "updated": "2026.09",
+    }
+    # other fields do not touch it; "" hides it
+    assert door.update_profile({"address": "서울"}).data["availability"] == "새 프로젝트 받는 중"
+    assert door.update_profile({"availability": ""}).ok
+    assert page_data(client.get("/").content.decode())["availability"] is None
+
+
 def test_invalid_profile_input_saves_nothing(door: Door) -> None:
     door.update_profile({"tagline": "before"})
 

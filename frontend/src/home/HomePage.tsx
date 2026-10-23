@@ -2,6 +2,7 @@ import { GITHUB_URL, Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Ma
 import { DocumentView } from "../blocks/DocumentView";
 import { PostRows } from "../blog/PostRows";
 import { PortfolioCards } from "../work/PortfolioCards";
+import { InquiryEmail } from "./InquiryEmail";
 import { InquiryForm } from "./InquiryForm";
 import { NewsRows } from "./NewsRows";
 import type { HomeData } from "./types";
@@ -29,6 +30,10 @@ function SectionHead({
   );
 }
 
+/** The hero's left sentence; kept in code with GITHUB_URL until the profile carries it. */
+const HERO_LEAD =
+  "웹·모바일 서비스를 기획부터 설계·개발·배포·운영까지 한 번에 맡는 1인 개발사. 재하청 없이 대표가 직접 합니다.";
+
 const FORESIGHT_URL = "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medium=home";
 
 export function HomePage({ data }: { data: HomeData }) {
@@ -53,7 +58,7 @@ export function HomePage({ data }: { data: HomeData }) {
   return (
     <>
       <Masthead>
-        <SiteMeta visits={data.visits} />
+        <SiteMeta visits={data.visits} availability={data.availability} />
       </Masthead>
       <SiteNav />
       <main className="page home">
@@ -64,8 +69,7 @@ export function HomePage({ data }: { data: HomeData }) {
           <div className="accent-rule" aria-hidden="true" />
           <div className="hero-grid">
             <p className="hero-lead">
-              웹·모바일 서비스를 기획부터 설계·개발·배포·운영까지 한 번에 맡습니다. 만든 사람이
-              운영까지 책임집니다.
+              {HERO_LEAD}
             </p>
             {data.tagline && <p className="hero-claim">{data.tagline}</p>}
           </div>
@@ -139,13 +143,8 @@ export function HomePage({ data }: { data: HomeData }) {
                   <h2 id="home-inquiry" className="page-section-title">
                     문의·제안
                   </h2>
-                  <p className="inquiry-lead">프로젝트 문의나 제안을 남겨 주시면 확인 후 답변드립니다.</p>
-                  {contact.email && (
-                    <div className="inquiry-email">
-                      <p className="inquiry-email-label">이메일</p>
-                      <a href={`mailto:${contact.email}`}>{contact.email}</a>
-                    </div>
-                  )}
+                  <p className="inquiry-lead">프로젝트 문의나 제안을 남겨 주시면 영업일 1일 안에 답합니다.</p>
+                  <InquiryEmail email={contact.email} />
                   <p className="inquiry-links">
                     <a href={GITHUB_URL} rel="noopener">
                       GitHub

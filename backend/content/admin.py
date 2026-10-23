@@ -46,6 +46,8 @@ class SiteProfileAdmin(_ProfileAdmin):
         "contact_email",
         "contact_phone",
         "address",
+        "availability",
+        "availability_updated_on",
         "github",
     )
 

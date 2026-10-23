@@ -169,6 +169,18 @@ class SiteProfile(models.Model):
         blank=True,
         help_text="personal_intro, stack_badges, public_projects, contact_note (JSON).",
     )
+    availability = models.CharField(
+        "가용 상태",
+        max_length=60,
+        blank=True,
+        help_text="머리띠에 점과 함께 보인다(예: 새 프로젝트 받는 중). 비우면 숨긴다.",
+    )
+    availability_updated_on = models.DateField(
+        "가용 상태 갱신일",
+        null=True,
+        blank=True,
+        help_text="머리띠에 「갱신 YYYY.MM」으로 보인다. 비우고 저장하면 오늘로 채운다.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -184,6 +196,8 @@ class SiteProfile(models.Model):
         for name in self.DOCUMENT_FIELDS:
             setattr(self, name, stored_document(getattr(self, name)))
         self.github = stored_github(self.github)
+        if self.availability and self.availability_updated_on is None:
+            self.availability_updated_on = timezone.localdate()
         super().save(**kwargs)
 
     @classmethod

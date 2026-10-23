@@ -24,6 +24,13 @@ export interface SiteVisits {
   total: number;
 }
 
+/** The masthead's availability. Mirrors Availability in backend/services/home.py. */
+export interface Availability {
+  text: string;
+  /** "YYYY.MM"; "" without a date. */
+  updated: string;
+}
+
 export interface HomeData {
   tagline: string;
   /** The GitHub profile's stack badges: the hero's tag line. */
@@ -37,6 +44,8 @@ export interface HomeData {
   news: NewsItem[];
   /** All sites together (sandcorp-metrics); null/absent leaves the masthead without numbers. */
   visits?: SiteVisits | null;
+  /** The profile's availability; null/absent leaves it out of the masthead. */
+  availability?: Availability | null;
   contact: { email: string; phone: string; address: string };
 }
 

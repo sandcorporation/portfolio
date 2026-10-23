@@ -10,7 +10,7 @@ export function BlogPostPage({ data }: { data: BlogPostData }) {
   return (
     <>
       <Masthead>
-        <SiteMeta />
+        <SiteMeta availability={data.availability} />
       </Masthead>
       <SiteNav current="blog" />
       <main className="page work post">

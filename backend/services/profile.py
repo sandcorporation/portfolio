@@ -1,5 +1,7 @@
 """The site profile (what the home page shows): read and patch. Only given fields change."""
 
+from datetime import date
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,6 +21,8 @@ class Profile(BaseModel):
     contact_email: str
     contact_phone: str
     address: str
+    availability: str
+    availability_updated_on: date | None
     github: GithubProfile
 
 
@@ -39,6 +43,21 @@ class ProfilePatch(BaseModel):
     contact_email: str = Field(default="", max_length=254)
     contact_phone: str = Field(default="", max_length=40)
     address: str = Field(default="", max_length=200)
+    availability: str = Field(
+        default="",
+        max_length=60,
+        description=(
+            "Availability shown in the masthead of every public page, e.g. 새 프로젝트 받는 중. "
+            '"" hides it.'
+        ),
+    )
+    availability_updated_on: date | None = Field(
+        default=None,
+        description=(
+            "Date (YYYY-MM-DD) of the availability, shown as 갱신 YYYY.MM. null (or left out "
+            "while empty) is filled with today when availability is saved."
+        ),
+    )
     github: GithubProfile = Field(
         default_factory=GithubProfile,
         description=(
@@ -57,6 +76,8 @@ def _profile_of(row: SiteProfile) -> Profile:
         contact_email=row.contact_email,
         contact_phone=row.contact_phone,
         address=row.address,
+        availability=row.availability,
+        availability_updated_on=row.availability_updated_on,
         github=GithubProfile.model_validate(row.github or {}),
     )
 

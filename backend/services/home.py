@@ -49,6 +49,13 @@ class SiteVisits(TypedDict):
     total: int  # visitors since the count began
 
 
+class Availability(TypedDict):
+    """The masthead's 「● 새 프로젝트 받는 중 · 갱신 2026.10」; `updated` is "" without a date."""
+
+    text: str
+    updated: str  # YYYY.MM
+
+
 class HomeData(TypedDict):
     """Embedded in the shell as #page-data. Mirrored by frontend/src/home/types.ts."""
 
@@ -61,6 +68,7 @@ class HomeData(TypedDict):
     posts: list[blog.PostCard]  # newest published blog posts; empty hides the section
     news: list[NewsItem]  # newest Foresight articles; empty hides the section
     visits: SiteVisits | None  # None (metrics off or down) leaves the masthead's counts out
+    availability: Availability | None  # None (empty profile field) leaves it out
 
 
 def relative_time(then: datetime, now: datetime) -> str:
@@ -109,6 +117,19 @@ def site_visits(stats: Stats | None) -> SiteVisits | None:
     return SiteVisits(live=t.live_visitors, today=t.today_visitors, total=t.total_visitors)
 
 
+def availability_of(profile: SiteProfile) -> Availability | None:
+    text = profile.availability.strip()
+    if not text:
+        return None
+    day = profile.availability_updated_on
+    return Availability(text=text, updated=day.strftime("%Y.%m") if day else "")
+
+
+def site_availability() -> Availability | None:
+    """The masthead's availability for any public page (reading never creates the row)."""
+    return availability_of(SiteProfile.objects.filter(pk=1).first() or SiteProfile())
+
+
 def stack_of(github: object) -> list[str]:
     badges = github.get("stack_badges") if isinstance(github, dict) else None
     return [b for b in badges if isinstance(b, str)] if isinstance(badges, list) else []
@@ -140,6 +161,7 @@ def home_page() -> HomePage:
             posts=recent_posts(),
             news=recent_news(),
             visits=site_visits(stats),
+            availability=availability_of(profile),
         ),
     )
 
