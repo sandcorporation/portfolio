@@ -2,6 +2,7 @@
 
 import re
 import time
+import unicodedata
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -406,3 +407,145 @@ def test_a_published_revision_carries_only_sanitized_html() -> None:
 
     assert served == frozen["tabs"][0]["blocks"][0]["html"]
     assert "<script" not in served and "onclick" not in served and "javascript:" not in served
+
+
+# --- chosen access codes (#67) ---
+
+
+def test_a_chosen_hangul_code_opens_the_customer_page_and_is_stored_hashed() -> None:
+    p = make_draft()
+
+    result = publishing.publish(p.slug, "  가나다상사-2026 ")
+
+    assert result.access_code == "가나다상사-2026"
+    stored = Proposal.objects.get(slug=p.slug)
+    assert "가나다상사" not in stored.access_code_hash
+    client = HttpClient()
+    assert unlock(client, p.slug, " 가나다상사-2026").status_code == 302
+    assert "title" in screen(client, p.slug)
+    # A decomposed (NFD) Hangul string, as a Mac sends it, is the same code.
+    assert (
+        unlock(HttpClient(), p.slug, unicodedata.normalize("NFD", "가나다상사-2026")).status_code
+        == 302
+    )
+    assert unlock(HttpClient(), p.slug, "가나다상사-2027").status_code == 400
+
+
+def test_an_empty_choice_still_generates_the_eight_character_code() -> None:
+    slug = make_draft().slug
+    first = publishing.publish(slug, "   ").access_code
+    assert first is not None and CODE.match(first)
+    for empty in (None, "", "   "):
+        code = publishing.reissue_access_code(slug, empty).access_code
+        assert CODE.match(code)
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "abc",
+        "x" * 33,
+        "1111",
+        "ㅋㅋㅋㅋㅋ",
+        "1234",
+        "abcd",
+        "9876",
+        "ABCD",
+        "password",
+        "Admin",
+        "0000",
+        "test",
+        "my\tcode",
+        "코드!!!!",
+        "a b\nc d",
+    ],
+)
+def test_rule_breaking_codes_are_refused_without_echoing_them(bad: str) -> None:
+    p = make_draft()
+    with pytest.raises(publishing.InvalidAccessCode) as raised:
+        publishing.publish(p.slug, bad)
+    assert bad not in str(raised.value)
+    assert not Proposal.objects.get(slug=p.slug).revisions.exists()  # nothing was published
+
+
+def test_the_slug_and_the_client_code_are_not_allowed_as_a_code() -> None:
+    p = make_draft()
+    with pytest.raises(publishing.InvalidAccessCode):
+        publishing.publish(p.slug, p.slug.upper())
+    with pytest.raises(publishing.InvalidAccessCode):
+        publishing.publish(p.slug, "next")  # the client code of make_draft
+
+
+def test_a_proposal_that_has_a_code_refuses_another_one_at_publish() -> None:
+    slug, _ = published()
+    with pytest.raises(Conflict):
+        publishing.publish(slug, "우리만의-코드")
+
+
+def test_reissuing_with_a_chosen_code_rejects_the_old_one_and_ends_sessions() -> None:
+    slug, old_code = published()
+    client = HttpClient()
+    unlock(client, slug, old_code)
+
+    issued = publishing.reissue_access_code(slug, "에이크미 제안 2026")
+
+    assert issued.access_code == "에이크미 제안 2026"
+    assert screen(client, slug)["screen"] == "code"
+    assert unlock(HttpClient(), slug, old_code).status_code == 400
+    assert unlock(HttpClient(), slug, "에이크미 제안 2026").status_code == 302
+    with pytest.raises(publishing.InvalidAccessCode):
+        publishing.reissue_access_code(slug, "1111")
+    assert unlock(HttpClient(), slug, "에이크미 제안 2026").status_code == 302  # unchanged
+
+
+def test_a_generated_code_still_opens_loosely_typed() -> None:
+    slug, code = published()
+    loose = f"{code[:4].lower()}-{code[4:].lower()} "
+    assert unlock(HttpClient(), slug, loose).status_code == 302
+
+
+def test_admin_chooses_the_code_for_publish_and_reissue(admin_client: HttpClient) -> None:
+    p = make_draft()
+    pk = Proposal.objects.get(slug=p.slug).pk
+
+    form = admin_client.post(
+        changelist(), {"action": "publish_with_code", "_selected_action": [pk]}
+    )
+    assert form.status_code == 200 and f'name="code_{pk}"' in form.content.decode()
+
+    bad = admin_client.post(
+        changelist(),
+        {
+            "action": "publish_with_code",
+            "_selected_action": [pk],
+            "apply": "1",
+            f"code_{pk}": "1234",
+        },
+    )
+    assert "너무 쉽습니다" in bad.content.decode()
+    assert not Proposal.objects.get(slug=p.slug).revisions.exists()
+
+    ok = admin_client.post(
+        changelist(),
+        {
+            "action": "publish_with_code",
+            "_selected_action": [pk],
+            "apply": "1",
+            f"code_{pk}": "가나다상사-2026",
+        },
+    )
+    assert "<code" in ok.content.decode() and "가나다상사-2026" in ok.content.decode()
+    assert unlock(HttpClient(), p.slug, "가나다상사-2026").status_code == 302
+
+    again = admin_client.post(
+        changelist(),
+        {
+            "action": "reissue_with_code",
+            "_selected_action": [pk],
+            "apply": "1",
+            f"code_{pk}": "새 코드 2027",
+        },
+    )
+    assert "새 코드 2027" in again.content.decode()
+    assert unlock(HttpClient(), p.slug, "가나다상사-2026").status_code == 400
+    assert unlock(HttpClient(), p.slug, "새 코드 2027").status_code == 302

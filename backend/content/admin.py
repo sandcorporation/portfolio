@@ -299,7 +299,14 @@ class ProposalAdmin(_ProposalAdmin):
     )
     readonly_fields = ("status", "slug", "preview_link")
     inlines = (RevisionInline, EventInline)
-    actions = ("publish", "reissue_code", "revoke", "duplicate")
+    actions = (
+        "publish",
+        "publish_with_code",
+        "reissue_code",
+        "reissue_with_code",
+        "revoke",
+        "duplicate",
+    )
 
     def get_readonly_fields(
         self, request: HttpRequest, obj: Proposal | None = None
@@ -383,6 +390,63 @@ class ProposalAdmin(_ProposalAdmin):
         for p in queryset:
             try:
                 issued = publishing.reissue_access_code(p.slug)
+            except ServiceError as exc:
+                failed.append(f"{p.title}: {exc}")
+                continue
+            done.append(f"{p.title}: 접근 코드를 새로 만들었습니다")
+            codes.append({"title": p.title, "url": f"/p/{p.slug}", "code": issued.access_code})
+        return self._codes_page(request, "접근 코드 재발급", done, failed, codes)
+
+    def _ask_codes(
+        self, request: HttpRequest, queryset: QuerySet[Proposal], action: str, title: str
+    ) -> HttpResponse:
+        """The step before: one optional code field per selected proposal (empty = generated)."""
+        context = {
+            **self.admin_site.each_context(request),
+            "title": title,
+            "action": action,
+            "proposals": list(queryset),
+            "back_url": reverse("admin:content_proposal_changelist"),
+        }
+        response = TemplateResponse(request, "admin/proposal_choose_codes.html", context)
+        response["Cache-Control"] = "no-store"
+        return response
+
+    @admin.action(description="발행 (접근 코드 직접 정하기)")
+    def publish_with_code(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> HttpResponse:
+        if "apply" not in request.POST:
+            return self._ask_codes(
+                request, queryset, "publish_with_code", "발행 — 접근 코드 정하기"
+            )
+        done: list[str] = []
+        failed: list[str] = []
+        codes: list[dict[str, str]] = []
+        for p in queryset:
+            try:
+                result = publishing.publish(p.slug, request.POST.get(f"code_{p.pk}", ""))
+            except ServiceError as exc:
+                failed.append(f"{p.title}: {exc}")
+                continue
+            r = result.revision
+            done.append(f"{p.title}: v{r.number} {r.doc_number} 발행")
+            if result.access_code:
+                codes.append({"title": p.title, "url": f"/p/{p.slug}", "code": result.access_code})
+        return self._codes_page(request, "발행", done, failed, codes)
+
+    @admin.action(description="접근 코드 재발급 (직접 정하기, 기존 세션 끊김)")
+    def reissue_with_code(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> HttpResponse:
+        if "apply" not in request.POST:
+            return self._ask_codes(
+                request, queryset, "reissue_with_code", "접근 코드 재발급 — 코드 정하기"
+            )
+        done: list[str] = []
+        failed: list[str] = []
+        codes: list[dict[str, str]] = []
+        for p in queryset:
+            try:
+                issued = publishing.reissue_access_code(
+                    p.slug, request.POST.get(f"code_{p.pk}", "")
+                )
             except ServiceError as exc:
                 failed.append(f"{p.title}: {exc}")
                 continue

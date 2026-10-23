@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block content %}
+<p>고객에게 매력적으로 보일 코드를 직접 정할 수 있습니다. 비워 두면 8자로 자동 만듭니다.</p>
+<p>4~32자, 글자(한글 가능)·숫자·하이픈·밑줄·공백. 같은 문자 반복(1111), 연속 숫자·글자(1234, abcd), 흔한 값(password, 0000, admin, test), 제안서 주소·고객 코드와 같은 값은 거절합니다.</p>
+<form method="post" action="{{ back_url }}" autocomplete="off">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="apply" value="1">
+  <table>
+    <thead><tr><th>제안서</th><th>주소</th><th>접근 코드(선택)</th></tr></thead>
+    <tbody>
+    {% for p in proposals %}
+      <tr>
+        <td>{{ p.title }}<input type="hidden" name="_selected_action" value="{{ p.pk }}"></td>
+        <td>/p/{{ p.slug }}</td>
+        <td><input type="text" name="code_{{ p.pk }}" maxlength="40" autocomplete="off" spellcheck="false"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p><input type="submit" value="실행" class="default"> <a href="{{ back_url }}">취소</a></p>
+</form>
+{% endblock %}

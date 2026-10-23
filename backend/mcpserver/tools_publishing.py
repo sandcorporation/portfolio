@@ -14,6 +14,21 @@ CODE_NOTE = (
 )
 
 
+CHOOSE_NOTE = (
+    " Optional access_code: a code you choose for the customer (4-32 characters; letters in any "
+    "language such as Korean, digits, hyphen, underscore, spaces; no same-character repeats, "
+    "runs like 1234 or abcd, common values like password/0000/admin/test, or the proposal slug "
+    "or client code). Leave it out to get a generated 8-character code."
+)
+
+
+class PublishInput(SlugInput):
+    access_code: str | None = Field(
+        default=None,
+        description="Your own access code (4-32 characters); empty to generate one.",
+    )
+
+
 class RevisionInput(SlugInput):
     number: int = Field(description="Revision number; see list_revisions.")
 
@@ -44,24 +59,24 @@ class EventsInput(SlugInput):
     "Publish a proposal",
     "Freeze the working draft as the next revision (v1, v2, ...) and show it to the customer at "
     "/p/<slug> now; a PDF is made in the background. The first publication returns access_code "
-    "once; later ones return null (the customer keeps theirs)." + CODE_NOTE,
-    SlugInput,
+    "once; later ones return null (the customer keeps theirs)." + CODE_NOTE + CHOOSE_NOTE,
+    PublishInput,
     read_only=False,
 )
-def publish(token: AccessToken, args: SlugInput) -> ToolResult:
-    return one(lambda: publishing.publish(args.slug))
+def publish(token: AccessToken, args: PublishInput) -> ToolResult:
+    return one(lambda: publishing.publish(args.slug, args.access_code))
 
 
 @tool(
     "reissue_access_code",
     "Reissue the access code",
     "Replace the customer's access code (the old one stops working). Use when it was lost or "
-    "leaked." + CODE_NOTE,
-    SlugInput,
+    "leaked." + CODE_NOTE + CHOOSE_NOTE,
+    PublishInput,
     read_only=False,
 )
-def reissue_access_code(token: AccessToken, args: SlugInput) -> ToolResult:
-    return one(lambda: publishing.reissue_access_code(args.slug))
+def reissue_access_code(token: AccessToken, args: PublishInput) -> ToolResult:
+    return one(lambda: publishing.reissue_access_code(args.slug, args.access_code))
 
 
 @tool(

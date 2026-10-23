@@ -28,7 +28,7 @@ export function ProposalCodeScreen({ data, action }: { data: CodeScreenData; act
   return (
     <GateShell>
       <h1 id="gate-title">제안서 열기</h1>
-      <p className="gate-lead">전달받은 8자리 접근 코드를 입력해 주세요.</p>
+      <p className="gate-lead">전달받은 접근 코드를 입력해 주세요.</p>
       <form className="gate-form" method="post" action={action} aria-labelledby="gate-title">
         <input type="hidden" name="csrfmiddlewaretoken" value={data.csrf_token} />
         <label>
@@ -38,10 +38,10 @@ export function ProposalCodeScreen({ data, action }: { data: CodeScreenData; act
             required
             autoFocus
             autoComplete="off"
-            autoCapitalize="characters"
+            autoCapitalize="none"
             spellCheck={false}
-            maxLength={12}
-            placeholder="예: ABCD2345"
+            maxLength={32}
+            placeholder="접근 코드"
             aria-invalid={data.error ? true : undefined}
             aria-describedby={data.error ? "gate-error" : undefined}
           />

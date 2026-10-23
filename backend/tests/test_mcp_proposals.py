@@ -233,3 +233,20 @@ def test_deleting_a_cta_target_is_refused_with_the_cta_path(mcp: McpClient) -> N
     assert text.startswith("저장하지 않았습니다") and "items[0].target.tab_id" in text
     assert ok(mcp, "delete_block", {"slug": slug, "block_id": "go"})
     assert ok(mcp, "delete_tab", {"slug": slug, "tab_id": "extra"})
+
+
+def test_publish_and_reissue_take_a_chosen_access_code(mcp: McpClient) -> None:
+    slug = new_proposal(mcp)["slug"]
+
+    assert "1234" not in refused(mcp, "publish", {"slug": slug, "access_code": "1234"})
+    assert "access_code" in refused(mcp, "publish", {"slug": slug, "access_code": "1234"})
+    assert ok(mcp, "list_revisions", {"slug": slug})["items"] == []  # nothing was published
+
+    published = ok(mcp, "publish", {"slug": slug, "access_code": "가나다상사-2026"})
+    assert published["access_code"] == "가나다상사-2026"
+    assert Proposal.objects.get(slug=slug).access_code_hash
+
+    reissued = ok(mcp, "reissue_access_code", {"slug": slug, "access_code": "새 코드 2027"})
+    assert reissued["access_code"] == "새 코드 2027"
+    auto = ok(mcp, "reissue_access_code", {"slug": slug, "access_code": ""})
+    assert re.fullmatch(r"[A-Z0-9]{8}", auto["access_code"])
