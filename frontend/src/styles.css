@@ -1460,8 +1460,13 @@ h3.block-heading {
   color: var(--color-muted);
 }
 
+.inquiry-email {
+  container-type: inline-size;
+}
+
+/* Shrinks with the narrow left column so the address stays on one line; 1.5rem at most. */
 .inquiry-email a {
-  font-size: var(--text-xl);
+  font-size: clamp(1rem, 7.5cqi, var(--text-xl));
   font-weight: 600;
   color: var(--color-ink);
   text-decoration: underline;
