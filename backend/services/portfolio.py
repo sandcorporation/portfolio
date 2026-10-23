@@ -31,6 +31,7 @@ class PortfolioDetail(TypedDict):
     """Embedded in the shell as #page-data on /work/<slug>. Mirrors frontend/src/work/types.ts."""
 
     card: PortfolioCard
+    service_url: str
     body: dict[str, JSON]
 
 
@@ -47,7 +48,11 @@ def card_of(item: PortfolioItem) -> PortfolioCard:
 
 
 def detail_of(item: PortfolioItem) -> PortfolioDetail:
-    return PortfolioDetail(card=card_of(item), body=media.resolve_document(item.body))
+    return PortfolioDetail(
+        card=card_of(item),
+        service_url=item.service_url,
+        body=media.resolve_document(item.body),
+    )
 
 
 # --- full lookups: include hidden items ---

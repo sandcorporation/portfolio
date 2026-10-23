@@ -2,11 +2,19 @@
  * Sandcorp design tokens. The ONLY file that may contain raw color values
  * (enforced by src/tokens.test.ts). Everything else uses var(--color-*).
  *
- * Palette: warm sand neutrals + one accent (dune, a burnt sienna).
- * Contrast (checked in tokens.test.ts): text/ink/muted >= 4.5:1 on canvas, paper and tint;
- * accent >= 4.5:1 on paper and tint.
+ * Shared spec with AI-Trend-News (#73 here, #72 there; same token names): an editorial page in
+ * the style of baeksang.dev — yellowish white canvas, blue-black ink, one ochre accent, hairlines
+ * instead of cards. Contrast (checked in tokens.test.ts): text/ink/muted >= 4.5:1 on canvas,
+ * paper and tint; accent >= 4.5:1 on paper, tint and accent-tint.
+ *
+ * Changing the accent means changing six values only: --color-accent, --color-accent-tint and
+ * --color-focus, light and dark. Nothing else derives from them.
+ *
+ * Fonts are bundled (no external requests): Pretendard Variable (dynamic subset) for text,
+ * JetBrains Mono for labels.
  */
 @import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "@fontsource-variable/jetbrains-mono/index.css";
 
 :root {
   color-scheme: light dark;
@@ -15,36 +23,44 @@
   --color-qr-bg: #ffffff;
   --color-qr-fg: #000000;
   /* surfaces */
-  --color-canvas: #f7f4ee;
-  --color-paper: #fffdf9;
-  --color-tint: #f1ebdf;
-  --color-line: #e2d9c8;
-  --color-line-strong: #c9bca4;
+  --color-canvas: #f2efe6;
+  --color-paper: #faf8f1;
+  --color-tint: #e9e5da;
+  --color-line: #d9d5ca;
+  --color-line-strong: #1b1d24;
   /* text */
-  --color-ink: #2b2620;
-  --color-text: #483f34;
-  --color-muted: #6b6155;
+  --color-ink: #1b1d24;
+  --color-text: #2c2f38;
+  --color-muted: #5e626c;
   --color-danger: #9b2c1f;
-  /* accent */
-  --color-accent: #9a4a1c;
-  --color-accent-tint: #f6e6d6;
-  --color-on-accent: #fffdf9;
-  --color-focus: #c2652b;
-  --color-scrim: rgb(23 20 15 / 0.92);
-  /* brand mark */
-  --color-mark-bg: #9a4a1c;
-  --color-mark-far: #e3b98a;
-  --color-mark-near: #fbf3e4;
+  /* accent (the spec's #8a6214 is 4.35:1 on tint; darkened until it passes 4.5:1, as the spec says) */
+  --color-accent: #865f13;
+  --color-accent-tint: #efe4c8;
+  --color-on-accent: #faf8f1;
+  --color-focus: #8a6214;
+  --color-scrim: rgb(21 23 28 / 0.92);
+  /* brand mark: ochre dunes on a blue-black square */
+  --color-mark-bg: #1b1d24;
+  --color-mark-far: #8a6214;
+  --color-mark-near: #d9ad4c;
 
   /* type */
   --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Apple SD Gothic Neo",
     "Malgun Gothic", sans-serif;
+  /* JetBrains Mono has no Hangul: Korean in a mono label falls back to Pretendard */
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "Pretendard Variable", Pretendard,
+    ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
   --text-lg: 1.1875rem;
   --text-xl: 1.5rem;
   --text-2xl: 2.125rem;
-  --leading: 1.8;
+  --text-display: clamp(3rem, 8vw, 8rem);
+  --text-h2: clamp(1.75rem, 3.6vw, 2.75rem);
+  --text-metric: clamp(2.5rem, 5vw, 4rem);
+  --leading: 1.7;
+  --tracking-label: 0.12em;
 
   /* space (4px scale) */
   --space-1: 4px;
@@ -55,12 +71,13 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 72px;
+  --space-section: clamp(3rem, 8vw, 5rem);
 
   /* shape and layout */
-  --radius: 6px;
-  --radius-lg: 10px;
-  --measure: 760px;
-  --page-width: 960px;
+  --radius: 2px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --measure: 68ch;
+  --rail-width: 13rem;
   --masthead-height: 56px;
   --tabs-height: 48px;
 }
@@ -68,21 +85,21 @@
 /* Paper is always light: print media ignores this block. */
 @media screen and (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: #17140f;
-    --color-paper: #1f1b15;
-    --color-tint: #2a251d;
-    --color-line: #3a3329;
-    --color-line-strong: #5a5042;
-    --color-ink: #f6efe3;
-    --color-text: #d9cfbe;
-    --color-muted: #aea28f;
+    --color-canvas: #15171c;
+    --color-paper: #1c1f26;
+    --color-tint: #242830;
+    --color-line: #343842;
+    --color-line-strong: #f1eee6;
+    --color-ink: #f1eee6;
+    --color-text: #d6d2c8;
+    --color-muted: #a09c92;
     --color-danger: #f0a090;
-    --color-accent: #e8a46b;
-    --color-accent-tint: #3a2b1e;
-    --color-on-accent: #17140f;
-    --color-focus: #f0b887;
-    --color-mark-bg: #e8a46b;
-    --color-mark-far: #b9703a;
-    --color-mark-near: #1f1b15;
+    --color-accent: #d9ad4c;
+    --color-accent-tint: #3a3221;
+    --color-on-accent: #15171c;
+    --color-focus: #d9ad4c;
+    --color-mark-bg: #f1eee6;
+    --color-mark-far: #8a6214;
+    --color-mark-near: #d9ad4c;
   }
 }

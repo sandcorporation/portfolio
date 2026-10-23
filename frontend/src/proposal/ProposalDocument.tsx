@@ -64,6 +64,7 @@ export function ProposalDocument({ data }: { data: ProposalData }) {
         {data.recipient && <p className="cover-recipient">{data.recipient}</p>}
         <h1 id="proposal-title">{data.title}</h1>
         {data.subtitle && <p className="cover-subtitle">{data.subtitle}</p>}
+        <div className="accent-rule" aria-hidden="true" />
         <dl className="proposal-facts">
           <div>
             <dt>견적 기준일</dt>

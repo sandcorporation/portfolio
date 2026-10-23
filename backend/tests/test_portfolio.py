@@ -7,7 +7,7 @@ import pytest
 from django.test import Client
 
 from adapters.fake_storage import FakeObjectStorage
-from content.models import Media, PortfolioItem
+from content.models import Media, PortfolioItem, SiteProfile
 from documents.validation import JSON, normalized, validate_document
 from services import media as media_service
 from services.portfolio import all_items, get_item, public_slugs
@@ -168,3 +168,29 @@ def test_full_lookups_include_hidden_items_while_public_ones_do_not() -> None:
     assert {i.slug for i in all_items()} == {"shown", "secret"}
     secret = get_item("secret")
     assert secret is not None and not secret.is_public
+
+
+def test_detail_carries_the_service_url_for_the_meta_row(client: Client) -> None:
+    make("live", service_url="https://live.example/")
+
+    data = page_data(client.get("/work/live").content.decode())
+
+    assert data["service_url"] == "https://live.example/"
+
+
+def test_home_carries_tagline_and_stack_for_the_hero(client: Client) -> None:
+    profile = SiteProfile.load()
+    profile.tagline = "끝까지 책임지는 1인 개발사"
+    profile.github = {"stack_badges": ["Django", "React"]}
+    profile.save()
+
+    data = page_data(client.get("/").content.decode())
+
+    assert data["tagline"] == "끝까지 책임지는 1인 개발사"
+    assert data["stack"] == ["Django", "React"]
+
+
+def test_home_without_a_profile_has_empty_tagline_and_stack(client: Client) -> None:
+    data = page_data(client.get("/").content.decode())
+
+    assert (data["tagline"], data["stack"]) == ("", [])

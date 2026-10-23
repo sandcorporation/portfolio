@@ -1,20 +1,30 @@
 import type { PortfolioCard } from "./types";
 import { workPath } from "./types";
 
+/** Portfolio list: one hairline row per item — thumbnail · mono № · title → · meta · summary,
+ * tags stacked on the right on wide screens. */
 export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
   return (
-    <ul className="portfolio-cards">
-      {cards.map((card) => (
+    <ul className="work-list">
+      {cards.map((card, index) => (
         <li key={card.slug}>
-          <a className="portfolio-card" href={workPath(card.slug)}>
-            {card.cover_url && (
-              <img className="portfolio-card-cover" src={card.cover_url} alt="" loading="lazy" />
-            )}
-            <span className="portfolio-card-body">
-              <span className="portfolio-card-title">{card.title}</span>
-              {card.summary && <span className="portfolio-card-summary">{card.summary}</span>}
-              <CardMeta card={card} />
+          <a className="work-row" href={workPath(card.slug)}>
+            <span className="work-row-thumb" aria-hidden="true">
+              {card.cover_url && <img src={card.cover_url} alt="" loading="lazy" />}
             </span>
+            <span className="work-row-body">
+              <span className="work-row-no">№ {String(index + 1).padStart(2, "0")}</span>
+              <span className="work-row-title">{card.title} →</span>
+              {card.period && <span className="work-row-meta">{card.period}</span>}
+              {card.summary && <span className="work-row-summary">{card.summary}</span>}
+            </span>
+            {card.tags.length > 0 && (
+              <span className="work-row-tags">
+                {card.tags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </span>
+            )}
           </a>
         </li>
       ))}
@@ -22,16 +32,17 @@ export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
   );
 }
 
-export function CardMeta({ card }: { card: PortfolioCard }) {
-  if (!card.period && card.tags.length === 0) return null;
-  return (
-    <span className="portfolio-meta">
-      {card.period && <span className="portfolio-period">{card.period}</span>}
-      {card.tags.map((tag) => (
-        <span key={tag} className="portfolio-tag">
-          {tag}
-        </span>
-      ))}
-    </span>
-  );
+/** The mono meta row of a work page: period · service address · tags. */
+export function CardMeta({ card, serviceUrl }: { card: PortfolioCard; serviceUrl?: string }) {
+  const parts = [
+    card.period && <span key="period">{card.period}</span>,
+    serviceUrl && (
+      <a key="url" href={serviceUrl} rel="noopener">
+        {serviceUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+      </a>
+    ),
+    ...card.tags.map((tag) => <span key={`tag-${tag}`}>{tag}</span>),
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return <p className="meta-row">{parts}</p>;
 }

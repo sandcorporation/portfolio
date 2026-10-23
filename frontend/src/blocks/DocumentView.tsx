@@ -164,12 +164,15 @@ function TabbedView({
         </div>
       )}
       <div
+        className="document-body"
         id={`${tabsId}-panel`}
         role={several ? "tabpanel" : undefined}
         aria-labelledby={several ? `${tabsId}-tab-${active}` : undefined}
       >
         {!onToc && <Toc entries={entries} spy />}
-        <Blocks tab={tab} prefix={idPrefix} />
+        <div className="document-blocks">
+          <Blocks tab={tab} prefix={idPrefix} />
+        </div>
       </div>
     </div>
     </DocumentNavContext.Provider>

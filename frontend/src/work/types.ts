@@ -13,6 +13,7 @@ export interface PortfolioCard {
 /** The shell's #page-data on `/work/<slug>`. Mirrors PortfolioDetail in the backend. */
 export interface WorkData {
   card: PortfolioCard;
+  service_url: string;
   body: Document;
 }
 

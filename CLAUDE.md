@@ -29,6 +29,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 - 생성: `make gen` — 백엔드 블록 스키마(Pydantic)에서 JSON Schema와 `frontend/src/blocks/types.gen.ts`를 다시 만든다. `make gen-check`는 차이가 없는지 본다(`make check`에 포함).
 - 전부: `make check`.
 - 새 블록 추가 절차: `frontend/src/blocks/README.md`.
+- 공개 화면 스타일(#73): baeksang.dev 풍 편집 디자인 — 카드·그림자 없이 hairline(`--color-line` 1px)으로 나누고, 라벨은 대문자 모노(`--font-mono`, JetBrains Mono), `--radius` 2px(포커스·이미지만), 채움 버튼은 화면에 하나. 토큰 이름·값은 AI-Trend-News와 같은 명세(`frontend/src/tokens.css`), 강조색 교체는 `--color-accent`·`--color-accent-tint`·`--color-focus` 라이트·다크 여섯 값만. 규칙은 `frontend/src/blocks/README.md` 「스타일」. 글꼴(Pretendard, JetBrains Mono)은 npm으로 번들돼 외부 요청이 없다.
 - GitHub 프로필 README(#59): `GET /github/readme/personal.md`·`org.md`(공개, markdown, ETag, 5분 캐시)를 `services/github_readme.py`가 사이트 데이터(`SiteProfile.github`·`PortfolioItem.service_url`·프로필 블록 문서)에서 만든다 — 문구를 코드에 두지 않고 틀(제목·이모지·꼬리)만 둔다. 블록 종류를 더하면 `render_block`에 변환을 더한다(모르는 블록은 건너뜀). 동기화는 `scripts/sync-github-readme.sh`(Jenkins, `docs/ops/github-readme-sync.md`).
 - 제안서 작성 지침(#69): MCP `proposal_guide`(읽기 전용, 입력 없음)가 `{guide, skeleton}`을 준다 — 지침 본문은 `backend/mcpserver/proposal_guide.md`(일반 문법만, 예시 fixture의 고객 값 금지), 탭별 권장 블록 순서는 `tools_proposals.py::PROPOSAL_SKELETON`. INSTRUCTIONS·`whoami`·작성 도구 설명이 먼저 읽으라고 안내한다. 지침에 백틱으로 적은 이름은 도구·블록 종류·블록 필드여야 한다(`tests/test_mcp.py`가 확인).
 - 작업자는 이 「명령」 절을 명령이 바뀌는 티켓에서 함께 고친다.

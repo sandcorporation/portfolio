@@ -3,6 +3,9 @@ import type { PortfolioCard } from "../work/types";
 
 /** The shell's #page-data on `/`. Mirrors HomeData in backend/services/home.py. */
 export interface HomeData {
+  tagline: string;
+  /** The GitHub profile's stack badges: the hero's tag line. */
+  stack: string[];
   company_intro: Document;
   ceo_intro: Document;
   portfolio: PortfolioCard[];

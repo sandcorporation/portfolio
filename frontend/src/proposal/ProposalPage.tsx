@@ -1,4 +1,4 @@
-import { Wordmark } from "../brand/Logo";
+import { Masthead } from "../brand/Masthead";
 import { ProposalDocument } from "./ProposalDocument";
 import type { ProposalData } from "./types";
 
@@ -7,9 +7,7 @@ import type { ProposalData } from "./types";
 export function ProposalPage({ data, lockAction }: { data: ProposalData; lockAction?: string }) {
   return (
     <>
-      <header className="masthead">
-        <div className="masthead-inner">
-          <Wordmark />
+      <Masthead>
           {lockAction && data.csrf_token && (
             <form className="lock-form" method="post" action={lockAction}>
               <input type="hidden" name="csrfmiddlewaretoken" value={data.csrf_token} />
@@ -24,12 +22,9 @@ export function ProposalPage({ data, lockAction }: { data: ProposalData; lockAct
               </button>
             </form>
           )}
-        </div>
-      </header>
+      </Masthead>
       <main className="page proposal-page">
-        <div className="sheet">
-          <ProposalDocument data={data} />
-        </div>
+        <ProposalDocument data={data} />
       </main>
     </>
   );

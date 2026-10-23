@@ -5,6 +5,8 @@ import { exampleDocument } from "../blocks/testing";
 import type { HomeData } from "./types";
 
 const data: HomeData = {
+  tagline: "",
+  stack: [],
   company_intro: exampleDocument,
   ceo_intro: {
     tabs: [

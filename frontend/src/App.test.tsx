@@ -4,6 +4,8 @@ import { exampleDocument } from "./blocks/testing";
 import type { HomeData } from "./home/types";
 
 const home: HomeData = {
+  tagline: "",
+  stack: [],
   company_intro: exampleDocument,
   ceo_intro: {
     tabs: [

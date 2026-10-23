@@ -20,10 +20,17 @@ class Contact(TypedDict):
 class HomeData(TypedDict):
     """Embedded in the shell as #page-data. Mirrored by frontend/src/home/types.ts."""
 
+    tagline: str
+    stack: list[str]  # the GitHub profile's stack badges: the hero's tag line
     company_intro: dict[str, JSON]
     ceo_intro: dict[str, JSON]
     contact: Contact
     portfolio: list[PortfolioCard]
+
+
+def stack_of(github: object) -> list[str]:
+    badges = github.get("stack_badges") if isinstance(github, dict) else None
+    return [b for b in badges if isinstance(b, str)] if isinstance(badges, list) else []
 
 
 @dataclass(frozen=True)
@@ -38,6 +45,8 @@ def home_page() -> HomePage:
     return HomePage(
         description=profile.tagline or DEFAULT_DESCRIPTION,
         data=HomeData(
+            tagline=profile.tagline,
+            stack=stack_of(profile.github),
             company_intro=media.resolve_document(profile.company_intro),
             ceo_intro=media.resolve_document(profile.ceo_intro),
             contact=Contact(

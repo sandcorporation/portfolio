@@ -1,4 +1,4 @@
-/** The Sandcorp mark: two dunes in a rounded square. Colors come from the brand tokens. */
+/** The Sandcorp mark: two dunes in a square. Colors come from the brand tokens. */
 export function LogoMark({ size = 28 }: { size?: number }) {
   return (
     <svg
@@ -9,7 +9,7 @@ export function LogoMark({ size = 28 }: { size?: number }) {
       aria-hidden="true"
       focusable="false"
     >
-      <rect className="logo-mark-bg" width="32" height="32" rx="7" />
+      <rect className="logo-mark-bg" width="32" height="32" rx="2" />
       <path className="logo-mark-far" d="M0 21c5-8 10-9 15-5s10 3 17-4v20H0z" />
       <path className="logo-mark-near" d="M0 26c6-6 11-6 16-2s10 2 16-3v11H0z" />
     </svg>

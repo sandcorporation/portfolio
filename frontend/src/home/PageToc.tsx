@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCurrentAnchor } from "../blocks/useCurrentAnchor";
 import type { TocEntry } from "../blocks/toc";
 
-const WIDE = "screen and (min-width: 1360px)";
+const WIDE = "screen and (min-width: 1024px)";
 
 function useWide(): boolean {
   const query = () => typeof window.matchMedia === "function" && window.matchMedia(WIDE).matches;
@@ -19,8 +19,8 @@ function useWide(): boolean {
 }
 
 /**
- * The one contents of a page made of several sections. Wide screens: a fixed rail in the right
- * margin that follows the whole page, the section being read highlighted. Narrow: a folded box
+ * The one contents of a page made of several sections. Wide screens (>= 1024px): a sticky rail on the left
+ * that follows the whole page, the section being read highlighted. Narrow: a folded list
  * above the first section.
  */
 export function PageToc({ entries }: { entries: TocEntry[] }) {

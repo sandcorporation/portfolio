@@ -1,18 +1,14 @@
 import type { ReactNode } from "react";
-import { Wordmark } from "../brand/Logo";
+import { Masthead } from "../brand/Masthead";
 import { formatDate } from "./ProposalDocument";
 import type { CodeScreenData, ExpiredScreenData, Supplier } from "./types";
 
 function GateShell({ children }: { children: ReactNode }) {
   return (
     <>
-      <header className="masthead">
-        <div className="masthead-inner">
-          <Wordmark />
-        </div>
-      </header>
+      <Masthead />
       <main className="page gate-page">
-        <section className="sheet gate">{children}</section>
+        <section className="gate">{children}</section>
       </main>
     </>
   );
@@ -27,6 +23,9 @@ const ERRORS: Record<NonNullable<CodeScreenData["error"]>, string> = {
 export function ProposalCodeScreen({ data, action }: { data: CodeScreenData; action: string }) {
   return (
     <GateShell>
+      <p className="section-head" aria-hidden="true">
+        <span>Proposal</span>
+      </p>
       <h1 id="gate-title">제안서 열기</h1>
       <p className="gate-lead">전달받은 접근 코드를 입력해 주세요.</p>
       <form className="gate-form" method="post" action={action} aria-labelledby="gate-title">
