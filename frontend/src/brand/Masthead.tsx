@@ -24,15 +24,14 @@ export function Masthead({ children }: { children?: ReactNode }) {
 
 const NUMBER = new Intl.NumberFormat("ko-KR");
 
-/** 「● 지금 N · 오늘 N명 · 누적 N명」: the dot is muted when nobody is on right now. */
+/** 「● 누적 방문 N명」: the accent dot, the cumulative visitors of the whole site. */
 export function VisitCounts({ visits }: { visits: SiteVisits }) {
   return (
     <span className="visit-counts">
-      <span className={visits.live > 0 ? "visit-dot" : "visit-dot visit-dot-idle"} aria-hidden="true">
+      <span className="visit-dot" aria-hidden="true">
         ●
       </span>{" "}
-      지금 {NUMBER.format(visits.live)} · 오늘 {NUMBER.format(visits.today)}
-      <span className="visit-unit">명</span> · 누적 {NUMBER.format(visits.total)}
+      누적 방문 {NUMBER.format(visits.total)}
       <span className="visit-unit">명</span>
     </span>
   );

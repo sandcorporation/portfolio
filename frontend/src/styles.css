@@ -225,10 +225,6 @@ img {
   color: var(--color-accent);
 }
 
-.visit-dot-idle {
-  color: var(--color-muted);
-}
-
 .availability-dot {
   color: var(--color-accent);
 }
@@ -318,8 +314,9 @@ img {
     display: none;
   }
 
-  /* The band has room for one of the two: the availability takes the counts' place on a phone
-     (they are one line each, and the portfolio rows carry visit numbers too). */
+  /* The band has room for one of the two: with the availability set it takes the counts' place on
+     a phone. 「● 누적 방문 N명」 + 「● 문구」 measured 263px beside a 139px wordmark in a 358px
+     band (#96), so both do not fit at 390px. */
   .visit-counts:has(+ .availability) {
     display: none;
   }

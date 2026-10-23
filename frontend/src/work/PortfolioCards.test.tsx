@@ -44,7 +44,7 @@ test("왼쪽 열은 기간과 상태, live만 강조하고 오른쪽 열은 방�
   expect(screen.getByText("2025.03 ~")).toBeInTheDocument();
   expect(screen.getByText("운영 중")).toHaveClass("is-live");
   expect(screen.getByText("서비스 종료")).not.toHaveClass("is-live");
-  expect(screen.getByText("오늘 3 · 누적 1,200")).toBeInTheDocument();
+  expect(screen.getByText("누적 1,200")).toBeInTheDocument();
   expect(screen.queryByText("e")).toBeNull();
   expect(screen.getByText("d")).toBeInTheDocument();
 });

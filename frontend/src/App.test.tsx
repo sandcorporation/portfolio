@@ -81,18 +81,26 @@ test("머리띠에 전체 방문 합계를, 포트폴리오 행에 그 사이트
   render(<App path="/" data={data} />);
 
   const banner = document.querySelector(".masthead") as HTMLElement;
-  expect(banner).toHaveTextContent("지금 3 · 오늘 1,234명 · 누적 56,789명");
-  expect(banner.querySelector(".visit-dot-idle")).toBeNull();
-  expect(screen.getByRole("link", { name: /녹취 분석/ })).toHaveTextContent("오늘 12 · 누적 3,400");
+  expect(banner).toHaveTextContent("누적 방문 56,789명");
+  expect(banner).not.toHaveTextContent("지금");
+  expect(banner).not.toHaveTextContent("오늘");
+  expect(screen.getByRole("link", { name: /녹취 분석/ })).toHaveTextContent("누적 3,400");
 });
 
-test("지금이 0이면 점을 흐리게, 숫자가 없으면 아무 자리도 만들지 않는다", () => {
+test("행의 누적이 0이면 생략하고, 숫자가 없으면 머리띠에도 아무 자리도 만들지 않는다", () => {
   const { unmount } = render(
-    <App path="/" data={{ ...home, visits: { live: 0, today: 0, total: 0 } }} />,
+    <App
+      path="/"
+      data={{
+        ...home,
+        visits: { live: 0, today: 0, total: 0 },
+        portfolio: home.portfolio.map((c) => ({ ...c, visits: { today: 0, total: 0 } })),
+      }}
+    />,
   );
   const banner = document.querySelector(".masthead") as HTMLElement;
-  expect(banner).toHaveTextContent("지금 0 · 오늘 0명 · 누적 0명");
-  expect(banner.querySelector(".visit-dot-idle")).not.toBeNull();
+  expect(banner).toHaveTextContent("누적 방문 0명");
+  expect(screen.getByRole("link", { name: /녹취 분석/ })).not.toHaveTextContent("누적");
   unmount();
 
   render(<App path="/" data={{ ...home, visits: null }} />);
@@ -215,4 +223,10 @@ test("좁은 화면에서는 갱신 월을 숨겨 한 줄을 지키고 새 색�
 
   expect(block).toMatch(/\.availability-updated\s*{\s*display:\s*none;/);
   expect(css).toMatch(/\.availability-dot\s*{\s*color:\s*var\(--color-accent\);/);
+});
+
+test("768px 미만 머리띠: 「● 누적 방문 N명」과 가용 상태가 한 줄에 못 들어가(390px에서 263px+워드마크 139px) 가용 상태가 있으면 방문 지표를 숨긴다", () => {
+  const css = readFileSync(resolve(__dirname, "styles.css"), "utf8");
+  const phone = css.slice(css.indexOf("@media (max-width: 767px)"));
+  expect(phone).toMatch(/\.visit-counts:has\(\+ \.availability\)\s*\{\s*display: none;/);
 });

@@ -34,9 +34,9 @@ export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
               )}
             </span>
             <span className="portfolio-row-side">
-                {card.visits && (
+                {card.visits && card.visits.total > 0 && (
                   <span className="work-row-meta work-row-visits">
-                    오늘 {NUMBER.format(card.visits.today)} · 누적 {NUMBER.format(card.visits.total)}
+                    누적 {NUMBER.format(card.visits.total)}
                   </span>
                 )}
                 {card.tags.length > 0 && (
