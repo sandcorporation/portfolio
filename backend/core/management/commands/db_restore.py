@@ -1,7 +1,8 @@
 """`manage.py db_restore`: restore a backup into an EMPTY database (#19).
 
-No --clean: on a database that already has tables pg_restore stops at the first clash, so live
-data is never overwritten.
+The dump has no DROP TABLE: on a database that already has tables the load stops at the first
+CREATE TABLE, so live data is never overwritten. Create the empty database first (an account
+with CREATE rights; the service account only owns its own database).
 """
 
 import tempfile
@@ -40,11 +41,13 @@ class Command(BaseCommand):
         key = key or backup.latest_key(storage)
         if key is None:
             raise CommandError("백업이 없다")
+        if key.endswith(backup.POSTGRES_SUFFIX):
+            raise CommandError(f"{key}는 Postgres 시절(pg_dump) 백업이라 MySQL에 넣을 수 없다")
         with tempfile.TemporaryDirectory(prefix="restore-") as tmp:
-            path = Path(tmp) / "portfolio.dump"
+            path = Path(tmp) / f"portfolio{backup.SUFFIX}"
             storage.download_file(Bucket.PRIVATE, key, path)
             try:
-                backup.pg_restore(path, dbname)
+                backup.mysql_restore(path, dbname)
             except Exception as exc:
                 detail = getattr(exc, "stderr", "") or str(exc)
                 raise CommandError(f"복원 실패: {detail.strip()[-800:]}") from exc

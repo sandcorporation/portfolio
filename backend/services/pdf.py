@@ -70,21 +70,29 @@ def _give_up_or_wait(job: PdfJob, now: datetime, error: str) -> None:
         job.run_after = now + timedelta(minutes=job.attempts)
 
 
+def _lock_first(due: Q) -> PdfJob | None:
+    return (
+        PdfJob.objects.select_for_update(skip_locked=True)
+        .select_related("revision")
+        .filter(due)
+        .order_by("run_after", "id")
+        .first()
+    )
+
+
 def claim_next(now: datetime | None = None) -> PdfJob | None:
-    """Lock the next due job and mark it running, or None. Takes back jobs of a dead worker."""
+    """Lock the next due job and mark it running, or None. Takes back jobs of a dead worker.
+
+    Two queries, each on one status, so InnoDB walks the `pdfjob_due` index and locks only the
+    row it returns; with an OR it sorted every due row and locked them all, leaving nothing for
+    a second worker.
+    """
     now = now or timezone.now()
     stale = now - timedelta(seconds=settings.PDF_JOB_STALE_SECONDS)
-    due = Q(status=Status.PENDING, run_after__lte=now) | Q(
-        status=Status.RUNNING, locked_at__lt=stale
-    )
     while True:
         with transaction.atomic():
-            job = (
-                PdfJob.objects.select_for_update(skip_locked=True)
-                .select_related("revision")
-                .filter(due)
-                .order_by("run_after", "id")
-                .first()
+            job = _lock_first(Q(status=Status.PENDING, run_after__lte=now)) or _lock_first(
+                Q(status=Status.RUNNING, locked_at__lt=stale)
             )
             if job is None:
                 return None

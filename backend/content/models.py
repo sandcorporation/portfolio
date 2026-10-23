@@ -31,7 +31,8 @@ class Media(models.Model):
     """
 
     is_public = models.BooleanField("공개", default=True)
-    object_key = models.CharField("객체 키", max_length=300, unique=True)
+    # uuid hex + extension; 255 keeps the unique index within MySQL's limit (mysql.W003).
+    object_key = models.CharField("객체 키", max_length=255, unique=True)
     content_type = models.CharField("MIME", max_length=100)
     size = models.PositiveBigIntegerField("크기(바이트)")
     original_filename = models.CharField("원래 파일명", max_length=255)
@@ -425,8 +426,8 @@ class ProposalEvent(models.Model):
     tab_id = models.CharField("탭", max_length=60, blank=True)
     ip = models.CharField("IP", max_length=45, blank=True)
     user_agent = models.CharField("User-Agent", max_length=255, blank=True)
-    # True on the one view that was the revision's first; the partial unique constraint below
-    # lets exactly one of two simultaneous first views win (and send the alert).
+    # True on the one view that was the revision's first; the unique constraint below lets
+    # exactly one of two simultaneous first views win (and send the alert).
     first = models.BooleanField("리비전 첫 열람", default=False)
     created_at = models.DateTimeField("시각", default=timezone.now)
 
@@ -436,9 +437,10 @@ class ProposalEvent(models.Model):
         ordering = ("created_at", "id")
         indexes = [models.Index(fields=("proposal", "created_at"), name="event_proposal_time")]
         constraints = [
+            # MySQL has no partial unique constraints, so this is a functional unique index on
+            # "revision if first else NULL": NULLs never clash, so non-first rows are free.
             models.UniqueConstraint(
-                fields=("revision",),
-                condition=models.Q(first=True),
+                models.Case(models.When(first=True, then=models.F("revision"))),
                 name="event_first_view_once",
             ),
         ]
@@ -506,6 +508,9 @@ class PdfJob(models.Model):
         verbose_name = "리비전 PDF"
         verbose_name_plural = "리비전 PDF"
         ordering = ("-id",)
+        # claim_next's `ORDER BY run_after, id ... FOR UPDATE SKIP LOCKED`: without an index
+        # InnoDB locks every due row while sorting, so a second worker would get nothing.
+        indexes = [models.Index(fields=("status", "run_after", "id"), name="pdfjob_due")]
 
     def __str__(self) -> str:
         return f"{self.revision.doc_number} PDF ({self.get_status_display()})"

@@ -1,0 +1,37 @@
+# `make prod-local` only: the production compose plus a local MySQL in place of OCI HeatWave.
+# Same server version and collation as production; the data lives in the `mysqldata` volume
+# of the portfolio-local project (`make prod-local-down` removes it).
+services:
+  mysql:
+    image: mysql:26.10.0
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_as_cs"]
+    environment:
+      MYSQL_DATABASE: portfolio
+      MYSQL_USER: portfolio
+      MYSQL_PASSWORD: portfolio
+      MYSQL_ROOT_PASSWORD: portfolio-root
+    volumes:
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -uportfolio -pportfolio -h127.0.0.1 -e 'SELECT 1' portfolio"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+      start_period: 60s
+      start_interval: 1s
+
+  web: &local-db
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: portfolio
+      DB_USER: portfolio
+      DB_PASSWORD: portfolio
+    depends_on:
+      mysql:
+        condition: service_healthy
+  worker: *local-db
+  backup: *local-db
+
+volumes:
+  mysqldata:

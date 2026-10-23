@@ -1,6 +1,6 @@
-"""Daily database backup (#19): `pg_dump -Fc` to a temp file, then up to the private bucket.
+"""Daily database backup (#19): `mysqldump` (gzipped) to a temp file, then up to the private bucket.
 
-Key: `backups/YYYY/MM/DD/portfolio-<UTC YYYYMMDDTHHMMSSZ>.dump` (the date is UTC and is also what
+Key: `backups/YYYY/MM/DD/portfolio-<UTC YYYYMMDDTHHMMSSZ>.sql.gz` (the date is UTC and is also what
 retention and the once-a-day check read, so no object metadata is needed). A temp file rather
 than a stream: the upload retries and multipart need a known length, and OCI's S3 API rejects
 unsized chunked bodies; the dump is small and the file never sits in memory.
@@ -8,11 +8,15 @@ unsized chunked bodies; the dump is small and the file never sits in memory.
 The schedule is "once per 04:00 KST": a backup is due when the newest one is older than the most
 recent 04:00 KST. A container restart therefore never backs up twice, and a missed run is made
 up at the next start. Old backups (> RETENTION_DAYS) are deleted after a successful upload.
+Keys ending in `.dump` are the Postgres-era `pg_dump -Fc` backups (#63): they still count for
+the schedule and are pruned the same way, but cannot be restored into MySQL.
 """
 
+import gzip
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from collections.abc import Callable
@@ -33,14 +37,16 @@ KST = timezone(timedelta(hours=9))  # no DST, so no tzdata needed in the slim im
 RUN_AT_HOUR_KST = 4
 DUMP_TIMEOUT_SECONDS = 30 * 60
 
-_KEY_RE = re.compile(r"^backups/\d{4}/\d{2}/\d{2}/portfolio-(\d{8}T\d{6}Z)\.dump$")
+SUFFIX = ".sql.gz"
+POSTGRES_SUFFIX = ".dump"  # before #63
+_KEY_RE = re.compile(r"^backups/\d{4}/\d{2}/\d{2}/portfolio-(\d{8}T\d{6}Z)\.(?:sql\.gz|dump)$")
 
 DumpFn = Callable[[Path], None]
 
 
 def backup_key(now: datetime) -> str:
     utc = now.astimezone(UTC)
-    return f"{PREFIX}{utc:%Y/%m/%d}/portfolio-{utc:%Y%m%dT%H%M%SZ}.dump"
+    return f"{PREFIX}{utc:%Y/%m/%d}/portfolio-{utc:%Y%m%dT%H%M%SZ}{SUFFIX}"
 
 
 def key_time(key: str) -> datetime | None:
@@ -68,39 +74,68 @@ def is_due(storage: ObjectStorage, now: datetime) -> bool:
     return taken is None or taken < due_since(now)
 
 
-def _pg_env() -> dict[str, str]:
+def _client_args() -> tuple[list[str], dict[str, str]]:
+    """Connection flags for the mysql/mysqldump clients; the password goes in the environment
+    (MYSQL_PWD) so it never shows in the process list."""
     db = settings.DATABASES["default"]
-    return {
-        **os.environ,
-        "PGHOST": str(db["HOST"]),
-        "PGPORT": str(db["PORT"]),
-        "PGUSER": str(db["USER"]),
-        "PGPASSWORD": str(db["PASSWORD"]),
-    }
+    args = [
+        f"--host={db['HOST']}",
+        f"--port={db['PORT']}",
+        f"--user={db['USER']}",
+        "--default-character-set=utf8mb4",
+    ]
+    return args, {**os.environ, "MYSQL_PWD": str(db["PASSWORD"])}
 
 
-def pg_dump(path: Path) -> None:
-    """Custom-format dump (already compressed) of the default database into `path`."""
+def mysql_dump(path: Path) -> None:
+    """A consistent (`--single-transaction`) gzipped SQL dump of the default database.
+
+    No DROP TABLE and no CREATE DATABASE in it, so it only ever loads into an empty database.
+    """
     name = str(settings.DATABASES["default"]["NAME"])
-    subprocess.run(  # noqa: S603
-        ["pg_dump", "-Fc", "--no-owner", "--no-acl", "-f", str(path), name],  # noqa: S607
-        env=_pg_env(),
-        check=True,
-        timeout=DUMP_TIMEOUT_SECONDS,
-        capture_output=True,
-        text=True,
-    )
+    args, env = _client_args()
+    with tempfile.TemporaryDirectory(prefix="dump-") as tmp:
+        raw = Path(tmp) / "dump.sql"
+        subprocess.run(  # noqa: S603
+            [
+                "mysqldump",
+                *args,
+                "--single-transaction",
+                "--skip-add-drop-table",
+                "--no-tablespaces",
+                "--skip-routines",
+                "--skip-triggers",
+                "--hex-blob",
+                f"--result-file={raw}",
+                name,
+            ],  # noqa: S607
+            env=env,
+            check=True,
+            timeout=DUMP_TIMEOUT_SECONDS,
+            capture_output=True,
+            text=True,
+        )
+        with raw.open("rb") as src, gzip.open(path, "wb") as dst:
+            shutil.copyfileobj(src, dst)
 
 
-def pg_restore(path: Path, dbname: str) -> None:
-    subprocess.run(  # noqa: S603
-        ["pg_restore", "--no-owner", "--no-acl", "--exit-on-error", "-d", dbname, str(path)],  # noqa: S607
-        env=_pg_env(),
-        check=True,
-        timeout=DUMP_TIMEOUT_SECONDS,
-        capture_output=True,
-        text=True,
-    )
+def mysql_restore(path: Path, dbname: str) -> None:
+    """Load a backup made by `mysql_dump` into `dbname`, which must exist and be empty."""
+    args, env = _client_args()
+    with tempfile.TemporaryDirectory(prefix="restore-sql-") as tmp:
+        raw = Path(tmp) / "dump.sql"
+        with gzip.open(path, "rb") as src, raw.open("wb") as dst:
+            shutil.copyfileobj(src, dst)
+        with raw.open("rb") as sql:
+            subprocess.run(  # noqa: S603
+                ["mysql", *args, dbname],  # noqa: S607
+                stdin=sql,
+                env=env,
+                check=True,
+                timeout=DUMP_TIMEOUT_SECONDS,
+                capture_output=True,
+                text=True,
+            )
 
 
 @dataclass(frozen=True)
@@ -126,12 +161,12 @@ def run_backup(storage: ObjectStorage, now: datetime, dump: DumpFn | None = None
     """Dump, upload, then prune. Raises on any failure (the caller alerts)."""
     key = backup_key(now)
     with tempfile.TemporaryDirectory(prefix="backup-") as tmp:
-        path = Path(tmp) / "portfolio.dump"
-        (dump or pg_dump)(path)
+        path = Path(tmp) / f"portfolio{SUFFIX}"
+        (dump or mysql_dump)(path)
         size = path.stat().st_size
         if size == 0:
-            raise RuntimeError("pg_dump가 빈 파일을 만들었다")
-        storage.upload_file(Bucket.PRIVATE, key, path, "application/octet-stream")
+            raise RuntimeError("mysqldump가 빈 파일을 만들었다")
+        storage.upload_file(Bucket.PRIVATE, key, path, "application/gzip")
     return BackupResult(key=key, size=size, deleted=prune(storage, now))
 
 

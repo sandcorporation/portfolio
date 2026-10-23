@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "매일 04:00 KST에 DB를 pg_dump해 비공개 버킷에 올리고 30일 지난 백업을 지운다"
+    help = "매일 04:00 KST에 DB를 mysqldump해 비공개 버킷에 올리고 30일 지난 백업을 지운다"
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("--once", action="store_true", help="한 번 확인하고 끝낸다")

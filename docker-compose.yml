@@ -1,21 +1,40 @@
-# 로컬 개발·시험용 Postgres. 운영과 같은 엔진으로 시험한다(포트 15442, 프로젝트 portfolio-dev).
-#   docker compose up -d db
+# 로컬 개발·시험용 MySQL. 운영(OCI HeatWave, MySQL 26.10)과 같은 판·같은 콜레이션으로 시험한다
+# (포트 15442, 프로젝트 portfolio-dev).
+#   docker compose up -d --wait db
+# 로그 플러시·binlog를 끈 것은 로컬 시험 속도 때문이다(운영 DB 설정과 무관).
 name: portfolio-dev
 services:
   db:
-    image: postgres:17-alpine
+    image: mysql:26.10.0
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_as_cs
+      - --skip-log-bin
+      - --innodb-flush-log-at-trx-commit=2
+      - --innodb-doublewrite=OFF
     environment:
-      POSTGRES_DB: portfolio
-      POSTGRES_USER: portfolio
-      POSTGRES_PASSWORD: portfolio
+      MYSQL_DATABASE: portfolio
+      MYSQL_USER: portfolio
+      MYSQL_PASSWORD: portfolio
+      MYSQL_ROOT_PASSWORD: portfolio-root
     ports:
-      - "127.0.0.1:15442:5432"
+      - "127.0.0.1:15442:3306"
     volumes:
-      - dbdata:/var/lib/postgresql/data
+      - mysqldata:/var/lib/mysql
+    configs:
+      # pytest-django가 시험 DB(test_portfolio)를 만들고 지운다.
+      - source: grant-test-db
+        target: /docker-entrypoint-initdb.d/grant-test-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U portfolio -d portfolio"]
+      test: ["CMD-SHELL", "mysql -uportfolio -pportfolio -h127.0.0.1 -e 'SELECT 1' portfolio"]
       interval: 2s
       timeout: 3s
-      retries: 30
+      retries: 60
+      start_period: 60s
+      start_interval: 1s
+configs:
+  grant-test-db:
+    content: |
+      GRANT ALL PRIVILEGES ON `test\_portfolio`.* TO 'portfolio'@'%';
 volumes:
-  dbdata:
+  mysqldata:

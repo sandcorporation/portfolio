@@ -12,22 +12,32 @@ COPY frontend/ ./
 COPY fixtures/ /app/fixtures/
 RUN pnpm build
 
-FROM python:3.13-slim AS runtime
-# pg_dump/pg_restore for the daily backup (#19); major 17 matches the postgres:17 server.
+# Python deps. mysqlclient has no Linux wheels, so it compiles here against the MariaDB
+# Connector/C headers (`default-libmysqlclient-dev`); the runtime only needs the shared library.
+FROM python:3.13-slim AS pydeps
 RUN apt-get update \
- && apt-get install -y --no-install-recommends postgresql-client-17 \
+ && apt-get install -y --no-install-recommends build-essential pkg-config default-libmysqlclient-dev \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=never \
-    PATH=/opt/venv/bin:$PATH \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    UV_PYTHON_DOWNLOADS=never
 WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
+
+FROM python:3.13-slim AS runtime
+# libmariadb3: the client library mysqlclient links to. default-mysql-client (MariaDB's
+# mysqldump/mysql) for the daily backup and restore (#19, #63).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libmariadb3 default-mysql-client \
+ && rm -rf /var/lib/apt/lists/*
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app/backend
+COPY --from=pydeps /opt/venv /opt/venv
 COPY backend/ ./
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 RUN DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput \

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Called by Jenkins on the oracle agent from the job workspace, which holds ./.env (not in the repo).
-#   1) build the image  2) make sure postgres is up  3) migrate in a one-off container
-#   4) replace web      5) wait for the health check (it round-trips to Postgres)
+#   1) build the image  2) wait until the database (OCI MySQL HeatWave, DB_* in .env) answers
+#   3) migrate in a one-off container  4) replace web  5) wait for the health check (it
+#   round-trips to the database)
 # Migrations run while the old web still serves, so destructive schema changes take two deploys.
 set -euo pipefail
 
@@ -32,9 +33,25 @@ wait_healthy() {
 echo "== 이미지 빌드"
 compose build web
 
-echo "== Postgres (이미 떠 있으면 그대로)"
-compose up -d --no-recreate postgres
-wait_healthy postgres
+echo "== DB 접속 확인 (.env의 DB_*)"
+# 로컬 확인(docker-compose.local.yml을 얹은 경우)에만 있는 mysql 서비스. 운영 DB는 compose 밖이다.
+if compose config --services | grep -qx mysql; then
+  compose up -d --wait mysql
+fi
+db_ok=0
+for i in $(seq 1 10); do
+  if compose run --rm --no-deps web python manage.py check --database default >/dev/null 2>&1; then
+    echo "DB 접속됨 (${i}회째)"
+    db_ok=1
+    break
+  fi
+  sleep 3
+done
+if [ "$db_ok" != 1 ]; then
+  echo "DB에 닿지 않는다. 마지막 시도 출력:" >&2
+  compose run --rm --no-deps web python manage.py check --database default >&2 || true
+  exit 1
+fi
 
 echo "== migrate"
 compose run --rm --no-deps web python manage.py migrate --noinput

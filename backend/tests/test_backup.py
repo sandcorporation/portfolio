@@ -16,7 +16,7 @@ from services import backup
 
 
 def fake_dump(path: Path) -> None:
-    path.write_bytes(b"PGDMP-fake")
+    path.write_bytes(b"-- MySQL dump fake")
 
 
 def utc(
@@ -35,8 +35,8 @@ def test_uploads_to_dated_key_in_private_bucket() -> None:
     storage = FakeObjectStorage()
     result = backup.backup_if_due(storage, utc(2026, 5, 3, 19, 5, 9), fake_dump)
     assert result is not None
-    assert result.key == "backups/2026/05/03/portfolio-20260503T190509Z.dump"
-    assert storage.objects[(Bucket.PRIVATE, result.key)][0] == b"PGDMP-fake"
+    assert result.key == "backups/2026/05/03/portfolio-20260503T190509Z.sql.gz"
+    assert storage.objects[(Bucket.PRIVATE, result.key)][0] == b"-- MySQL dump fake"
     assert not [c for c in storage.calls if c[1] == Bucket.PUBLIC]
 
 
@@ -76,7 +76,7 @@ def test_failed_dump_uploads_and_prunes_nothing() -> None:
     old = put(storage, now - timedelta(days=40))
 
     def broken(path: Path) -> None:
-        raise subprocess.CalledProcessError(1, "pg_dump", stderr="connection refused")
+        raise subprocess.CalledProcessError(1, "mysqldump", stderr="connection refused")
 
     with pytest.raises(subprocess.CalledProcessError):
         backup.backup_if_due(storage, now, broken)
@@ -94,7 +94,7 @@ def test_empty_dump_is_a_failure() -> None:
 
 def test_alert_names_the_failure() -> None:
     notifier = FakeNotifier()
-    exc = subprocess.CalledProcessError(1, "pg_dump", stderr="connection refused\n")
+    exc = subprocess.CalledProcessError(1, "mysqldump", stderr="connection refused\n")
     backup.alert_failure(notifier, utc(2026, 6, 15, 19, 0), exc)
     assert notifier.sent[0].title == "DB 백업 실패"
     assert "connection refused" in notifier.sent[0].text
@@ -110,7 +110,7 @@ def test_command_force_alerts_on_failure(monkeypatch: pytest.MonkeyPatch) -> Non
     def broken(path: Path) -> None:
         raise RuntimeError("disk full")
 
-    monkeypatch.setattr(backup, "pg_dump", broken)
+    monkeypatch.setattr(backup, "mysql_dump", broken)
     with pytest.raises(CommandError):
         call_command("db_backup", "--force")
     assert [n.title for n in notifier.sent] == ["DB 백업 실패"]
@@ -123,8 +123,26 @@ def test_restore_command_fetches_latest(monkeypatch: pytest.MonkeyPatch) -> None
     restored: list[tuple[bytes, str]] = []
     monkeypatch.setattr("core.management.commands.db_restore.get_storage", lambda: storage)
     monkeypatch.setattr(
-        backup, "pg_restore", lambda path, db: restored.append((path.read_bytes(), db))
+        backup, "mysql_restore", lambda path, db: restored.append((path.read_bytes(), db))
     )
     call_command("db_restore", "--dbname", "scratch")
     assert restored == [(b"x", "scratch")]
     assert ("download_file", Bucket.PRIVATE, newest) in storage.calls
+
+
+def test_postgres_era_backups_count_and_are_pruned_but_not_restored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = FakeObjectStorage()
+    now = utc(2026, 11, 1, 19, 0)
+    old_pg = "backups/2026/09/20/portfolio-20260920T190000Z.dump"
+    last_pg = "backups/2026/11/01/portfolio-20261101T190000Z.dump"
+    for key in (old_pg, last_pg):
+        storage.objects[(Bucket.PRIVATE, key)] = (b"PGDMP", "application/octet-stream")
+    assert backup.backup_if_due(storage, now, fake_dump) is None  # today's slot is taken
+    result = backup.run_backup(storage, now + timedelta(days=1), fake_dump)
+    assert result.deleted == (old_pg,)
+
+    monkeypatch.setattr("core.management.commands.db_restore.get_storage", lambda: storage)
+    with pytest.raises(CommandError, match="Postgres"):
+        call_command("db_restore", "--dbname", "scratch", "--key", last_pg)

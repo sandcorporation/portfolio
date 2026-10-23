@@ -23,7 +23,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 저장소 루트에서 `make <대상>`. 백엔드는 `backend/`(uv, Python 3.13), 프론트는 `frontend/`(pnpm).
 
-- 시험: `make test` (= `make test-backend` + `make test-frontend`). 백엔드 시험은 Postgres를 쓴다 — `make db`가 `portfolio-dev` 프로젝트로 `127.0.0.1:15442`에 띄운다(`make test-backend`가 알아서 부른다).
+- 시험: `make test` (= `make test-backend` + `make test-frontend`). 백엔드 시험은 MySQL을 쓴다 — `make db`가 `mysql:26.10.0`(utf8mb4_0900_as_cs, 운영 OCI HeatWave와 같은 판·콜레이션)을 `portfolio-dev` 프로젝트로 `127.0.0.1:15442`에 띄운다(`make test-backend`가 알아서 부른다). 시험 설정은 포트 15442를 본다(운영 기본 3306). 백엔드 시험 전체는 30초 안에 끝나야 한다. MySQL에서만 보이는 성질(대소문자 구분, 첫 열람 유일, PDF 워커 둘의 SKIP LOCKED)은 `tests/test_mysql.py`.
 - 린트: `make lint` (ruff format --check, ruff check, eslint). 고치기: `cd backend && uv run ruff format . && uv run ruff check --fix .`
 - 타입: `make typecheck` (mypy strict + django-stubs, `tsc --noEmit`).
 - 생성: `make gen` — 백엔드 블록 스키마(Pydantic)에서 JSON Schema와 `frontend/src/blocks/types.gen.ts`를 다시 만든다. `make gen-check`는 차이가 없는지 본다(`make check`에 포함).
@@ -33,5 +33,6 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 - 작업자는 이 「명령」 절을 명령이 바뀌는 티켓에서 함께 고친다.
 - 로컬 실행: `make dev-frontend`(Vite, :5173)와 `make dev-backend`(Django, :8000)를 따로 띄우고 http://localhost:8000 을 연다. Django가 HTML 셸을 내리고 Vite dev 서버의 스크립트를 붙인다.
 - PDF 워커(#40): 운영 compose의 `worker`가 `python manage.py pdf_worker`를 돌린다(작업 하나씩, `--once`는 하나만 처리하고 끝냄). 렌더러는 같은 compose의 `renderer`(browserless, 호스트 포트 없음)이고 `.env`의 `PDF_RENDERER_TOKEN`이 비면 PDF만 「실패」로 남는다. 로컬 개발 서버에서는 워커를 띄우지 않으면 PDF가 「대기」에 머문다.
-- DB 백업(#19): 운영 compose의 `backup`이 `python manage.py db_backup`을 돈다(04:00 KST 하루 한 번, 30일 보관, 실패 시 Discord). 즉시 백업 `db_backup --force`, 복원 `db_restore --dbname <빈 DB>`. 절차는 `docs/ops/backup-restore.md`.
-- 운영 compose 로컬 확인: `.env.example`을 `.env`로 복사해 값을 채우고(`DJANGO_ALLOWED_HOSTS`에 `localhost`) `COMPOSE_PROJECT_NAME=portfolio-local COMPOSE_FILE=docker-compose.prod.yml bash deploy/deploy.sh` → http://127.0.0.1:18091 . 끝나면 `make prod-local-down`.
+- DB(#63): 운영 DB는 compose 밖의 OCI MySQL HeatWave(사설 IP)이고 web·worker·backup이 `.env`의 `DB_HOST`·`DB_PORT`·`DB_NAME`·`DB_USER`·`DB_PASSWORD`로 붙는다. 드라이버는 mysqlclient(이미지 빌드 단계에서 컴파일). 트랜잭션 격리는 Django 기본 READ COMMITTED를 바꾸지 않는다. 결정은 `docs/adr/0001-mysql-heatwave.md`, Postgres에서 옮기는 절차는 `docs/ops/db-migration.md`.
+- DB 백업(#19): 운영 compose의 `backup`이 `python manage.py db_backup`을 돈다(04:00 KST 하루 한 번, `mysqldump` gzip → `backups/…/portfolio-<UTC>.sql.gz`, 30일 보관, 실패 시 Discord). 즉시 백업 `db_backup --force`, 복원 `db_restore --dbname <빈 DB>`(덤프에 DROP TABLE이 없어 빈 DB에만 들어간다, Postgres 시절 `.dump`는 거절). 절차는 `docs/ops/backup-restore.md`.
+- 운영 compose 로컬 확인: `.env.example`을 `.env`로 복사해 값을 채우고(`DJANGO_ALLOWED_HOSTS`에 `localhost`) `COMPOSE_PROJECT_NAME=portfolio-local COMPOSE_FILE=docker-compose.prod.yml:docker-compose.local.yml bash deploy/deploy.sh` → http://127.0.0.1:18091 (DB는 `docker-compose.local.yml`의 로컬 MySQL이 `.env`의 `DB_*`를 덮는다; `make prod-local`은 migrate 없이 띄우기만). 끝나면 `make prod-local-down`.

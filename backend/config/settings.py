@@ -67,16 +67,22 @@ TEMPLATES = [
     },
 ]
 
+# MySQL (OCI HeatWave in production, `make db` locally). The database is created with
+# utf8mb4 / utf8mb4_0900_as_cs so slugs, client codes and usernames compare case-sensitively,
+# as they did on Postgres. Django opens sessions in READ COMMITTED; keep it (the document-number
+# serialisation in services/publishing.py relies on reading the latest commit after the lock).
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("POSTGRES_DB", "portfolio"),
-        "USER": env("POSTGRES_USER", "portfolio"),
-        "PASSWORD": env("POSTGRES_PASSWORD", "portfolio"),
-        "HOST": env("POSTGRES_HOST", "127.0.0.1"),
-        "PORT": env("POSTGRES_PORT", "15442"),
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": env("DB_NAME", "portfolio"),
+        "USER": env("DB_USER", "portfolio"),
+        "PASSWORD": env("DB_PASSWORD", "portfolio"),
+        "HOST": env("DB_HOST", "127.0.0.1"),
+        "PORT": env("DB_PORT", "3306"),
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {"charset": "utf8mb4"},
+        "TEST": {"CHARSET": "utf8mb4", "COLLATION": "utf8mb4_0900_as_cs"},
     }
 }
 
