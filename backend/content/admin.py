@@ -48,6 +48,8 @@ class SiteProfileAdmin(_ProfileAdmin):
         "address",
         "availability",
         "availability_updated_on",
+        "career_started_on",
+        "response_promise",
         "github",
     )
 

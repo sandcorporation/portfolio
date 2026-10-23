@@ -24,3 +24,5 @@ admin 로그인(`oauth/login.py`, 문서 7절): `<ADMIN_PATH>oauth/login/` → s
 PDF 렌더러: 서비스(`services/pdf.py`)는 `get_renderer()`로 받고, 시험은 `renderer` 픽스처가 `services.pdf.get_renderer`를 갈아 끼운다. 실패는 모두 `RenderFailed`.
 
 Foresight: 화면 쪽은 `fetch_recent(limit=5)`만 부른다. 예외를 내지 않는다 — 성공한 답은 `django_cache`에 10분(`foresight:recent:<limit>`)과 「마지막 성공 값」 24시간(`foresight:last-good:<limit>`)으로 두고, 뉴스 사이트가 실패하면 마지막 성공 값(없으면 빈 목록)을 돌려주며 로그 한 줄을 남긴다(그 대체 값도 10분 캐시해 죽은 사이트를 매 요청 부르지 않는다). 게이트웨이는 `set_gateway`/`get_gateway`로 바꾸고, 시험은 `tests/conftest.py`의 autouse `foresight` 픽스처가 늘 `FakeForesight`를 끼운다(시험이 실제 사이트에 닿지 않음).
+
+Foresight 통계(#91): `fetch_stats()`는 `ForesightGateway.stats()`(`FORESIGHT_STATS_URL`, AI-Trend-News #77 모양)를 같은 규칙으로 읽어 `ForesightStats | None`을 돌려준다(캐시 `foresight:stats` 10분, `foresight:stats-last-good` 24시간; 실패하고 마지막 값도 없으면 None을 10분 캐시). 시험은 `FakeForesight.stats_value`·`stats_calls`.

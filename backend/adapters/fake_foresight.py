@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from adapters.foresight import ForesightArticle, ForesightUnavailable
+from adapters.foresight import ForesightArticle, ForesightStats, ForesightUnavailable
 
 SEOUL = ZoneInfo("Asia/Seoul")
 
@@ -28,9 +28,25 @@ class FakeForesight:
     )
     failing: bool = False
     calls: list[int] = field(default_factory=list)
+    # None is "switched off"; the default reads like the real endpoint (AI-Trend-News #77).
+    stats_value: ForesightStats | None = field(
+        default_factory=lambda: ForesightStats(
+            articles_per_day_7d=42.4,
+            articles_total=1234,
+            published_since="2026-08-01",
+            hit_rate=0.61,
+        )
+    )
+    stats_calls: int = 0
 
     def recent(self, limit: int) -> list[ForesightArticle]:
         self.calls.append(limit)
         if self.failing:
             raise ForesightUnavailable("가짜 Foresight 장애")
         return self.articles[:limit]
+
+    def stats(self) -> ForesightStats | None:
+        self.stats_calls += 1
+        if self.failing:
+            raise ForesightUnavailable("가짜 Foresight 장애")
+        return self.stats_value

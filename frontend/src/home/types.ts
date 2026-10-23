@@ -31,6 +31,16 @@ export interface Availability {
   updated: string;
 }
 
+/** One big number of the evidence row under the hero. Mirrors EvidenceItem in services/home.py. */
+export interface EvidenceItem {
+  key: "services" | "foresight" | "reply" | "career";
+  /** Already formatted ("4", "1,234", "1일"). */
+  value: string;
+  /** Small text after the value ("건/일", "년차"); "" when none. */
+  unit: string;
+  label: string;
+}
+
 export interface HomeData {
   tagline: string;
   /** The GitHub profile's stack badges: the hero's tag line. */
@@ -45,6 +55,8 @@ export interface HomeData {
   visits?: SiteVisits | null;
   /** The profile's availability; null/absent leaves it out of the masthead. */
   availability?: Availability | null;
+  /** The row under the hero; empty/absent hides it. */
+  evidence?: EvidenceItem[];
   contact: { email: string; phone: string; address: string };
 }
 

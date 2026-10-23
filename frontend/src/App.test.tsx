@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import { App } from "./App";
 import { exampleDocument } from "./blocks/testing";
-import type { HomeData } from "./home/types";
+import type { EvidenceItem, HomeData } from "./home/types";
 
 const home: HomeData = {
   tagline: "",
@@ -165,6 +165,37 @@ test("가용 상태가 없거나 비면 아무 자리도 만들지 않고, 날�
   render(<App path="/" data={{ ...home, availability: { text: "새 프로젝트 받는 중", updated: "" } }} />);
   expect(document.querySelector(".availability")).toHaveTextContent(/^● 새 프로젝트 받는 중$/);
   expect(document.querySelector(".availability-updated")).toBeNull();
+});
+
+const evidence: EvidenceItem[] = [
+  { key: "services", value: "4", unit: "", label: "운영 중인 서비스" },
+  { key: "foresight", value: "1,234", unit: "건/일", label: "Foresight 자동 편집 기사" },
+  { key: "reply", value: "1일", unit: "", label: "첫 회신 · 영업일 기준" },
+  { key: "career", value: "7", unit: "년차", label: "웹·앱 개발 경력" },
+];
+
+test("히어로 아래 증거 행은 큰 숫자·단위·라벨을 순서대로 보이고 회사 소개 앞에 놓인다", () => {
+  render(<App path="/" data={{ ...home, evidence }} />);
+
+  const row = document.querySelector(".evidence") as HTMLElement;
+  const cards = row.querySelectorAll(".kpi-card");
+  expect(cards).toHaveLength(4);
+  expect(cards[1]?.querySelector(".kpi-value")).toHaveTextContent("1,234건/일");
+  expect(cards[1]?.querySelector(".kpi-label")).toHaveTextContent("Foresight 자동 편집 기사");
+  expect(cards[2]?.querySelector(".kpi-value")).toHaveTextContent("1일");
+  expect(cards[3]?.querySelector(".kpi-value")).toHaveTextContent("7년차");
+  const hero = document.querySelector(".hero") as HTMLElement;
+  const company = document.getElementById("home-company") as HTMLElement;
+  expect(hero.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(row.compareDocumentPosition(company) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test("증거 행이 비었거나 없으면 자리를 만들지 않는다", () => {
+  const { unmount } = render(<App path="/" data={{ ...home, evidence: [] }} />);
+  expect(document.querySelector(".evidence")).toBeNull();
+  unmount();
+  render(<App path="/" data={home} />);
+  expect(document.querySelector(".evidence")).toBeNull();
 });
 
 test("목록·상세 같은 다른 공개 페이지의 머리띠에도 보인다", () => {

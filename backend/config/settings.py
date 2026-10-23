@@ -121,6 +121,8 @@ DISCORD_ALERTS_WEBHOOK_URL = env("DISCORD_ALERTS_WEBHOOK_URL")
 # Foresight (news.sandcorp.co.kr) public JSON for the home page's recent-articles section (#74).
 # Empty turns the section off. The adapter caches 10 minutes in django_cache.
 FORESIGHT_API_URL = env("FORESIGHT_API_URL", "https://news.sandcorp.co.kr/api/public/articles")
+# Aggregate numbers (AI-Trend-News #77) for the home evidence row (#91). Empty switches it off.
+FORESIGHT_STATS_URL = env("FORESIGHT_STATS_URL", "https://news.sandcorp.co.kr/api/public/stats")
 FORESIGHT_TIMEOUT_SECONDS = 3
 
 # sandcorp-metrics (metrics.sandcorp.co.kr) visit counts (#81). METRICS_SNIPPET_URL is the counting

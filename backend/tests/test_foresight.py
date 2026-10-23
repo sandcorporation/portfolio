@@ -88,6 +88,7 @@ def test_a_wrong_shape_is_unavailable() -> None:
 def test_an_empty_url_switches_it_off(settings: Settings) -> None:
     adapter.set_gateway(None)
     settings.FORESIGHT_API_URL = ""
+    settings.FORESIGHT_STATS_URL = ""
     assert isinstance(adapter.get_gateway(), adapter.DisabledForesight)
     assert adapter.fetch_recent() == []
     settings.FORESIGHT_API_URL = "https://news.example/api/public/articles"

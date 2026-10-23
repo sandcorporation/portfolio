@@ -181,6 +181,19 @@ class SiteProfile(models.Model):
         blank=True,
         help_text="머리띠에 「갱신 YYYY.MM」으로 보인다. 비우고 저장하면 오늘로 채운다.",
     )
+    career_started_on = models.DateField(
+        "웹·앱 개발 경력 시작일",
+        null=True,
+        blank=True,
+        help_text="홈 증거 행의 「N년차」 = 올해 − 시작 연도 + 1. 비우면 그 항목을 숨긴다.",
+    )
+    response_promise = models.CharField(
+        "첫 회신 약속",
+        max_length=40,
+        blank=True,
+        default="영업일 1일",
+        help_text="홈 증거 행의 「첫 회신」 문구(예: 영업일 1일). 비우면 그 항목을 숨긴다.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

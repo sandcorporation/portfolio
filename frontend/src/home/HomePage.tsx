@@ -55,6 +55,7 @@ export function HomePage({ data }: { data: HomeData }) {
   ];
   const no = (key: string) => String(shown.indexOf(key) + 1).padStart(2, "0");
   const stack = data.stack ?? [];
+  const evidence = data.evidence ?? [];
   return (
     <>
       <Masthead>
@@ -87,6 +88,21 @@ export function HomePage({ data }: { data: HomeData }) {
             <a href="#home-inquiry">문의 →</a>
           </p>
         </section>
+        {evidence.length > 0 && (
+          <section className="evidence" aria-label="한눈에 보는 실적">
+            <ul className="kpi-cards evidence-row">
+              {evidence.map((item) => (
+                <li key={item.key} className="kpi-card">
+                  <span className="kpi-label">{item.label}</span>
+                  <strong className="kpi-value">
+                    {item.value}
+                    {item.unit && <small className="evidence-unit">{item.unit}</small>}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
             <section className="page-section" aria-labelledby="home-company">
               <SectionHead index={no("company")} label="Company" />
               <h2 id="home-company" className="page-section-title">

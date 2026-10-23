@@ -6,6 +6,11 @@ shows them, so a slow or broken news site must never break ours: one request wit
 timeout, the answer cached 10 minutes, and on failure the last good answer (kept 24 hours) or an
 empty list plus one log line.
 
+`GET {FORESIGHT_STATS_URL}` answers `{"articles_per_day_7d", "articles_total", "published_since",
+"predictions": {"hit_rate"}}` (AI-Trend-News #77); `fetch_stats()` reads it the same way (3 s,
+10 minutes, the last good answer 24 hours, else None). The home page uses only
+`articles_per_day_7d`.
+
 Tests swap the gateway with `set_gateway(FakeForesight())` (`adapters/fake_foresight.py`).
 """
 
@@ -39,6 +44,14 @@ class ForesightArticle:
     url: str
 
 
+@dataclass(frozen=True)
+class ForesightStats:
+    articles_per_day_7d: float
+    articles_total: int | None
+    published_since: str  # "" when the answer has none
+    hit_rate: float | None  # predictions.hit_rate
+
+
 class ForesightUnavailable(Exception):
     """The news site could not be read (unreachable, error status, bad JSON or switched off)."""
 
@@ -46,6 +59,10 @@ class ForesightUnavailable(Exception):
 class ForesightGateway(Protocol):
     def recent(self, limit: int) -> list[ForesightArticle]:
         """The newest `limit` published articles. Raises ForesightUnavailable."""
+        ...
+
+    def stats(self) -> ForesightStats | None:
+        """The aggregate numbers; None when switched off. Raises ForesightUnavailable."""
         ...
 
 
@@ -78,36 +95,74 @@ def parse_items(payload: object) -> list[ForesightArticle]:
     return articles
 
 
+def parse_stats(payload: object) -> ForesightStats:
+    """The stats endpoint's JSON body; raises ForesightUnavailable on a wrong shape."""
+    if not isinstance(payload, dict):
+        raise ForesightUnavailable("stats 응답이 객체가 아님")
+    per_day = payload.get("articles_per_day_7d")
+    if isinstance(per_day, bool) or not isinstance(per_day, int | float) or per_day < 0:
+        raise ForesightUnavailable("articles_per_day_7d 가 숫자가 아님")
+    total = payload.get("articles_total")
+    predictions = payload.get("predictions")
+    hit_rate = predictions.get("hit_rate") if isinstance(predictions, dict) else None
+    since = payload.get("published_since")
+    return ForesightStats(
+        articles_per_day_7d=float(per_day),
+        articles_total=total if isinstance(total, int) and not isinstance(total, bool) else None,
+        published_since=since if isinstance(since, str) else "",
+        hit_rate=float(hit_rate)
+        if isinstance(hit_rate, int | float) and not isinstance(hit_rate, bool)
+        else None,
+    )
+
+
+def _get_json(url: str, timeout: float) -> object:
+    request = urllib.request.Request(
+        url, headers={"Accept": "application/json", "User-Agent": "sandcorp-portfolio"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            body: bytes = response.read(1_000_000)
+    except urllib.error.HTTPError as e:
+        raise ForesightUnavailable(f"HTTP {e.code}") from None
+    except (urllib.error.URLError, OSError) as e:
+        raise ForesightUnavailable(f"닿지 못함: {e}") from None
+    try:
+        payload: object = json.loads(body)
+    except ValueError:
+        raise ForesightUnavailable("JSON이 아닌 응답") from None
+    return payload
+
+
 class HttpForesight:
-    def __init__(self, base_url: str, timeout_seconds: float) -> None:
+    """An empty URL switches that one read off (articles: no rows; stats: None)."""
+
+    def __init__(self, base_url: str, timeout_seconds: float, stats_url: str = "") -> None:
         self._base_url = base_url
+        self._stats_url = stats_url
         self._timeout = timeout_seconds
 
+    def stats(self) -> ForesightStats | None:
+        if not self._stats_url:
+            return None
+        return parse_stats(_get_json(self._stats_url, self._timeout))
+
     def recent(self, limit: int) -> list[ForesightArticle]:
+        if not self._base_url:
+            return []
         sep = "&" if "?" in self._base_url else "?"
-        request = urllib.request.Request(
-            f"{self._base_url}{sep}{urlencode({'limit': limit})}",
-            headers={"Accept": "application/json", "User-Agent": "sandcorp-portfolio"},
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:  # noqa: S310
-                body: bytes = response.read(1_000_000)
-        except urllib.error.HTTPError as e:
-            raise ForesightUnavailable(f"HTTP {e.code}") from None
-        except (urllib.error.URLError, OSError) as e:
-            raise ForesightUnavailable(f"닿지 못함: {e}") from None
-        try:
-            payload: object = json.loads(body)
-        except ValueError:
-            raise ForesightUnavailable("JSON이 아닌 응답") from None
-        return parse_items(payload)
+        url = f"{self._base_url}{sep}{urlencode({'limit': limit})}"
+        return parse_items(_get_json(url, self._timeout))
 
 
 class DisabledForesight:
-    """FORESIGHT_API_URL is empty: the section is switched off."""
+    """FORESIGHT_API_URL and FORESIGHT_STATS_URL are both empty: Foresight is switched off."""
 
     def recent(self, limit: int) -> list[ForesightArticle]:
         return []
+
+    def stats(self) -> ForesightStats | None:
+        return None
 
 
 _gateway: ForesightGateway | None = None
@@ -123,9 +178,10 @@ def get_gateway() -> ForesightGateway:
     if _gateway is not None:
         return _gateway
     url: str = settings.FORESIGHT_API_URL
-    if not url:
+    stats_url: str = settings.FORESIGHT_STATS_URL
+    if not url and not stats_url:
         return DisabledForesight()
-    return HttpForesight(url, settings.FORESIGHT_TIMEOUT_SECONDS)
+    return HttpForesight(url, settings.FORESIGHT_TIMEOUT_SECONDS, stats_url)
 
 
 def _key(limit: int) -> str:
@@ -170,3 +226,51 @@ def fetch_recent(limit: int = 5) -> list[ForesightArticle]:
     cache.set(_key(limit), rows, CACHE_SECONDS)
     cache.set(_last_good_key(limit), rows, LAST_GOOD_SECONDS)
     return articles
+
+
+STATS_KEY = "foresight:stats"
+STATS_LAST_GOOD_KEY = "foresight:stats-last-good"
+
+
+def _dump_stats(stats: ForesightStats | None) -> dict[str, object]:
+    if stats is None:
+        return {"stats": None}
+    return {  # the endpoint's own shape, so `parse_stats` reads it back
+        "stats": {
+            "articles_per_day_7d": stats.articles_per_day_7d,
+            "articles_total": stats.articles_total,
+            "published_since": stats.published_since,
+            "predictions": {"hit_rate": stats.hit_rate},
+        }
+    }
+
+
+def _load_stats(row: object) -> tuple[bool, ForesightStats | None]:
+    """(found, stats) from a cached `{"stats": {...} | None}`."""
+    if not isinstance(row, dict) or "stats" not in row:
+        return False, None
+    try:
+        return True, parse_stats(row["stats"]) if row["stats"] is not None else None
+    except ForesightUnavailable:
+        return False, None
+
+
+def fetch_stats() -> ForesightStats | None:
+    """The Foresight aggregate numbers for the home page's evidence row, never raising.
+
+    Same rules as `fetch_recent`: 10 minutes cached; on failure the last good answer (24 hours,
+    re-cached 10 minutes) or None."""
+    found, cached = _load_stats(cache.get(STATS_KEY))
+    if found:
+        return cached
+    try:
+        stats = get_gateway().stats()
+    except ForesightUnavailable as e:
+        logger.warning("Foresight 통계를 받지 못함: %s", e)
+        _, stats = _load_stats(cache.get(STATS_LAST_GOOD_KEY))
+        cache.set(STATS_KEY, _dump_stats(stats), CACHE_SECONDS)
+        return stats
+    cache.set(STATS_KEY, _dump_stats(stats), CACHE_SECONDS)
+    if stats is not None:
+        cache.set(STATS_LAST_GOOD_KEY, _dump_stats(stats), LAST_GOOD_SECONDS)
+    return stats

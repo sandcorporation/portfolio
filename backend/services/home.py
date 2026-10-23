@@ -1,14 +1,15 @@
 """What the public home page shows, read from the site profile."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import TypedDict
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
-from adapters.foresight import ForesightArticle, fetch_recent
+from adapters.foresight import ForesightArticle, ForesightStats, fetch_recent
+from adapters.foresight import fetch_stats as fetch_foresight_stats
 from adapters.metrics import Stats, fetch_stats
 from content.models import SiteProfile
 from documents.validation import JSON
@@ -56,6 +57,15 @@ class Availability(TypedDict):
     updated: str  # YYYY.MM
 
 
+class EvidenceItem(TypedDict):
+    """One big number of the evidence row under the hero (#91). `value` is already formatted."""
+
+    key: str  # "services" | "foresight" | "reply" | "career"
+    value: str  # "4", "1,234", "1일"
+    unit: str  # small text after the value ("건/일", "년차"), "" when none
+    label: str  # the mono label
+
+
 class HomeData(TypedDict):
     """Embedded in the shell as #page-data. Mirrored by frontend/src/home/types.ts."""
 
@@ -68,6 +78,7 @@ class HomeData(TypedDict):
     news: list[NewsItem]  # newest Foresight articles; empty hides the section
     visits: SiteVisits | None  # None (metrics off or down) leaves the masthead's counts out
     availability: Availability | None  # None (empty profile field) leaves it out
+    evidence: list[EvidenceItem]  # the row under the hero; empty hides it (fewer than 2 items)
 
 
 def relative_time(then: datetime, now: datetime) -> str:
@@ -129,6 +140,59 @@ def site_availability() -> Availability | None:
     return availability_of(SiteProfile.objects.filter(pk=1).first() or SiteProfile())
 
 
+MIN_EVIDENCE = 2
+REPLY_PREFIX = "영업일"
+
+
+def career_years(started_on: date | None, today: date) -> int | None:
+    """「N년차」 = this year - start year + 1; None without a start (or one in the future)."""
+    if started_on is None or started_on.year > today.year:
+        return None
+    return today.year - started_on.year + 1
+
+
+def evidence_of(
+    profile: SiteProfile,
+    portfolio: list[PortfolioCard],
+    foresight: ForesightStats | None,
+    today: date,
+) -> list[EvidenceItem]:
+    """The hero's evidence row. An item with nothing to show is left out; fewer than two items
+    leave the whole row out (one lonely number proves nothing)."""
+    items: list[EvidenceItem] = []
+    live = sum(1 for card in portfolio if card["status"] == "live")
+    if live > 0:
+        items.append(
+            EvidenceItem(key="services", value=f"{live:,}", unit="", label="운영 중인 서비스")
+        )
+    if foresight is not None:
+        per_day = round(foresight.articles_per_day_7d)
+        items.append(
+            EvidenceItem(
+                key="foresight",
+                value=f"{per_day:,}",
+                unit="건/일",
+                label="Foresight 자동 편집 기사",
+            )
+        )
+    promise = profile.response_promise.strip()
+    if promise:
+        # 「영업일 1일」 reads as the big 「1일」 with 「영업일 기준」 as its label.
+        rest = promise.removeprefix(REPLY_PREFIX).strip()
+        if promise.startswith(REPLY_PREFIX) and rest:
+            items.append(
+                EvidenceItem(key="reply", value=rest, unit="", label="첫 회신 · 영업일 기준")
+            )
+        else:
+            items.append(EvidenceItem(key="reply", value=promise, unit="", label="첫 회신"))
+    years = career_years(profile.career_started_on, today)
+    if years is not None:
+        items.append(
+            EvidenceItem(key="career", value=f"{years:,}", unit="년차", label="웹·앱 개발 경력")
+        )
+    return items if len(items) >= MIN_EVIDENCE else []
+
+
 def stack_of(github: object) -> list[str]:
     badges = github.get("stack_badges") if isinstance(github, dict) else None
     return [b for b in badges if isinstance(b, str)] if isinstance(badges, list) else []
@@ -144,6 +208,7 @@ def home_page() -> HomePage:
     # Reading never creates the profile row; an unsaved default stands in until admin saves one.
     profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
     stats = fetch_stats()  # one read for both the masthead and the rows (cached 60 s anyway)
+    portfolio = [card_of(item, stats) for item in public_items()]
     return HomePage(
         description=profile.tagline or DEFAULT_DESCRIPTION,
         data=HomeData(
@@ -155,11 +220,12 @@ def home_page() -> HomePage:
                 phone=profile.contact_phone,
                 address=profile.address,
             ),
-            portfolio=[card_of(item, stats) for item in public_items()],
+            portfolio=portfolio,
             posts=recent_posts(),
             news=recent_news(),
             visits=site_visits(stats),
             availability=availability_of(profile),
+            evidence=evidence_of(profile, portfolio, fetch_foresight_stats(), timezone.localdate()),
         ),
     )
 

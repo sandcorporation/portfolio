@@ -23,6 +23,8 @@ class Profile(BaseModel):
     address: str
     availability: str
     availability_updated_on: date | None
+    career_started_on: date | None
+    response_promise: str
     github: GithubProfile
 
 
@@ -58,6 +60,21 @@ class ProfilePatch(BaseModel):
             "while empty) is filled with today when availability is saved."
         ),
     )
+    career_started_on: date | None = Field(
+        default=None,
+        description=(
+            "Date (YYYY-MM-DD) the web/app career began; the home evidence row shows "
+            "「N년차」 = this year - start year + 1. null hides it."
+        ),
+    )
+    response_promise: str = Field(
+        default="",
+        max_length=40,
+        description=(
+            "First-reply promise on the home evidence row, e.g. 영업일 1일 (shown as 「1일」 "
+            'with 「영업일 기준」). "" hides it.'
+        ),
+    )
     github: GithubProfile = Field(
         default_factory=GithubProfile,
         description=(
@@ -78,6 +95,8 @@ def _profile_of(row: SiteProfile) -> Profile:
         address=row.address,
         availability=row.availability,
         availability_updated_on=row.availability_updated_on,
+        career_started_on=row.career_started_on,
+        response_promise=row.response_promise,
         github=GithubProfile.model_validate(row.github or {}),
     )
 

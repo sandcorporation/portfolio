@@ -200,7 +200,8 @@ class VisibilityInput(SlugInput):
     "get_profile",
     "Get site profile",
     "The home page profile: tagline, contact fields, availability (the masthead's "
-    '"새 프로젝트 받는 중" and its date) and the two block documents (company_intro, ceo_intro).',
+    '"새 프로젝트 받는 중" and its date), career_started_on and response_promise (the home '
+    "evidence row) and the two block documents (company_intro, ceo_intro).",
     NoInput,
 )
 def get_profile(token: AccessToken, args: NoInput) -> ToolResult:

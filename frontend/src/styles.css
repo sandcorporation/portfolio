@@ -749,6 +749,30 @@ h3.block-heading {
   font-size: var(--text-sm);
 }
 
+/* home: the evidence row under the hero reuses the kpi cards, 2 columns, 4 from 1024px */
+.evidence {
+  padding: var(--space-4) 0 var(--space-6);
+}
+
+.evidence-row {
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.evidence-unit {
+  margin-left: var(--space-1);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--color-muted);
+}
+
+@media (min-width: 1024px) {
+  .evidence-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 /* table: hairline rows, tinted head */
 .table-unit {
   margin: 0 0 var(--space-1);
