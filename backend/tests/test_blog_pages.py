@@ -173,6 +173,7 @@ def test_home_data_carries_recent_posts_and_news(client: Client, foresight: Fake
     posts = cast(list[dict[str, object]], data["posts"])
     news = cast(list[dict[str, object]], data["news"])
 
+    assert "ceo_intro" not in data  # #92: the home does not draw it
     assert [p["slug"] for p in posts] == ["p0", "p1", "p2"]
     assert len(news) == 5
     assert foresight.calls == [5]

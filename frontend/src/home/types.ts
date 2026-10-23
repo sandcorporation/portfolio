@@ -36,7 +36,6 @@ export interface HomeData {
   /** The GitHub profile's stack badges: the hero's tag line. */
   stack: string[];
   company_intro: Document;
-  ceo_intro: Document;
   portfolio: PortfolioCard[];
   /** Newest published blog posts; empty hides the section. */
   posts: PostCard[];
@@ -51,5 +50,5 @@ export interface HomeData {
 
 export function isHomeData(value: unknown): value is HomeData {
   if (typeof value !== "object" || value === null) return false;
-  return "company_intro" in value && "ceo_intro" in value && "contact" in value && "portfolio" in value;
+  return "company_intro" in value && "contact" in value && "portfolio" in value;
 }

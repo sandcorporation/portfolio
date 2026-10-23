@@ -266,6 +266,7 @@ def test_mcp_updates_github_and_service_url(mcp: McpClient) -> None:
     assert result["isError"] is False
     assert SiteProfile.load().github["stack_badges"] == ["Python"]
     assert mcp.call_tool("get_profile", {})["structuredContent"]["github"]["contact_note"] == "연락"  # type: ignore[index, call-overload]
+    assert "ceo_intro" in mcp.call_tool("get_profile", {})["structuredContent"]  # type: ignore[operator]  # #92: kept
 
     bad_inputs: list[JSON] = [
         {"public_projects": [{"name": "a", "url": "ftp://x", "scope": "org"}]},

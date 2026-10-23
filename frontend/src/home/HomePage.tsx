@@ -47,7 +47,6 @@ export function HomePage({ data }: { data: HomeData }) {
   // The mono numbers count only the sections that are shown.
   const shown = [
     "company",
-    "ceo",
     ...(hasPosts ? ["notes"] : []),
     ...(hasNews ? ["news"] : []),
     ...(hasPortfolio ? ["work"] : []),
@@ -93,13 +92,6 @@ export function HomePage({ data }: { data: HomeData }) {
                 회사 소개
               </h2>
               <DocumentView document={data.company_intro} idPrefix="company-" hideToc />
-            </section>
-            <section className="page-section" aria-labelledby="home-ceo">
-              <SectionHead index={no("ceo")} label="CEO" />
-              <h2 id="home-ceo" className="page-section-title">
-                대표 소개
-              </h2>
-              <DocumentView document={data.ceo_intro} idPrefix="ceo-" hideToc />
             </section>
             {hasPosts && (
               <section className="page-section" aria-labelledby="home-notes">

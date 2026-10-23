@@ -156,7 +156,7 @@ def test_profile_edited_in_admin_shows_on_home(
     assert data["company_intro"]["tabs"][0]["blocks"][0]["title"] == (
         "채권추심 녹취 분석 시스템 구축 제안"
     )
-    assert data["ceo_intro"]["tabs"][0]["blocks"][0]["title"] == "한상진"
+    assert "ceo_intro" not in data  # saved, but the home does not draw it (#92)
     assert data["contact"]["email"] == "hello@sandcorp.co.kr"
 
 

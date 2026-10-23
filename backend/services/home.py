@@ -62,7 +62,6 @@ class HomeData(TypedDict):
     tagline: str
     stack: list[str]  # the GitHub profile's stack badges: the hero's tag line
     company_intro: dict[str, JSON]
-    ceo_intro: dict[str, JSON]
     contact: Contact
     portfolio: list[PortfolioCard]
     posts: list[blog.PostCard]  # newest published blog posts; empty hides the section
@@ -151,7 +150,6 @@ def home_page() -> HomePage:
             tagline=profile.tagline,
             stack=stack_of(profile.github),
             company_intro=media.resolve_document(profile.company_intro),
-            ceo_intro=media.resolve_document(profile.ceo_intro),
             contact=Contact(
                 email=profile.contact_email,
                 phone=profile.contact_phone,

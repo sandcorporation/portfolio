@@ -11,15 +11,6 @@ const home: HomeData = {
   posts: [],
   news: [],
   company_intro: exampleDocument,
-  ceo_intro: {
-    tabs: [
-      {
-        id: "ceo",
-        title: "대표",
-        blocks: [{ id: "bio", type: "markdown", title: "한상진", body: "음성 처리 개발자" }],
-      },
-    ],
-  },
   portfolio: [
     {
       slug: "voice",
@@ -33,13 +24,13 @@ const home: HomeData = {
   contact: { email: "hello@sandcorp.co.kr", phone: "010-1234-5678", address: "" },
 };
 
-test("홈은 셸에 심긴 프로필로 회사 소개, 대표 소개, 연락처를 보여 준다", () => {
+test("홈은 셸에 심긴 프로필로 회사 소개, 연락처를 보여 준다", () => {
   render(<App path="/" data={home} />);
 
   expect(screen.getByRole("region", { name: "회사 소개" })).toHaveTextContent(
     "채권추심 녹취 분석 시스템 구축 제안",
   );
-  expect(screen.getByRole("region", { name: "대표 소개" })).toHaveTextContent("음성 처리 개발자");
+  expect(screen.queryByRole("region", { name: "대표 소개" })).toBeNull();
   for (const link of screen.getAllByRole("link", { name: "hello@sandcorp.co.kr" })) {
     expect(link).toHaveAttribute("href", "mailto:hello@sandcorp.co.kr");
   }

@@ -43,7 +43,6 @@ const home = (extra: Partial<HomeData> = {}): HomeData => ({
   tagline: "",
   stack: [],
   company_intro: exampleDocument,
-  ceo_intro: exampleDocument,
   portfolio: [],
   posts: [card("a"), card("b")],
   news: [
@@ -100,7 +99,7 @@ test("글이 없거나 뉴스가 비면 그 섹션을 통째로 뺀다", () => {
   expect(screen.queryByRole("region", { name: "만들면서 남긴 기록" })).toBeNull();
   expect(screen.queryByRole("region", { name: "Foresight · 최근 뉴스" })).toBeNull();
   expect(screen.queryByText(/뉴스/)).toBeNull();
-  expect(screen.getByText(/Contact/)).toHaveTextContent("03 — Contact");
+  expect(screen.getByText(/Contact/)).toHaveTextContent("02 — Contact");
 });
 
 test("상단 내비는 회사 소개 · 기록 · Foresight ↗ · 포트폴리오 · 문의 순서로 주소를 건다", () => {
@@ -129,14 +128,13 @@ test("홈 섹션은 기록 · Foresight가 포트폴리오보다 위이고 목�
   const h2 = Array.from(container.querySelectorAll("main h2.page-section-title")).map((h) => h.textContent);
   expect(h2).toEqual([
     "회사 소개",
-    "대표 소개",
     "만들면서 남긴 기록",
     "Foresight · 최근 뉴스",
     "포트폴리오",
     "문의·제안",
   ]);
   expect(Array.from(container.querySelectorAll(".section-head")).map((e) => e.textContent?.slice(0, 2))).toEqual([
-    "01", "02", "03", "04", "05", "06",
+    "01", "02", "03", "04", "05",
   ]);
   expect(container.querySelector(".page-toc")).toBeNull();
   expect(container.querySelector(".document-toc")).toBeNull();
