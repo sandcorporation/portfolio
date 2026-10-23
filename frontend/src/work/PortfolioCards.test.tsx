@@ -63,3 +63,23 @@ test("작품 상세 메타 행에 상태 뱃지가 있다", () => {
   render(<CardMeta card={{ ...base, status: "building", status_label: "진행 중" }} />);
   expect(screen.getByText("진행 중")).toHaveClass("status-badge");
 });
+
+test("썸네일 칸은 썸네일이 없는 행에도 비어 있는 채로 있어 열 구조가 같다", () => {
+  const { container } = render(
+    <PortfolioCards
+      cards={[
+        { ...base, cover_url: "/m/a.png" },
+        { ...base, slug: "b", title: "베타", cover_url: "" },
+      ]}
+    />,
+  );
+  const rows = Array.from(container.querySelectorAll(".portfolio-row"));
+  expect(rows).toHaveLength(2);
+  const [withThumb, without] = rows as [Element, Element];
+  const shape = (row: Element) => Array.from(row.children).map((c) => c.className);
+  expect(shape(without)).toEqual(shape(withThumb));
+  expect(withThumb.querySelector(".portfolio-row-thumb img")).not.toBeNull();
+  const empty = without.querySelector(".portfolio-row-thumb");
+  expect(empty).not.toBeNull();
+  expect(empty).toBeEmptyDOMElement();
+});

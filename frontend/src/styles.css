@@ -1087,6 +1087,7 @@ h3.block-heading {
   min-width: 0;
 }
 
+.portfolio-row-thumb:empty,
 .portfolio-row-when:empty,
 .portfolio-row-side:empty {
   display: none;
@@ -1102,12 +1103,13 @@ h3.block-heading {
 
 @media (min-width: 1024px) {
   .work-list .work-row.portfolio-row {
-    grid-template-columns: 8.5rem minmax(0, 1fr) 11rem;
+    grid-template-columns: 40px 8.5rem minmax(0, 1fr) 11rem;
     gap: var(--space-5);
   }
 
-  .work-list .work-row.portfolio-row:has(.portfolio-row-thumb) {
-    grid-template-columns: 40px 8.5rem minmax(0, 1fr) 11rem;
+  .portfolio-row-thumb:empty {
+    display: block;
+    visibility: hidden;
   }
 
   .portfolio-row-when:empty,

@@ -12,12 +12,11 @@ export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
       {cards.map((card) => (
         <li key={card.slug}>
           <a className="work-row portfolio-row" href={workPath(card.slug)}>
-            {card.cover_url && (
-              <span className="portfolio-row-thumb" aria-hidden="true">
-                <img src={card.cover_url} alt="" loading="lazy" />
-              </span>
-            )}
-            {/* The side columns stay (empty) so the titles line up from row to row. */}
+            {/* The thumbnail cell and the side columns stay (empty, no placeholder image) so the
+                titles line up from row to row. */}
+            <span className="portfolio-row-thumb" aria-hidden="true">
+              {card.cover_url && <img src={card.cover_url} alt="" loading="lazy" />}
+            </span>
             <span className="portfolio-row-when">
               {card.period && <span className="work-row-meta">{card.period}</span>}
               {card.status_label && (
