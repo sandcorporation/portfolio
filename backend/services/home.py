@@ -9,10 +9,11 @@ from zoneinfo import ZoneInfo
 from django.utils import timezone
 
 from adapters.foresight import ForesightArticle, fetch_recent
+from adapters.metrics import Stats, fetch_stats
 from content.models import SiteProfile
 from documents.validation import JSON
 from services import blog, media
-from services.portfolio import PortfolioCard, public_cards
+from services.portfolio import PortfolioCard, card_of, public_items
 
 RECENT_POSTS = 3
 RECENT_NEWS = 5
@@ -40,6 +41,14 @@ class NewsItem(TypedDict):
     published_at: str  # ISO 8601
 
 
+class SiteVisits(TypedDict):
+    """The masthead's counts over all four sites (sandcorp-metrics' `total`)."""
+
+    live: int  # people on a site right now
+    today: int  # visitors today
+    total: int  # visitors since the count began
+
+
 class HomeData(TypedDict):
     """Embedded in the shell as #page-data. Mirrored by frontend/src/home/types.ts."""
 
@@ -51,6 +60,7 @@ class HomeData(TypedDict):
     portfolio: list[PortfolioCard]
     posts: list[blog.PostCard]  # newest published blog posts; empty hides the section
     news: list[NewsItem]  # newest Foresight articles; empty hides the section
+    visits: SiteVisits | None  # None (metrics off or down) leaves the masthead's counts out
 
 
 def relative_time(then: datetime, now: datetime) -> str:
@@ -92,6 +102,13 @@ def recent_news(limit: int = RECENT_NEWS) -> list[NewsItem]:
     return [news_item(a, now) for a in fetch_recent(limit)]
 
 
+def site_visits(stats: Stats | None) -> SiteVisits | None:
+    if stats is None:
+        return None
+    t = stats.total
+    return SiteVisits(live=t.live_visitors, today=t.today_visitors, total=t.total_visitors)
+
+
 def stack_of(github: object) -> list[str]:
     badges = github.get("stack_badges") if isinstance(github, dict) else None
     return [b for b in badges if isinstance(b, str)] if isinstance(badges, list) else []
@@ -106,6 +123,7 @@ class HomePage:
 def home_page() -> HomePage:
     # Reading never creates the profile row; an unsaved default stands in until admin saves one.
     profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
+    stats = fetch_stats()  # one read for both the masthead and the rows (cached 60 s anyway)
     return HomePage(
         description=profile.tagline or DEFAULT_DESCRIPTION,
         data=HomeData(
@@ -118,9 +136,10 @@ def home_page() -> HomePage:
                 phone=profile.contact_phone,
                 address=profile.address,
             ),
-            portfolio=public_cards(),
+            portfolio=[card_of(item, stats) for item in public_items()],
             posts=recent_posts(),
             news=recent_news(),
+            visits=site_visits(stats),
         ),
     )
 

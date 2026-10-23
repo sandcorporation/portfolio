@@ -11,11 +11,19 @@ from django.db import transaction
 from django.db.models import Max
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from adapters.metrics import Stats, fetch_stats
 from content.github_profile import http_url
 from content.models import Media, PortfolioItem, empty_document, media_kind, stored_document
 from documents.validation import JSON, DocumentError, InvalidDocument
 from services import media
 from services.errors import Conflict, NotFound, Rejected
+
+
+class Visits(TypedDict):
+    """One site's counts on a portfolio row: visitors today and since the count began."""
+
+    today: int
+    total: int
 
 
 class PortfolioCard(TypedDict):
@@ -25,6 +33,7 @@ class PortfolioCard(TypedDict):
     cover_url: str
     tags: list[str]
     period: str
+    visits: Visits | None  # None: no site key, not in the counts, or the numbers are off
 
 
 class PortfolioDetail(TypedDict):
@@ -35,7 +44,7 @@ class PortfolioDetail(TypedDict):
     body: dict[str, JSON]
 
 
-def card_of(item: PortfolioItem) -> PortfolioCard:
+def card_of(item: PortfolioItem, stats: Stats | None = None) -> PortfolioCard:
     # The only place that reads the cover: a media reference turned into its public URL.
     return PortfolioCard(
         slug=item.slug,
@@ -44,7 +53,15 @@ def card_of(item: PortfolioItem) -> PortfolioCard:
         cover_url=(media.public_url(item.cover) or "") if item.cover else "",
         tags=item.tag_list(),
         period=item.period,
+        visits=visits_of(item, stats),
     )
+
+
+def visits_of(item: PortfolioItem, stats: Stats | None) -> Visits | None:
+    site = stats.site(item.metrics_site_key) if stats and item.metrics_site_key else None
+    if site is None:
+        return None
+    return Visits(today=site.today_visitors, total=site.total_visitors)
 
 
 def detail_of(item: PortfolioItem) -> PortfolioDetail:
@@ -74,7 +91,8 @@ def public_items() -> list[PortfolioItem]:
 
 
 def public_cards() -> list[PortfolioCard]:
-    return [card_of(item) for item in public_items()]
+    stats = fetch_stats()
+    return [card_of(item, stats) for item in public_items()]
 
 
 def public_slugs() -> list[str]:
@@ -102,6 +120,7 @@ class ItemSummary(BaseModel):
     tags: list[str]
     period: str
     service_url: str
+    metrics_site_key: str
     is_public: bool
     sort_order: int
     cover_media_id: int | None
@@ -129,6 +148,12 @@ class NewItem(BaseModel):
         description="Address of the running service (e.g. https://codemit.kr); lists it in the "
         "GitHub README's services table.",
     )
+    metrics_site_key: str = Field(
+        default="",
+        max_length=40,
+        description="sandcorp-metrics site key (codemit, daypage, foresight, sandcorp); the "
+        "home page row shows that site's visit counts. Empty shows none.",
+    )
     cover_media_id: int | None = Field(
         default=None, description="Id of a finished, public upload; omit for no cover."
     )
@@ -154,6 +179,9 @@ class ItemPatch(BaseModel):
     tags: list[str] = Field(default_factory=list)
     period: str = Field(default="", max_length=60)
     service_url: str = Field(default="", max_length=300, description='"" clears it.')
+    metrics_site_key: str = Field(
+        default="", max_length=40, description='sandcorp-metrics site key; "" clears it.'
+    )
     cover_media_id: int | None = None
     body: dict[str, object] = Field(
         default_factory=dict, description="Whole block document (see block_schema)."
@@ -174,6 +202,7 @@ def _summary_fields(item: PortfolioItem) -> dict[str, object]:
         "tags": item.tag_list(),
         "period": item.period,
         "service_url": item.service_url,
+        "metrics_site_key": item.metrics_site_key,
         "is_public": item.is_public,
         "sort_order": item.sort_order,
         "cover_media_id": item.cover_id,
@@ -248,6 +277,7 @@ def create_item(new: NewItem) -> ItemAdmin:
         tags=", ".join(clean_tags(new.tags)),
         period=new.period,
         service_url=new.service_url,
+        metrics_site_key=new.metrics_site_key.strip(),
         cover=cover_media(new.cover_media_id),
         body=_body(new.body),
         is_public=new.is_public,
@@ -268,6 +298,8 @@ def update_item(slug: str, patch: ItemPatch) -> ItemAdmin:
         item.period = patch.period
     if "service_url" in given:
         item.service_url = patch.service_url
+    if "metrics_site_key" in given:
+        item.metrics_site_key = patch.metrics_site_key.strip()
     if "tags" in given:
         item.tags = ", ".join(clean_tags(patch.tags))
     if "cover_media_id" in given:

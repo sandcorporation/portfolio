@@ -79,3 +79,31 @@ test("상세는 제목과 본문 문서를 보여 주고 목록으로 돌아가�
   expect(screen.getByRole("link", { name: /포트폴리오 목록/ })).toHaveAttribute("href", "/");
   expect(screen.getByRole("article")).toHaveTextContent("채권추심 녹취 분석 시스템 구축 제안");
 });
+
+test("머리띠에 전체 방문 합계를, 포트폴리오 행에 그 사이트 숫자를 보여 준다", () => {
+  const data: HomeData = {
+    ...home,
+    visits: { live: 3, today: 1234, total: 56789 },
+    portfolio: home.portfolio.map((c) => ({ ...c, visits: { today: 12, total: 3400 } })),
+  };
+  render(<App path="/" data={data} />);
+
+  const banner = document.querySelector(".masthead") as HTMLElement;
+  expect(banner).toHaveTextContent("지금 3 · 오늘 1,234명 · 누적 56,789명");
+  expect(banner.querySelector(".visit-dot-idle")).toBeNull();
+  expect(screen.getByRole("link", { name: /녹취 분석/ })).toHaveTextContent("오늘 12 · 누적 3,400");
+});
+
+test("지금이 0이면 점을 흐리게, 숫자가 없으면 아무 자리도 만들지 않는다", () => {
+  const { unmount } = render(
+    <App path="/" data={{ ...home, visits: { live: 0, today: 0, total: 0 } }} />,
+  );
+  const banner = document.querySelector(".masthead") as HTMLElement;
+  expect(banner).toHaveTextContent("지금 0 · 오늘 0명 · 누적 0명");
+  expect(banner.querySelector(".visit-dot-idle")).not.toBeNull();
+  unmount();
+
+  render(<App path="/" data={{ ...home, visits: null }} />);
+  expect(document.querySelector(".masthead") as HTMLElement).not.toHaveTextContent("누적");
+  expect(screen.getByRole("link", { name: /녹취 분석/ })).not.toHaveTextContent("오늘");
+});

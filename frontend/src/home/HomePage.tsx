@@ -71,7 +71,7 @@ export function HomePage({ data }: { data: HomeData }) {
   return (
     <>
       <Masthead>
-        <SiteMeta />
+        <SiteMeta visits={data.visits} />
       </Masthead>
       <SiteNav />
       <main className="page home">

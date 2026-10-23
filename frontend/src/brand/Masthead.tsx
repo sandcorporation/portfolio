@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { SiteVisits } from "../home/types";
 import { Wordmark } from "./Logo";
 
 export const GITHUB_URL = "https://github.com/sandcorporation";
@@ -21,10 +22,27 @@ export function Masthead({ children }: { children?: ReactNode }) {
   );
 }
 
+const NUMBER = new Intl.NumberFormat("ko-KR");
+
+/** 「● 지금 N · 오늘 N명 · 누적 N명」: the dot is muted when nobody is on right now. */
+export function VisitCounts({ visits }: { visits: SiteVisits }) {
+  return (
+    <span className="visit-counts">
+      <span className={visits.live > 0 ? "visit-dot" : "visit-dot visit-dot-idle"} aria-hidden="true">
+        ●
+      </span>{" "}
+      지금 {NUMBER.format(visits.live)} · 오늘 {NUMBER.format(visits.today)}
+      <span className="visit-unit">명</span> · 누적 {NUMBER.format(visits.total)}
+      <span className="visit-unit">명</span>
+    </span>
+  );
+}
+
 /** The site meta on the right of the masthead (home and work pages). */
-export function SiteMeta() {
+export function SiteMeta({ visits }: { visits?: SiteVisits | null }) {
   return (
     <p className="masthead-meta">
+      {visits && <VisitCounts visits={visits} />}
       <span>sandcorp.co.kr</span>
       <a href={GITHUB_URL} rel="noopener">
         GitHub

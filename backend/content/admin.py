@@ -81,6 +81,7 @@ class PortfolioItemAdmin(_ItemAdmin):
         "tags",
         "period",
         "service_url",
+        "metrics_site_key",
         "is_public",
         "sort_order",
         "body",

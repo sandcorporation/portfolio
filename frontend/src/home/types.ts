@@ -15,6 +15,15 @@ export interface NewsItem {
   published_at: string;
 }
 
+export interface SiteVisits {
+  /** People on a site right now. */
+  live: number;
+  /** Visitors today. */
+  today: number;
+  /** Visitors since the count began. */
+  total: number;
+}
+
 export interface HomeData {
   tagline: string;
   /** The GitHub profile's stack badges: the hero's tag line. */
@@ -26,6 +35,8 @@ export interface HomeData {
   posts: PostCard[];
   /** Newest Foresight articles; empty hides the section. */
   news: NewsItem[];
+  /** All sites together (sandcorp-metrics); null/absent leaves the masthead without numbers. */
+  visits?: SiteVisits | null;
   contact: { email: string; phone: string; address: string };
 }
 

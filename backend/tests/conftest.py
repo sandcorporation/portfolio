@@ -16,8 +16,10 @@ from django.utils import timezone
 from pytest_django.fixtures import Settings
 
 from adapters import foresight as foresight_adapter
+from adapters import metrics as metrics_adapter
 from adapters.fake_foresight import FakeForesight
 from adapters.fake_jwks import FakeAuthServer
+from adapters.fake_metrics import FakeMetrics
 from adapters.fake_notify import FakeNotifier
 from adapters.fake_renderer import FakeRenderer
 from adapters.fake_storage import FakeObjectStorage
@@ -137,3 +139,13 @@ def foresight() -> Iterator[FakeForesight]:
     foresight_adapter.set_gateway(fake)
     yield fake
     foresight_adapter.set_gateway(None)
+
+
+@pytest.fixture(autouse=True)
+def metrics() -> Iterator[FakeMetrics]:
+    """No test reaches metrics.sandcorp.co.kr: the metrics gateway is always this fake.
+    Assert on `metrics.calls`, set `metrics.failing` or `metrics.data`."""
+    fake = FakeMetrics()
+    metrics_adapter.set_gateway(fake)
+    yield fake
+    metrics_adapter.set_gateway(None)

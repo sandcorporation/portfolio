@@ -8,6 +8,8 @@ export interface PortfolioCard {
   cover_url: string;
   tags: string[];
   period: string;
+  /** Visitors today / since the count began; null leaves the row without numbers. */
+  visits?: { today: number; total: number } | null;
 }
 
 /** The shell's #page-data on `/work/<slug>`. Mirrors PortfolioDetail in the backend. */

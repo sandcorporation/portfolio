@@ -230,6 +230,12 @@ class PortfolioItem(models.Model):
         blank=True,
         help_text="서비스의 바깥 주소(예 https://codemit.kr). README 서비스 표에 쓴다.",
     )
+    metrics_site_key = models.CharField(
+        "메트릭 사이트 키",
+        max_length=40,
+        blank=True,
+        help_text="metrics 사이트 키(codemit·daypage·foresight·sandcorp).",
+    )
     is_public = models.BooleanField("공개", default=True)
     sort_order = models.IntegerField("정렬 순서", default=0, help_text="작을수록 먼저.")
     body = models.JSONField("본문 문서", default=empty_document)

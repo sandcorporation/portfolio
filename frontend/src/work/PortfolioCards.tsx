@@ -1,6 +1,8 @@
 import type { PortfolioCard } from "./types";
 import { workPath } from "./types";
 
+const NUMBER = new Intl.NumberFormat("ko-KR");
+
 /** Portfolio list: one hairline row per item — thumbnail · mono № · title → · meta · summary,
  * tags stacked on the right on wide screens. */
 export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
@@ -16,6 +18,11 @@ export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
               <span className="work-row-no">№ {String(index + 1).padStart(2, "0")}</span>
               <span className="work-row-title">{card.title} →</span>
               {card.period && <span className="work-row-meta">{card.period}</span>}
+              {card.visits && (
+                <span className="work-row-meta work-row-visits">
+                  오늘 {NUMBER.format(card.visits.today)} · 누적 {NUMBER.format(card.visits.total)}
+                </span>
+              )}
               {card.summary && <span className="work-row-summary">{card.summary}</span>}
             </span>
             {card.tags.length > 0 && (

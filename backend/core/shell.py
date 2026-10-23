@@ -54,8 +54,13 @@ def render_shell(
     meta: PageMeta,
     status: int = 200,
     data: Mapping[str, object] | None = None,
+    count_visit: bool = False,
 ) -> HttpResponse:
-    """Render the shell. `data` is embedded as JSON in #page-data for React's first render."""
+    """Render the shell. `data` is embedded as JSON in #page-data for React's first render.
+
+    `count_visit` adds the sandcorp-metrics snippet (when METRICS_SNIPPET_URL is set). Only the
+    public pages ask for it: print and preview pages are opened by the PDF renderer and the
+    owner, proposals are private, and none of those are visits."""
     context = {
         "site_name": SITE_NAME,
         "data": data,
@@ -64,6 +69,8 @@ def render_shell(
         "jsonld": _jsonld(meta.jsonld),
         "canonical": request.build_absolute_uri(request.path),
         "assets": entry_assets(),
+        "metrics_snippet_url": settings.METRICS_SNIPPET_URL if count_visit else "",
+        "metrics_site_key": settings.METRICS_SITE_KEY,
     }
     return render(request, "core/shell.html", context, status=status)
 
@@ -82,6 +89,7 @@ def home(request: HttpRequest) -> HttpResponse:
         request,
         PageMeta(title=SITE_NAME, description=page.description, robots=INDEX),
         data=page.data,
+        count_visit=True,
     )
 
 
@@ -314,6 +322,7 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
             image=card["cover_url"],
         ),
         data=detail,
+        count_visit=True,
     )
 
 
@@ -383,6 +392,7 @@ def blog_index(request: HttpRequest) -> HttpResponse:
             },
         ),
         data=listing,
+        count_visit=True,
     )
 
 
@@ -416,6 +426,7 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
             },
         ),
         data=detail,
+        count_visit=True,
     )
 
 
