@@ -33,11 +33,11 @@
   --color-text: #2c2f38;
   --color-muted: #5e626c;
   --color-danger: #9b2c1f;
-  /* accent (the spec's #8a6214 is 4.35:1 on tint; darkened until it passes 4.5:1, as the spec says) */
-  --color-accent: #865f13;
+  /* accent: #7f5a12 shared with the news site (canvas 5.41, paper 5.86, tint 4.95, accent-tint 4.92); the spec's #8a6214 is 4.35:1 on tint */
+  --color-accent: #7f5a12;
   --color-accent-tint: #efe4c8;
   --color-on-accent: #faf8f1;
-  --color-focus: #8a6214;
+  --color-focus: #7f5a12;
   --color-scrim: rgb(21 23 28 / 0.92);
   /* brand mark: ochre dunes on a blue-black square */
   --color-mark-bg: #1b1d24;
