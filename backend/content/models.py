@@ -37,6 +37,9 @@ class Media(models.Model):
     size = models.PositiveBigIntegerField("크기(바이트)")
     original_filename = models.CharField("원래 파일명", max_length=255)
     uploaded_at = models.DateTimeField("업로드 완료 시각", null=True, blank=True)
+    # Pixel size of an image, read from its header (#123); null for other kinds or when unknown.
+    width = models.PositiveIntegerField("가로(px)", null=True, blank=True)
+    height = models.PositiveIntegerField("세로(px)", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -59,6 +59,10 @@ class ObjectStorage(Protocol):
         """The object's size and type, or None when it does not exist."""
         ...
 
+    def read_head(self, bucket: Bucket, key: str, length: int) -> bytes:
+        """The first `length` bytes of the object (a range GET, not the whole file)."""
+        ...
+
     def delete(self, bucket: Bucket, key: str) -> None: ...
 
     def list_keys(self, bucket: Bucket, prefix: str) -> list[str]:
@@ -144,6 +148,13 @@ class S3ObjectStorage:
                 return None
             raise
         return StoredObject(size=found["ContentLength"], content_type=found.get("ContentType", ""))
+
+    def read_head(self, bucket: Bucket, key: str, length: int) -> bytes:
+        found = self._client.get_object(
+            Bucket=self._buckets[bucket], Key=key, Range=f"bytes=0-{length - 1}"
+        )
+        data: bytes = found["Body"].read(length)
+        return data
 
     def delete(self, bucket: Bucket, key: str) -> None:
         self._client.delete_object(Bucket=self._buckets[bucket], Key=key)

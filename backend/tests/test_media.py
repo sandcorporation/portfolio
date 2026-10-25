@@ -38,7 +38,7 @@ def test_presigned_flow_start_put_complete(fake_storage: FakeObjectStorage) -> N
     done = media_service.complete_upload(media.pk)
 
     assert done.is_complete
-    assert fake_storage.calls[-1] == ("head", Bucket.PUBLIC, media.object_key)
+    assert ("head", Bucket.PUBLIC, media.object_key) in fake_storage.calls
 
 
 def test_complete_without_an_uploaded_object_fails_and_stays_pending(
@@ -250,3 +250,46 @@ def test_admin_upload_without_storage_shows_an_error(admin_client: Client, setti
     assert response.status_code == 200
     assert re.search("스토리지 설정이 없습니다", response.content.decode())
     assert Media.objects.count() == 0
+
+
+def _png(width: int, height: int) -> bytes:
+    import struct
+
+    return (
+        b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">II", width, height)
+    )
+
+
+def _complete(storage: FakeObjectStorage, data: bytes, content_type: str = "image/png") -> Media:
+    ticket = media_service.start_upload("c.png", content_type, len(data), is_public=True)
+    storage.simulate_client_put(Bucket.PUBLIC, ticket.media.object_key, data, content_type)
+    return media_service.complete_upload(ticket.media.pk)
+
+
+def test_complete_upload_stores_the_image_size_from_the_header(
+    fake_storage: FakeObjectStorage,
+) -> None:
+    media = _complete(fake_storage, _png(1200, 630))
+
+    media.refresh_from_db()
+    assert (media.width, media.height) == (1200, 630)
+    assert ("read_head", Bucket.PUBLIC, media.object_key) in fake_storage.calls
+
+
+def test_a_failing_range_read_does_not_fail_the_upload(fake_storage: FakeObjectStorage) -> None:
+    fake_storage.read_head_failing = True
+
+    media = _complete(fake_storage, _png(10, 10))
+
+    assert media.is_complete
+    assert (media.width, media.height) == (None, None)
+
+
+def test_non_images_and_unknown_formats_get_no_size(fake_storage: FakeObjectStorage) -> None:
+    video = _complete(fake_storage, b"\x00" * 40, "video/mp4")
+    odd = _complete(fake_storage, b"x" * 40, "image/avif")
+
+    assert (video.width, odd.width) == (None, None)
+    assert [c for c in fake_storage.calls if c[0] == "read_head"] == [
+        ("read_head", Bucket.PUBLIC, odd.object_key)
+    ]

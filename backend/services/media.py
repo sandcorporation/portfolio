@@ -7,14 +7,18 @@ A media item is referenceable only once `complete_upload` confirmed the object i
 """
 
 import copy
+import logging
 import posixpath
 import uuid
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.utils import timezone
 
+from adapters.image_size import image_size
 from adapters.storage import (
     Bucket,
     ObjectStorage,
@@ -29,6 +33,7 @@ from content.models import (
     Proposal,
     ProposalRevision,
     SiteProfile,
+    media_kind,
 )
 from documents.validation import JSON
 from services.errors import Rejected
@@ -129,7 +134,54 @@ def complete_upload(media_id: int, *, storage: ObjectStorage | None = None) -> M
         raise InvalidUpload("업로드된 파일이 약속한 형식·크기와 다릅니다")
     media.uploaded_at = timezone.now()
     media.save(update_fields=["uploaded_at"])
+    read_image_size(media, storage=storage)
     return media
+
+
+log = logging.getLogger(__name__)
+HEADER_BYTES = 64 * 1024  # enough for the size fields of PNG, GIF, WebP and almost every JPEG
+SIZE_READ_SECONDS = 2
+SIZE_RETRY_SECONDS = 3600
+
+
+def read_image_size(
+    media: Media, *, storage: ObjectStorage | None = None, timeout: float | None = None
+) -> tuple[int, int] | None:
+    """Read an image's width and height from the first bytes of its object and save them.
+
+    Never raises: an unknown format, a storage error or a timeout leave the size empty (#123)."""
+    if media_kind(media.content_type) != "image":
+        return None
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        storage = storage or get_storage()
+        head = pool.submit(
+            storage.read_head, _bucket(media), media.object_key, HEADER_BYTES
+        ).result(timeout=SIZE_READ_SECONDS if timeout is None else timeout)
+    except Exception as exc:  # best effort: includes StorageNotConfigured and the timeout
+        log.warning("image size not read for media %s: %r", media.pk, exc)
+        return None
+    finally:
+        pool.shutdown(wait=False)
+    size = image_size(head)
+    if size is not None:
+        media.width, media.height = size
+        media.save(update_fields=["width", "height"])
+    return size
+
+
+def fill_missing_size(media: Media) -> tuple[int, int] | None:
+    """The image's size for a public page's preview tags. A media item uploaded before sizes
+    were stored is read once here; a failed read is not retried for an hour (#123)."""
+    if media.width and media.height:
+        return media.width, media.height
+    retry_key = f"media:size-retry:{media.pk}"
+    if media_kind(media.content_type) != "image" or cache.get(retry_key):
+        return None
+    size = read_image_size(media)
+    if size is None:
+        cache.set(retry_key, 1, SIZE_RETRY_SECONDS)
+    return size
 
 
 def upload(

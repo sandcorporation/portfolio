@@ -13,6 +13,7 @@ class FakeObjectStorage:
     objects: dict[tuple[Bucket, str], tuple[bytes, str]] = field(default_factory=dict)
     # (operation, bucket, key) in call order.
     calls: list[tuple[str, Bucket, str]] = field(default_factory=list)
+    read_head_failing: bool = False  # range reads raise, like a storage outage
 
     def presign_put(
         self, bucket: Bucket, key: str, content_type: str, expires_in: timedelta
@@ -38,6 +39,12 @@ class FakeObjectStorage:
         self.calls.append(("head", bucket, key))
         found = self.objects.get((bucket, key))
         return None if found is None else StoredObject(len(found[0]), found[1])
+
+    def read_head(self, bucket: Bucket, key: str, length: int) -> bytes:
+        self.calls.append(("read_head", bucket, key))
+        if self.read_head_failing:
+            raise TimeoutError("read_head failing")
+        return self.objects[(bucket, key)][0][:length]
 
     def delete(self, bucket: Bucket, key: str) -> None:
         self.calls.append(("delete", bucket, key))

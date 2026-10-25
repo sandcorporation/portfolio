@@ -14,7 +14,7 @@
 시험은 `tests/conftest.py`의 픽스처로 가짜를 끼우고, 가짜에 남은 기록을 확인한다.
 
 객체 저장소: 서비스는 `get_storage()`(설정 `STORAGE_*`)로 받고, 시험은 `fake_storage` 픽스처가 `services.media.get_storage`를 갈아 끼운다. 설정이 비면 `StorageNotConfigured`가 나고 사이트는 그대로 뜬다(미디어만 막힘).
-OCI는 path-style 주소·SigV4·`request_checksum_calculation=when_required`가 필요하다(`S3ObjectStorage`에 고정).
+`read_head(bucket, key, length)`는 객체 앞부분만 범위 GET으로 읽는다(이미지 크기 헤더용, #123; 가짜는 `read_head_failing`으로 장애를 흉내). OCI는 path-style 주소·SigV4·`request_checksum_calculation=when_required`가 필요하다(`S3ObjectStorage`에 고정).
 
 sandcorp-auth: 토큰 검증(`oauth/tokens.py`, sandcorp-auth `docs/resource-server-token-validation.md`를 그대로 옮긴 것)은 `oauth.bearer.get_jwks_cache()`(프로세스당 하나, 10분 캐시)와 `get_clock()`으로 키·시각을 받는다. 시험은 `auth_server` 픽스처가 둘을 `FakeAuthServer`로 갈아 끼우고 `AUTH_OWNER_SUB`를 `"owner"`로 둔다.
 admin 로그인(`oauth/login.py`, 문서 7절): `<ADMIN_PATH>oauth/login/` → sandcorp-auth `/authorize` → `<ADMIN_PATH>oauth/callback/`에서 코드 교환(`oauth.login.get_exchange_code()`)·`login` 스코프 검증 → Django 세션(사용자 `username`=`sub`). 시험은 `auth_server` 픽스처가 토큰 엔드포인트도 갈아 끼우고 `AUTH_CLIENT_ID`/`AUTH_CLIENT_SECRET`을 채운다.

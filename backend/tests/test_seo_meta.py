@@ -6,11 +6,14 @@ from datetime import date, timedelta
 from typing import cast
 
 import pytest
+from django.core.cache import cache
 from django.core.management import call_command
 from django.test import Client
 from django.utils import timezone
 
-from content.models import BlogPost, PortfolioItem, Proposal, SiteProfile
+from adapters.fake_storage import FakeObjectStorage
+from adapters.storage import Bucket
+from content.models import BlogPost, Media, PortfolioItem, Proposal, SiteProfile
 from content.models import Client as Customer
 from services import publishing
 
@@ -179,3 +182,81 @@ def test_json_ld_cannot_close_its_script_tag(client: Client) -> None:
     html = client.get("/blog/evil").content.decode()
     assert ld_blocks(html)[0]["headline"] == HOSTILE
     assert "article:tag" in html and "a</script>b" not in html
+
+
+def _png(width: int, height: int) -> bytes:
+    import struct
+
+    return (
+        b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">II", width, height)
+    )
+
+
+def _cover(storage: FakeObjectStorage, data: bytes | None = None) -> Media:
+    """A finished public cover image uploaded before sizes were stored (no width/height)."""
+    media = Media.objects.create(
+        object_key="cover.png",
+        content_type="image/png",
+        size=40,
+        original_filename="c.png",
+        uploaded_at=timezone.now(),
+    )
+    storage.simulate_client_put(Bucket.PUBLIC, "cover.png", data or _png(1600, 900), "image/png")
+    return media
+
+
+def test_a_cover_page_says_the_image_size_and_saves_it_once(
+    client: Client, fake_storage: FakeObjectStorage
+) -> None:
+    cover = _cover(fake_storage)
+    PortfolioItem.objects.create(slug="c", title="C", cover=cover)
+    make_post("b", cover=cover)
+
+    for path in ("/work/c", "/blog/b"):
+        html = client.get(path).content.decode()
+        assert tags(html, "og:image") == ["https://public.test/cover.png"]
+        assert tags(html, "og:image:width") == ["1600"]
+        assert tags(html, "og:image:height") == ["900"]
+
+    cover.refresh_from_db()
+    assert (cover.width, cover.height) == (1600, 900)
+    assert [c for c in fake_storage.calls if c[0] == "read_head"] == [
+        ("read_head", Bucket.PUBLIC, "cover.png")
+    ]
+
+
+def test_an_unreadable_cover_has_no_size_tags_and_is_not_retried_for_an_hour(
+    client: Client, fake_storage: FakeObjectStorage
+) -> None:
+    cover = _cover(fake_storage, b"not an image")
+    PortfolioItem.objects.create(slug="c", title="C", cover=cover)
+
+    for _ in range(3):
+        html = client.get("/work/c").content.decode()
+        assert tags(html, "og:image") == ["https://public.test/cover.png"]
+        assert not tags(html, "og:image:width") and not tags(html, "og:image:height")
+
+    assert [c for c in fake_storage.calls if c[0] == "read_head"] == [
+        ("read_head", Bucket.PUBLIC, "cover.png")
+    ]
+    assert cache.get(f"media:size-retry:{cover.pk}")
+
+
+def test_a_storage_outage_leaves_out_the_size_but_not_the_page(
+    client: Client, fake_storage: FakeObjectStorage
+) -> None:
+    fake_storage.read_head_failing = True
+    PortfolioItem.objects.create(slug="c", title="C", cover=_cover(fake_storage))
+
+    response = client.get("/work/c")
+
+    assert response.status_code == 200
+    assert not tags(response.content.decode(), "og:image:width")
+
+
+def test_the_default_image_keeps_its_fixed_size(client: Client) -> None:
+    PortfolioItem.objects.create(slug="n", title="N")
+
+    html = client.get("/work/n").content.decode()
+
+    assert tags(html, "og:image:width") == ["1200"] and tags(html, "og:image:height") == ["630"]

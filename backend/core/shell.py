@@ -27,7 +27,14 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import BaseModel
 
-from content.models import Proposal, ProposalEvent, ProposalRevision, SiteProfile
+from content.models import (
+    BlogPost,
+    PortfolioItem,
+    Proposal,
+    ProposalEvent,
+    ProposalRevision,
+    SiteProfile,
+)
 from core import public_html
 from core.clientip import client_ip
 from core.seo import home_jsonld, work_jsonld
@@ -56,6 +63,7 @@ class PageMeta:
     robots: str
     image: str = ""  # a path or URL; "" = no preview image (proposals, print, preview)
     image_alt: str = ""
+    image_size: tuple[int, int] | None = None  # (width, height) of `image` when known (#123)
     og_type: str = "website"
     # article:published_time / modified_time (ISO 8601) and one article:tag per tag
     published_time: str = ""
@@ -92,7 +100,8 @@ def render_shell(
         "data": data,
         "meta": meta,
         "og_image": request.build_absolute_uri(meta.image) if meta.image else "",
-        "og_image_size": OG_IMAGE_SIZE if meta.image == DEFAULT_OG_IMAGE else None,
+        "og_image_size": meta.image_size
+        or (OG_IMAGE_SIZE if meta.image == DEFAULT_OG_IMAGE else None),
         "jsonld": _jsonld(meta.jsonld),
         "canonical": request.build_absolute_uri(request.path),
         "verify_google": settings.GOOGLE_SITE_VERIFICATION if meta.robots == INDEX else "",
@@ -352,6 +361,14 @@ def proposal_print(request: HttpRequest, token: str) -> HttpResponse:
     return _private(response)
 
 
+def _cover_size(model: type[PortfolioItem] | type[BlogPost], slug: str) -> tuple[int, int] | None:
+    """Pixel size of the page's cover for og:image:width/height; read lazily for old media."""
+    owner = model.objects.select_related("cover").filter(slug=slug).first()
+    if owner is None or owner.cover is None:
+        return None
+    return media.fill_missing_size(owner.cover)
+
+
 def work_hub(request: HttpRequest) -> HttpResponse:
     """/work has no page of its own: the portfolio list is the home's section (#111)."""
     return HttpResponsePermanentRedirect("/#home-portfolio")
@@ -374,6 +391,7 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
             robots=INDEX,
             image=card["cover_url"] or DEFAULT_OG_IMAGE,
             image_alt=card["title"] if card["cover_url"] else DEFAULT_OG_IMAGE_ALT,
+            image_size=_cover_size(PortfolioItem, slug) if card["cover_url"] else None,
             jsonld=work_jsonld(
                 url=_absolute(request, f"/work/{card['slug']}"),
                 card=card,
@@ -488,6 +506,7 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
             robots=INDEX,
             image=image,
             image_alt=card["title"] if card["cover_url"] else DEFAULT_OG_IMAGE_ALT,
+            image_size=_cover_size(BlogPost, slug) if card["cover_url"] else None,
             og_type="article",
             published_time=card["published_at"],
             modified_time=modified,
