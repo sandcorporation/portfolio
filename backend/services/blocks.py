@@ -110,6 +110,14 @@ EXAMPLES: dict[str, dict[str, JSON]] = {
             "note": "글자 오류는 원래 대본과 다른 글자 수입니다.",
         },
     },
+    "embed": {
+        "id": "try",
+        "type": "embed",
+        "src": "https://flow.sandcorp.co.kr/try?embed=1&template=home",
+        "title": "Flow 체험",
+        "intro": "아래에서 바로 고쳐 보고 시험 대화까지 해 볼 수 있어요 · 24시간 체험",
+        "open_label": "새 탭에서 열기",
+    },
     "video": {
         "id": "demo",
         "type": "video",

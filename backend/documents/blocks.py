@@ -467,6 +467,27 @@ class CtaBlock(BlockBase):
         return out
 
 
+class EmbedBlock(BlockBase):
+    """A live page of our own Flow site in an iframe (the "try it" demo). The address is limited
+    to that one host; the page tells its height by postMessage. On paper it is a link line."""
+
+    model_config = ConfigDict(title="EmbedBlock")
+
+    type: Literal["embed"]
+    src: str = Field(
+        pattern=r"^https://flow\.sandcorp\.co\.kr(/\S*)?$",
+        description="https address on flow.sandcorp.co.kr only, e.g. "
+        "https://flow.sandcorp.co.kr/try?embed=1&template=home (no theme: the page adds it)",
+    )
+    title: str = Field(min_length=1, max_length=80, description="Accessible name of the frame")
+    intro: str | None = Field(
+        default=None, max_length=200, description="One line shown above the frame"
+    )
+    open_label: str = Field(
+        default="새 탭에서 열기", min_length=1, max_length=40, description="Text of the link"
+    )
+
+
 # Every block type, discriminated by `type`. Add a new block class here.
 Block = Annotated[
     CoverBlock
@@ -481,7 +502,8 @@ Block = Annotated[
     | VideoBlock
     | HtmlBlock
     | StepsBlock
-    | CtaBlock,
+    | CtaBlock
+    | EmbedBlock,
     Field(discriminator="type"),
 ]
 

@@ -34,6 +34,7 @@ export interface Tab {
     | HtmlBlock
     | StepsBlock
     | CtaBlock
+    | EmbedBlock
   )[];
 }
 /**
@@ -562,4 +563,34 @@ export interface CtaTargetUrl {
    * Only https:, mailto: or tel: addresses; opens in a new window
    */
   href: string;
+}
+/**
+ * A live page of our own Flow site in an iframe (the "try it" demo). The address is limited
+ * to that one host; the page tells its height by postMessage. On paper it is a link line.
+ *
+ * This interface was referenced by `Document`'s JSON-Schema
+ * via the `definition` "EmbedBlock".
+ */
+export interface EmbedBlock {
+  /**
+   * Unique within the document. Partial edits address blocks by this id.
+   */
+  id: string;
+  type: "embed";
+  /**
+   * https address on flow.sandcorp.co.kr only, e.g. https://flow.sandcorp.co.kr/try?embed=1&template=home (no theme: the page adds it)
+   */
+  src: string;
+  /**
+   * Accessible name of the frame
+   */
+  title: string;
+  /**
+   * One line shown above the frame
+   */
+  intro?: string | null;
+  /**
+   * Text of the link
+   */
+  open_label?: string;
 }

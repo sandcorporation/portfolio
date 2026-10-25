@@ -233,3 +233,23 @@ def test_work_service_link_internal_host_stays_in_tab(client: Client) -> None:
     )
     c = root(client.get("/work/c").content.decode())
     assert 'href="https://sandcorp.co.kr/x" rel="noopener">' in c and 'x" target' not in c
+
+
+def test_embed_block_draws_frame_and_new_tab_link() -> None:
+    embed: dict[str, JSON] = {
+        "id": "try",
+        "type": "embed",
+        "src": "https://flow.sandcorp.co.kr/try?embed=1&template=home",
+        "title": "Flow 체험",
+        "intro": "아래에서 바로 고쳐 보고",
+    }
+    out = str(
+        public_html.document_html({"tabs": [{"id": "t", "title": "t", "blocks": [embed]}]}, "w-")
+    )
+    assert (
+        '<iframe class="embed-frame" src="https://flow.sandcorp.co.kr/try?embed=1&amp;template=home"'
+        in out
+    )
+    assert 'title="Flow 체험"' in out and "아래에서 바로 고쳐 보고" in out
+    assert 'target="_blank" rel="noopener noreferrer">새 탭에서 열기</a>' in out
+    assert "<script" not in out  # no script: the frame stays 480px until the app takes over

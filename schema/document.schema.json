@@ -507,6 +507,60 @@
       "title": "DetailsBlock",
       "type": "object"
     },
+    "EmbedBlock": {
+      "additionalProperties": false,
+      "description": "A live page of our own Flow site in an iframe (the \"try it\" demo). The address is limited\nto that one host; the page tells its height by postMessage. On paper it is a link line.",
+      "properties": {
+        "id": {
+          "description": "Unique within the document. Partial edits address blocks by this id.",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "embed",
+          "type": "string"
+        },
+        "src": {
+          "description": "https address on flow.sandcorp.co.kr only, e.g. https://flow.sandcorp.co.kr/try?embed=1&template=home (no theme: the page adds it)",
+          "pattern": "^https://flow\\.sandcorp\\.co\\.kr(/\\S*)?$",
+          "type": "string"
+        },
+        "title": {
+          "description": "Accessible name of the frame",
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "intro": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "One line shown above the frame"
+        },
+        "open_label": {
+          "default": "새 탭에서 열기",
+          "description": "Text of the link",
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "src",
+        "title"
+      ],
+      "title": "EmbedBlock",
+      "type": "object"
+    },
     "GalleryBlock": {
       "additionalProperties": false,
       "description": "Images in a grid; selecting one opens a larger viewer. Proposals may use private media.",
@@ -932,6 +986,7 @@
                 "cover": "#/$defs/CoverBlock",
                 "cta": "#/$defs/CtaBlock",
                 "details": "#/$defs/DetailsBlock",
+                "embed": "#/$defs/EmbedBlock",
                 "gallery": "#/$defs/GalleryBlock",
                 "html": "#/$defs/HtmlBlock",
                 "kpi": "#/$defs/KpiBlock",
@@ -981,6 +1036,9 @@
               },
               {
                 "$ref": "#/$defs/CtaBlock"
+              },
+              {
+                "$ref": "#/$defs/EmbedBlock"
               }
             ]
           },

@@ -33,6 +33,7 @@ from documents.blocks import (
     CtaTargetBlock,
     CtaTargetUrl,
     DetailsBlock,
+    EmbedBlock,
     GalleryBlock,
     HtmlBlock,
     KpiBlock,
@@ -255,6 +256,25 @@ def _cta(block: CtaBlock, prefix: str) -> SafeString:
     )
 
 
+def _embed(block: EmbedBlock, anchor: str) -> SafeString:
+    """The frame (480px, no script: the app grows it from the page's messages) and a link that also
+    stands in for the frame on paper."""
+    return format_html(
+        '<section class="block-embed">{}'
+        '<iframe class="embed-frame" src="{}" title="{}" loading="lazy" '
+        'referrerpolicy="strict-origin-when-cross-origin"></iframe>'
+        '<p class="embed-open"><a href="{}"{}>{}</a>'
+        '<span class="embed-where"> {}</span></p></section>',
+        format_html('<p class="embed-intro">{}</p>', block.intro) if block.intro else "",
+        block.src,
+        block.title,
+        block.src,
+        _external_attrs(block.src),
+        block.open_label,
+        block.src,
+    )
+
+
 def _gallery(block: GalleryBlock, anchor: str) -> SafeString:
     images = format_html_join(
         "",
@@ -359,6 +379,8 @@ def block_html(block: Block, prefix: str) -> SafeString:
             inner = _steps(block, anchor)
         case CtaBlock():
             inner = _cta(block, prefix)
+        case EmbedBlock():
+            inner = _embed(block, anchor)
         case GalleryBlock():
             inner = _gallery(block, anchor)
         case VideoBlock():

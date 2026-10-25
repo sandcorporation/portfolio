@@ -194,6 +194,14 @@
           ]
         },
         {
+          "id": "flow-try",
+          "type": "embed",
+          "src": "https://flow.sandcorp.co.kr/try?embed=1&template=home",
+          "title": "Flow 체험",
+          "intro": "아래에서 바로 고쳐 보고 시험 대화까지 해 볼 수 있어요 · 24시간 체험",
+          "open_label": "새 탭에서 열기"
+        },
+        {
           "id": "samples-intro",
           "type": "markdown",
           "level": 2,

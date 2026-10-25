@@ -419,3 +419,36 @@ def test_table_cell_field_errors_do_not_leak_union_tags() -> None:
     errors = table_errors(table_block([["a", {"text": "b", "colspan": 0}, "c"]]))
 
     assert [path for path, _ in errors] == ["tabs[0].blocks[0].rows[0][1].colspan"]
+
+
+# --- embed block ---
+def embed_errors(src: str) -> list[tuple[str, str]]:
+    doc: dict[str, JSON] = {
+        "tabs": [
+            {
+                "id": "t",
+                "title": "t",
+                "blocks": [{"id": "e", "type": "embed", "src": src, "title": "Flow 체험"}],
+            }
+        ]
+    }
+    try:
+        validate_document(doc)
+    except InvalidDocument as error:
+        return [(e.path, e.reason) for e in error.errors]
+    return []
+
+
+def test_embed_accepts_only_the_flow_host() -> None:
+    assert embed_errors("https://flow.sandcorp.co.kr/try?embed=1&template=home") == []
+    for bad in (
+        "http://flow.sandcorp.co.kr/try",
+        "https://example.com/try",
+        "https://flow.sandcorp.co.kr.evil.com/try",
+        "https://flow.sandcorp.co.kr@evil.com/try",
+        "https://flow.sandcorp.co.kr:8443/try",
+        "https://sandcorp.co.kr/try",
+        "javascript:alert(1)",
+    ):
+        errors = embed_errors(bad)
+        assert errors and errors[0][0].endswith("src"), bad

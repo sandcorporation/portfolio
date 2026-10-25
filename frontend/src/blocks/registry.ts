@@ -6,6 +6,7 @@ import { CaseRef } from "./CaseRef";
 import { Callout } from "./Callout";
 import { Cover } from "./Cover";
 import { Cta } from "./Cta";
+import { Embed } from "./Embed";
 import { Details } from "./Details";
 import { Gallery } from "./Gallery";
 import { Html } from "./Html";
@@ -51,6 +52,7 @@ export const registry: Registry = {
   video: { Render: Video, toc: titled(3) },
   steps: { Render: Steps, toc: titled(3) },
   cta: { Render: Cta },
+  embed: { Render: Embed },
   html: {
     Render: Html,
     toc: (block) => (block.title ? { text: block.title, level: block.level ?? 2 } : null),
