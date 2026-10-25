@@ -83,3 +83,13 @@ test("썸네일 칸은 썸네일이 없는 행에도 비어 있는 채로 있어
   expect(empty).not.toBeNull();
   expect(empty).toBeEmptyDOMElement();
 });
+
+test("서비스 주소 링크는 호스트만 보이고 href는 전체 그대로다", () => {
+  const long = "https://classroom.codemit.kr/join/AbC123?x=1#y";
+  const { unmount } = render(<CardMeta card={base} serviceUrl={long} />);
+  const link = screen.getByRole("link", { name: "classroom.codemit.kr" });
+  expect(link).toHaveAttribute("href", long);
+  unmount();
+  render(<CardMeta card={base} serviceUrl="https://codemit.kr/" />);
+  expect(screen.getByRole("link", { name: "codemit.kr" })).toHaveAttribute("href", "https://codemit.kr/");
+});

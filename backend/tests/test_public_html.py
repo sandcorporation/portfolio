@@ -96,6 +96,18 @@ def test_work_page_draws_title_and_block_document(client: Client) -> None:
     assert "<script>alert" not in body  # raw HTML tags dropped, their text kept (skipHtml)
 
 
+def test_work_page_service_link_shows_host_only(client: Client) -> None:
+    long = "https://classroom.codemit.kr/join/AbC123?x=1"
+    PortfolioItem.objects.create(slug="a", title="A", body=BODY, service_url=long)
+    PortfolioItem.objects.create(slug="b", title="B", body=BODY, service_url="https://codemit.kr/")
+
+    a = root(client.get("/work/a").content.decode())
+    b = root(client.get("/work/b").content.decode())
+
+    assert f'<a href="{long}" rel="noopener">classroom.codemit.kr</a>' in a
+    assert '<a href="https://codemit.kr/" rel="noopener">codemit.kr</a>' in b
+
+
 def test_blog_pages_draw_rows_tags_and_post(client: Client) -> None:
     for n, slug in enumerate(["old", "new"]):
         BlogPost.objects.create(

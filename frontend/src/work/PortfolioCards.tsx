@@ -54,6 +54,11 @@ export function PortfolioCards({ cards }: { cards: PortfolioCard[] }) {
   );
 }
 
+/** https://classroom.codemit.kr/join/x?y -> classroom.codemit.kr (host and port only; the href keeps the full address). */
+export function serviceHost(url: string): string {
+  return url.replace(/^https?:\/\//, "").split(/[/?#]/, 1)[0] ?? "";
+}
+
 /** The mono meta row of a work page: period · service address · tags. */
 export function CardMeta({ card, serviceUrl }: { card: PortfolioCard; serviceUrl?: string }) {
   const parts = [
@@ -65,7 +70,7 @@ export function CardMeta({ card, serviceUrl }: { card: PortfolioCard; serviceUrl
     card.period && <span key="period">{card.period}</span>,
     serviceUrl && (
       <a key="url" href={serviceUrl} rel="noopener">
-        {serviceUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+        {serviceHost(serviceUrl)}
       </a>
     ),
     ...card.tags.map((tag) => <span key={`tag-${tag}`}>{tag}</span>),

@@ -8,6 +8,7 @@ documents are drawn here, one small function per block type, with the same class
 frontend/src/blocks so the copy looks close to the screen until React takes over.
 """
 
+import re
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from urllib.parse import urlencode
@@ -394,12 +395,12 @@ def post_date(iso: str) -> str:
 
 
 def bare_url(url: str) -> str:
-    """https://codemit.kr/ -> codemit.kr (CardMeta's service address)."""
+    """https://classroom.codemit.kr/join/x?y -> classroom.codemit.kr (host and port only)."""
     for scheme in ("https://", "http://"):
         if url.startswith(scheme):
             url = url[len(scheme) :]
             break
-    return url.removesuffix("/")
+    return re.split(r"[/?#]", url, maxsplit=1)[0]
 
 
 def blog_index_href(tag: str, page: int = 1) -> str:
