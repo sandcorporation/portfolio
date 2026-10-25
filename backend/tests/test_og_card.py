@@ -237,3 +237,36 @@ def test_a_long_title_and_odd_covers_compose(make_cover: MakeCover) -> None:
     Image.new("RGBA", (300, 900), (0, 0, 0, 0)).save(rgba, "PNG")  # tall and transparent
 
     assert png_size(og_card.compose(title, rgba.getvalue())) == (1200, 630)
+
+
+def _wrap_title(title: str, max_lines: int = 4) -> list[str]:
+    draw = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    return og_card._wrap(draw, title, og_card._font("Bold", 54), 420, max_lines)
+
+
+def test_titles_wrap_at_words_and_before_parentheses_not_inside_them() -> None:
+    title = "Foresight(포사이트) — AI 편집자가 만드는 한국어 뉴스와 전망"
+    lines = _wrap_title(title, 10)
+
+    assert "".join(lines).replace(" ", "") == title.replace(" ", "")
+    assert not any(line.startswith(("—", "-")) for line in lines)
+    assert not any(line.endswith("포사이") or line.startswith("트)") for line in lines)
+    assert any("(포사이트)" in line for line in lines)
+
+
+def test_only_a_word_wider_than_the_line_is_cut_between_characters() -> None:
+    lines = _wrap_title("short Supercalifragilisticexpialidocious end", 10)
+
+    assert lines[0] == "short"
+    assert len(lines) > 3
+    assert "".join(lines[1:-1]).startswith("Super") and lines[-1].endswith("end")
+
+
+def test_an_overflowing_title_ends_in_an_ellipsis_at_four_lines() -> None:
+    lines = _wrap_title("아주 긴 한국어 제목 " * 12)
+
+    assert len(lines) == 4 and lines[-1].endswith("…")
+
+
+def test_card_version_was_bumped_for_the_wrapping_change() -> None:
+    assert og_card.CARD_VERSION >= 2

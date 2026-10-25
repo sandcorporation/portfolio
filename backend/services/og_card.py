@@ -10,6 +10,7 @@ import hashlib
 import io
 import logging
 import os
+import re
 import tempfile
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
@@ -26,7 +27,7 @@ from content.models import BlogPost, Media, PortfolioItem
 log = logging.getLogger(__name__)
 
 Kind = Literal["work", "blog"]
-CARD_VERSION = 1  # bump when the drawing changes
+CARD_VERSION = 2  # bump when the drawing changes
 WIDTH, HEIGHT = 1200, 630
 MAX_BYTES = 280 * 1024
 COVER_READ_SECONDS = 5
@@ -222,11 +223,29 @@ def _mark(size: int) -> Image.Image:
     return tile
 
 
+_DASHES = frozenset("—–-·:|/")
+
+
+def _pieces(text: str) -> list[tuple[str, str]]:
+    """(separator, piece) pairs: a line may break at a space or before an opening parenthesis.
+    A lone dash-like word stays glued to the word before it, never heading a line."""
+    out: list[tuple[str, str]] = []
+    for word in text.split():
+        if out and all(ch in _DASHES for ch in word):
+            sep, prev = out[-1]
+            out[-1] = (sep, f"{prev} {word}")
+            continue
+        parts = re.split(r"(?=\()", word)
+        for i, part in enumerate(p for p in parts if p):
+            out.append((" " if i == 0 else "", part))
+    return out
+
+
 def _wrap(
     draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, width: int, max_lines: int
 ) -> list[str]:
-    """Break at spaces, or between characters inside a word wider than the line; the last line
-    ends in an ellipsis when the text does not fit."""
+    """Break at spaces and before `(`, never inside a word; only a word wider than the line is
+    cut between characters. The last line ends in an ellipsis when the text does not fit."""
     lines: list[str] = []
     current = ""
     overflow = False
@@ -234,14 +253,15 @@ def _wrap(
     def fits(s: str) -> bool:
         return draw.textlength(s, font=font) <= width
 
-    for word in text.split():
-        trial = f"{current} {word}".strip()
+    for sep, piece in _pieces(text):
+        trial = f"{current}{sep}{piece}" if current else piece
         if fits(trial):
             current = trial
             continue
         if current:
             lines.append(current)
             current = ""
+        word = piece
         while not fits(word):
             cut = len(word)
             while cut > 1 and not fits(word[:cut]):
