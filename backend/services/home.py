@@ -30,6 +30,15 @@ class Contact(TypedDict):
     address: str
 
 
+class Business(TypedDict):
+    """The public footer's business details; an empty string leaves that item out."""
+
+    name: str
+    representative: str
+    number: str
+    address: str
+
+
 class NewsItem(TypedDict):
     """One Foresight article on the home page. `when` is worked out here, not in the browser."""
 
@@ -78,6 +87,7 @@ class HomeData(TypedDict):
     news: list[NewsItem]  # newest Foresight articles; empty hides the section
     visits: SiteVisits | None  # None (metrics off or down) leaves the masthead's counts out
     availability: Availability | None  # None (empty profile field) leaves it out
+    business: Business | None  # None (all empty) leaves the footer line out
     evidence: list[EvidenceItem]  # the row under the hero; empty hides it (fewer than 2 items)
 
 
@@ -133,6 +143,21 @@ def availability_of(profile: SiteProfile) -> Availability | None:
         return None
     day = profile.availability_updated_on
     return Availability(text=text, updated=day.strftime("%Y.%m") if day else "")
+
+
+def business_of(profile: SiteProfile) -> Business | None:
+    business = Business(
+        name=profile.business_name.strip(),
+        representative=profile.representative.strip(),
+        number=profile.business_number.strip(),
+        address=profile.address.strip(),
+    )
+    return business if any(business.values()) else None
+
+
+def site_business() -> Business | None:
+    """The footer's business details for any public page (reading never creates the row)."""
+    return business_of(SiteProfile.objects.filter(pk=1).first() or SiteProfile())
 
 
 def site_availability() -> Availability | None:
@@ -225,6 +250,7 @@ def home_page() -> HomePage:
             news=recent_news(),
             visits=site_visits(stats),
             availability=availability_of(profile),
+            business=business_of(profile),
             evidence=evidence_of(profile, portfolio, fetch_foresight_stats(), timezone.localdate()),
         ),
     )

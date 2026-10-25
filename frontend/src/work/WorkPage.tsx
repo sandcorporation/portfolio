@@ -29,7 +29,7 @@ export function WorkPage({ data }: { data: WorkData }) {
           <DocumentView document={data.body} idPrefix="work-" />
         </article>
       </main>
-      <SiteFooter />
+      <SiteFooter business={data.business} />
     </>
   );
 }

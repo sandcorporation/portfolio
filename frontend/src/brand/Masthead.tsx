@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Availability, SiteVisits } from "../home/types";
+import type { Availability, Business, SiteVisits } from "../home/types";
 import { Wordmark } from "./Logo";
 
 export const GITHUB_URL = "https://github.com/sandcorporation";
@@ -103,11 +103,29 @@ export function SiteNav({ current }: { current?: "company" | "blog" | "work" | "
   );
 }
 
-/** The footer: a strong rule, the contact in large type, mono links, mono copyright. */
-export function SiteFooter({ children }: { children?: ReactNode }) {
+/** The business line of the footer: only the filled items, in this order. */
+export function businessItems(business: Business): string[] {
+  const items: [string, string][] = [
+    ["상호", business.name],
+    ["대표", business.representative],
+    ["사업자등록번호", business.number],
+    ["주소", business.address],
+  ];
+  return items.filter(([, value]) => value).map(([label, value]) => `${label} ${value}`);
+}
+
+/** The footer: a strong rule, the business details, mono links, mono copyright. */
+export function SiteFooter({ business }: { business?: Business | null }) {
+  const items = business ? businessItems(business) : [];
   return (
     <footer className="site-footer">
-      {children}
+      {items.length > 0 && (
+        <ul className="site-footer-business" aria-label="사업자 정보">
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      )}
       <p className="site-footer-links">
         <a href="/">홈</a>
         <a href={GITHUB_URL} rel="noopener">

@@ -24,7 +24,7 @@ const home: HomeData = {
   contact: { email: "hello@sandcorp.co.kr", phone: "010-1234-5678", address: "" },
 };
 
-test("홈은 셸에 심긴 프로필로 회사 소개, 연락처를 보여 준다", () => {
+test("홈은 셸에 심긴 프로필로 회사 소개를 보여 주고 연락처 섹션은 없다", () => {
   render(<App path="/" data={home} />);
 
   expect(screen.getByRole("region", { name: "회사 소개" })).toHaveTextContent(
@@ -34,11 +34,37 @@ test("홈은 셸에 심긴 프로필로 회사 소개, 연락처를 보여 준�
   for (const link of screen.getAllByRole("link", { name: "hello@sandcorp.co.kr" })) {
     expect(link).toHaveAttribute("href", "mailto:hello@sandcorp.co.kr");
   }
-  expect(screen.getByRole("link", { name: "010-1234-5678" })).toHaveAttribute(
-    "href",
-    "tel:01012345678",
+  expect(screen.queryByRole("heading", { name: "연락처" })).toBeNull();
+  expect(document.getElementById("home-contact")).toBeNull();
+});
+
+const business = {
+  name: "샌드코프(Sandcorp)",
+  representative: "김한얼",
+  number: "752-26-01740",
+  address: "",
+};
+
+test("하단에 상호·대표·사업자등록번호를 보이고 빈 항목(주소)은 숨긴다", () => {
+  render(<App path="/" data={{ ...home, business }} />);
+
+  const line = screen.getByRole("list", { name: "사업자 정보" });
+  expect(within(line).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+    "상호 샌드코프(Sandcorp)",
+    "대표 김한얼",
+    "사업자등록번호 752-26-01740",
+  ]);
+  expect(line).not.toHaveTextContent("통신판매");
+});
+
+test("주소가 있으면 하단에 함께 보이고, 사업자 정보가 없으면 줄째 빠진다", () => {
+  const { rerender } = render(
+    <App path="/" data={{ ...home, business: { ...business, address: "서울 어딘가 1" } }} />,
   );
-  expect(screen.queryByText("주소")).toBeNull();
+  expect(screen.getByRole("list", { name: "사업자 정보" })).toHaveTextContent("주소 서울 어딘가 1");
+
+  rerender(<App path="/" data={{ ...home, business: null }} />);
+  expect(screen.queryByRole("list", { name: "사업자 정보" })).toBeNull();
 });
 
 test("홈 데이터가 없는 경로는 준비 중 안내를 보여 준다", () => {

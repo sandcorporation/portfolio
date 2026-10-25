@@ -54,7 +54,7 @@ export function BlogIndexPage({ data }: { data: BlogIndexData }) {
           )}
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter business={data.business} />
     </>
   );
 }

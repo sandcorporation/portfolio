@@ -39,7 +39,6 @@ const FORESIGHT_URL = "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medi
 
 export function HomePage({ data }: { data: HomeData }) {
   const { contact } = data;
-  const hasContact = Boolean(contact.email || contact.phone || contact.address);
   const hasPortfolio = data.portfolio.length > 0;
   const posts = data.posts ?? [];
   const news = data.news ?? [];
@@ -166,36 +165,7 @@ export function HomePage({ data }: { data: HomeData }) {
               </div>
             </section>
       </main>
-      <SiteFooter>
-        {hasContact && (
-          <section className="site-contact" aria-labelledby="home-contact">
-            <h2 id="home-contact" className="site-contact-title">
-              연락처
-            </h2>
-            {contact.email && (
-              <p className="site-contact-email">
-                <a href={`mailto:${contact.email}`}>{contact.email}</a>
-              </p>
-            )}
-            <dl className="contact">
-              {contact.phone && (
-                <>
-                  <dt>전화</dt>
-                  <dd>
-                    <a href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`}>{contact.phone}</a>
-                  </dd>
-                </>
-              )}
-              {contact.address && (
-                <>
-                  <dt>주소</dt>
-                  <dd>{contact.address}</dd>
-                </>
-              )}
-            </dl>
-          </section>
-        )}
-      </SiteFooter>
+      <SiteFooter business={data.business} />
     </>
   );
 }

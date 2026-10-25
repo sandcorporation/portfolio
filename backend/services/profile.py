@@ -25,6 +25,9 @@ class Profile(BaseModel):
     availability_updated_on: date | None
     career_started_on: date | None
     response_promise: str
+    business_name: str
+    representative: str
+    business_number: str
     github: GithubProfile
 
 
@@ -75,6 +78,21 @@ class ProfilePatch(BaseModel):
             'with 「영업일 기준」). "" hides it.'
         ),
     )
+    business_name: str = Field(
+        default="",
+        max_length=60,
+        description='Business name in the public footer, e.g. 샌드코프(Sandcorp). "" hides it.',
+    )
+    representative: str = Field(
+        default="",
+        max_length=40,
+        description='Representative in the public footer. "" hides it.',
+    )
+    business_number: str = Field(
+        default="",
+        max_length=20,
+        description='Business registration number in the public footer. "" hides it.',
+    )
     github: GithubProfile = Field(
         default_factory=GithubProfile,
         description=(
@@ -97,6 +115,9 @@ def _profile_of(row: SiteProfile) -> Profile:
         availability_updated_on=row.availability_updated_on,
         career_started_on=row.career_started_on,
         response_promise=row.response_promise,
+        business_name=row.business_name,
+        representative=row.representative,
+        business_number=row.business_number,
         github=GithubProfile.model_validate(row.github or {}),
     )
 

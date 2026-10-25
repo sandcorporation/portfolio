@@ -194,6 +194,27 @@ class SiteProfile(models.Model):
         default="영업일 1일",
         help_text="홈 증거 행의 「첫 회신」 문구(예: 영업일 1일). 비우면 그 항목을 숨긴다.",
     )
+    business_name = models.CharField(
+        "상호",
+        max_length=60,
+        blank=True,
+        default="샌드코프(Sandcorp)",
+        help_text="공개 페이지 하단 사업자 정보의 상호. 비우면 그 항목을 숨긴다.",
+    )
+    representative = models.CharField(
+        "대표",
+        max_length=40,
+        blank=True,
+        default="김한얼",
+        help_text="공개 페이지 하단 사업자 정보의 대표자. 비우면 그 항목을 숨긴다.",
+    )
+    business_number = models.CharField(
+        "사업자등록번호",
+        max_length=20,
+        blank=True,
+        default="752-26-01740",
+        help_text="공개 페이지 하단 사업자 정보의 사업자등록번호. 비우면 그 항목을 숨긴다.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

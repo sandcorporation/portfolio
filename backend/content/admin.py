@@ -50,6 +50,9 @@ class SiteProfileAdmin(_ProfileAdmin):
         "availability_updated_on",
         "career_started_on",
         "response_promise",
+        "business_name",
+        "representative",
+        "business_number",
         "github",
     )
 

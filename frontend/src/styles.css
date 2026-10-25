@@ -113,7 +113,6 @@ img {
 .inquiry-links,
 .copy-button,
 .site-footer-copy,
-.site-contact-title,
 .document-tabs button,
 .document-toc::before,
 .kpi-label,
@@ -275,16 +274,21 @@ img {
   border-top: 2px solid var(--color-line-strong);
 }
 
-.site-contact-title {
+.site-footer-business {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--color-muted);
-  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
 }
 
-.site-contact-email {
-  margin: 0 0 var(--space-4);
-  font-size: var(--text-xl);
-  font-weight: 600;
-  color: var(--color-ink);
+.site-footer-business li {
+  overflow-wrap: anywhere;
 }
 
 .site-footer-links {

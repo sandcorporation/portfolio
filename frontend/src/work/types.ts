@@ -1,5 +1,5 @@
 import type { Document } from "../blocks/types";
-import type { Availability } from "../home/types";
+import type { Availability, Business } from "../home/types";
 
 /** One portfolio card. Mirrors PortfolioCard in backend/services/portfolio.py. */
 export interface PortfolioCard {
@@ -25,6 +25,7 @@ export interface WorkData {
   service_url: string;
   body: Document;
   availability?: Availability | null;
+  business?: Business | null;
 }
 
 export function isWorkData(value: unknown): value is WorkData {

@@ -62,7 +62,7 @@ export function BlogPostPage({ data }: { data: BlogPostData }) {
           </a>
         </p>
       </main>
-      <SiteFooter />
+      <SiteFooter business={data.business} />
     </>
   );
 }

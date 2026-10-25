@@ -31,6 +31,14 @@ export interface Availability {
   updated: string;
 }
 
+/** The footer's business details. Mirrors Business in backend/services/home.py. */
+export interface Business {
+  name: string;
+  representative: string;
+  number: string;
+  address: string;
+}
+
 /** One big number of the evidence row under the hero. Mirrors EvidenceItem in services/home.py. */
 export interface EvidenceItem {
   key: "services" | "foresight" | "reply" | "career";
@@ -55,6 +63,8 @@ export interface HomeData {
   visits?: SiteVisits | null;
   /** The profile's availability; null/absent leaves it out of the masthead. */
   availability?: Availability | null;
+  /** The footer's business details; null/absent leaves the line out. */
+  business?: Business | null;
   /** The row under the hero; empty/absent hides it. */
   evidence?: EvidenceItem[];
   contact: { email: string; phone: string; address: string };
