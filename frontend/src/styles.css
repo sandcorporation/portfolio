@@ -750,7 +750,7 @@ h3.block-heading {
   font-size: var(--text-sm);
 }
 
-/* home: the evidence row under the hero reuses the kpi cards, 2 columns, 4 from 1024px */
+/* home: the evidence row under the hero reuses the kpi cards, 2 columns (an odd last tile spans both), one column per tile (4 or 5) from 1024px */
 .evidence {
   padding: var(--space-4) 0 var(--space-6);
 }
@@ -758,6 +758,15 @@ h3.block-heading {
 .evidence-row {
   margin: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.evidence-row .kpi-value {
+  white-space: nowrap;
+}
+
+/* five tiles are narrower than four: shrink the big numbers so 「38,523명」 fits one line */
+.evidence-row[data-count="5"] .kpi-value {
+  font-size: clamp(2rem, 3.4vw, 3rem);
 }
 
 .evidence-unit {
@@ -768,9 +777,19 @@ h3.block-heading {
   color: var(--color-muted);
 }
 
+.evidence-row > .kpi-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 @media (min-width: 1024px) {
+  .evidence-row > .kpi-card:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+
   .evidence-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--evidence-count, 4), minmax(0, 1fr));
+  }
+
   }
 }
 

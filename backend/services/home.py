@@ -69,7 +69,7 @@ class Availability(TypedDict):
 class EvidenceItem(TypedDict):
     """One big number of the evidence row under the hero (#91). `value` is already formatted."""
 
-    key: str  # "services" | "foresight" | "reply" | "career"
+    key: str  # "services" | "foresight" | "visitors" | "reply" | "career"
     value: str  # "4", "1,234", "1일"
     unit: str  # small text after the value ("건/일", "년차"), "" when none
     label: str  # the mono label
@@ -181,9 +181,12 @@ def evidence_of(
     portfolio: list[PortfolioCard],
     foresight: ForesightStats | None,
     today: date,
+    visits: Stats | None = None,
 ) -> list[EvidenceItem]:
     """The hero's evidence row. An item with nothing to show is left out; fewer than two items
-    leave the whole row out (one lonely number proves nothing)."""
+    leave the whole row out (one lonely number proves nothing). 「전체 방문자 · 누적」 is
+    `visits.total.total_visitors` — sandcorp-metrics' own total over every site registered
+    there (the same number as the masthead's 「누적 방문」); 0 or no answer leaves it out."""
     items: list[EvidenceItem] = []
     live = sum(1 for card in portfolio if card["status"] == "live")
     if live > 0:
@@ -198,6 +201,15 @@ def evidence_of(
                 value=f"{per_day:,}",
                 unit="건/일",
                 label="Foresight 자동 편집 기사",
+            )
+        )
+    if visits is not None and visits.total.total_visitors > 0:
+        items.append(
+            EvidenceItem(
+                key="visitors",
+                value=f"{visits.total.total_visitors:,}",
+                unit="명",
+                label="전체 방문자 · 누적",
             )
         )
     promise = profile.response_promise.strip()
@@ -251,7 +263,9 @@ def home_page() -> HomePage:
             visits=site_visits(stats),
             availability=availability_of(profile),
             business=business_of(profile),
-            evidence=evidence_of(profile, portfolio, fetch_foresight_stats(), timezone.localdate()),
+            evidence=evidence_of(
+                profile, portfolio, fetch_foresight_stats(), timezone.localdate(), stats
+            ),
         ),
     )
 

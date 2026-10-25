@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { GITHUB_URL, Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { DocumentView } from "../blocks/DocumentView";
 import { PostRows } from "../blog/PostRows";
@@ -89,7 +90,11 @@ export function HomePage({ data }: { data: HomeData }) {
         </section>
         {evidence.length > 0 && (
           <section className="evidence" aria-label="한눈에 보는 실적">
-            <ul className="kpi-cards evidence-row">
+            <ul
+              className="kpi-cards evidence-row"
+              data-count={evidence.length}
+              style={{ "--evidence-count": evidence.length } as CSSProperties}
+            >
               {evidence.map((item) => (
                 <li key={item.key} className="kpi-card">
                   <span className="kpi-label">{item.label}</span>

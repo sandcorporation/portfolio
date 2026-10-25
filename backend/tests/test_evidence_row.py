@@ -1,5 +1,6 @@
 """The home evidence row (#91): Foresight stats adapter, omission rules, career years."""
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -10,6 +11,7 @@ from pytest_django.fixtures import Settings
 
 from adapters import foresight as adapter
 from adapters.fake_foresight import FakeForesight
+from adapters.fake_metrics import FakeMetrics, sample_stats
 from content.models import SiteProfile
 from services.home import career_years, evidence_of, home_page
 from services.portfolio import PortfolioCard, card_of
@@ -19,6 +21,7 @@ from tests.test_portfolio import make
 pytestmark = pytest.mark.django_db
 
 TODAY = date(2026, 10, 23)
+VISITORS = f"{sample_stats().total.total_visitors:,}"
 
 # The shape AI-Trend-News #77 answers on GET /api/public/stats.
 STATS_JSON = {
@@ -122,13 +125,32 @@ def test_all_four_items_in_order(foresight: FakeForesight) -> None:
         home_page().data["portfolio"],
         adapter.fetch_stats(),
         TODAY,
+        sample_stats(),
     )
     assert row == [
         {"key": "services", "value": "2", "unit": "", "label": "운영 중인 서비스"},
         {"key": "foresight", "value": "42", "unit": "건/일", "label": "Foresight 자동 편집 기사"},
+        {"key": "visitors", "value": VISITORS, "unit": "명", "label": "전체 방문자 · 누적"},
         {"key": "reply", "value": "1일", "unit": "", "label": "첫 회신 · 영업일 기준"},
         {"key": "career", "value": "7", "unit": "년차", "label": "웹·앱 개발 경력"},
     ]
+
+
+def test_visitors_tile_is_the_metrics_total_and_hides_without_it() -> None:
+    base = profile(career_started_on=date(2020, 3, 1), response_promise="영업일 1일")
+    total = sample_stats().total
+    assert total.total_visitors > 0
+    with_visits = evidence_of(base, [], None, TODAY, sample_stats())
+    assert keys(with_visits) == ["visitors", "reply", "career"]
+    assert with_visits[0]["value"] == f"{total.total_visitors:,}"
+    assert keys(evidence_of(base, [], None, TODAY, None)) == ["reply", "career"]
+    zero = replace(sample_stats(), total=replace(total, total_visitors=0))
+    assert keys(evidence_of(base, [], None, TODAY, zero)) == ["reply", "career"]
+
+
+def test_the_home_page_carries_the_visitors_tile(foresight: FakeForesight) -> None:
+    make("a", 1, status="live")
+    assert "visitors" in keys(home_page().data["evidence"])
 
 
 def test_thousands_get_commas() -> None:
@@ -166,14 +188,22 @@ def test_fewer_than_two_items_leave_the_whole_row_out() -> None:
     assert evidence_of(profile(response_promise=""), [], None, TODAY) == []
 
 
-def test_the_home_shell_carries_the_row(client: Client, foresight: FakeForesight) -> None:
+def test_the_home_shell_carries_the_row(
+    client: Client, foresight: FakeForesight, metrics: FakeMetrics
+) -> None:
     make("a", 1, status="live")
     row = SiteProfile.load()
     row.career_started_on = date(2020, 1, 1)
     row.save()
 
     data = page_data(client.get("/").content.decode())
-    assert keys(data["evidence"]) == ["services", "foresight", "reply", "career"]
+    assert keys(data["evidence"]) == [
+        "services",
+        "foresight",
+        "visitors",
+        "reply",
+        "career",
+    ]
 
     foresight.stats_value = None
     cache.clear()
@@ -181,4 +211,9 @@ def test_the_home_shell_carries_the_row(client: Client, foresight: FakeForesight
     row.save()
     make("b", 2, status="building")
     SiteProfile.objects.filter(pk=1).update(response_promise="")
+    data = page_data(client.get("/").content.decode())
+    assert keys(data["evidence"]) == ["services", "visitors"]
+
+    metrics.failing = True
+    cache.clear()
     assert page_data(client.get("/").content.decode())["evidence"] == []

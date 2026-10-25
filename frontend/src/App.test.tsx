@@ -204,6 +204,7 @@ test("가용 상태가 없거나 비면 아무 자리도 만들지 않고, 날�
 const evidence: EvidenceItem[] = [
   { key: "services", value: "4", unit: "", label: "운영 중인 서비스" },
   { key: "foresight", value: "1,234", unit: "건/일", label: "Foresight 자동 편집 기사" },
+  { key: "visitors", value: "9,876", unit: "명", label: "전체 방문자 · 누적" },
   { key: "reply", value: "1일", unit: "", label: "첫 회신 · 영업일 기준" },
   { key: "career", value: "7", unit: "년차", label: "웹·앱 개발 경력" },
 ];
@@ -213,11 +214,12 @@ test("히어로 아래 증거 행은 큰 숫자·단위·라벨을 순서대로 
 
   const row = document.querySelector(".evidence") as HTMLElement;
   const cards = row.querySelectorAll(".kpi-card");
-  expect(cards).toHaveLength(4);
+  expect(cards).toHaveLength(5);
   expect(cards[1]?.querySelector(".kpi-value")).toHaveTextContent("1,234건/일");
   expect(cards[1]?.querySelector(".kpi-label")).toHaveTextContent("Foresight 자동 편집 기사");
-  expect(cards[2]?.querySelector(".kpi-value")).toHaveTextContent("1일");
-  expect(cards[3]?.querySelector(".kpi-value")).toHaveTextContent("7년차");
+  expect(cards[2]?.querySelector(".kpi-value")).toHaveTextContent("9,876명");
+  expect(cards[3]?.querySelector(".kpi-value")).toHaveTextContent("1일");
+  expect(cards[4]?.querySelector(".kpi-value")).toHaveTextContent("7년차");
   const hero = document.querySelector(".hero") as HTMLElement;
   const company = document.getElementById("home-company") as HTMLElement;
   expect(hero.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

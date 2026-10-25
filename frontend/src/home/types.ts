@@ -41,7 +41,7 @@ export interface Business {
 
 /** One big number of the evidence row under the hero. Mirrors EvidenceItem in services/home.py. */
 export interface EvidenceItem {
-  key: "services" | "foresight" | "reply" | "career";
+  key: "services" | "foresight" | "visitors" | "reply" | "career";
   /** Already formatted ("4", "1,234", "1일"). */
   value: string;
   /** Small text after the value ("건/일", "년차"); "" when none. */
