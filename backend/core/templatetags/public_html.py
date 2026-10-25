@@ -33,6 +33,14 @@ def bare_url(value: str) -> str:
 
 
 @register.filter
+def external_attrs(href: str) -> SafeString:
+    """New-tab attributes for another host's address, else `rel="noopener"` only."""
+    if public_html.is_external(href):
+        return public_html._external_attrs(href)
+    return SafeString(' rel="noopener"')
+
+
+@register.filter
 def blog_href(tag: str, page: int = 1) -> str:
     return public_html.blog_index_href(tag, page)
 

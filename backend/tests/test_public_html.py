@@ -90,7 +90,9 @@ def test_work_page_draws_title_and_block_document(client: Client) -> None:
     assert "<strong>세 시간</strong>" in body
     assert '<div class="table-scroll"><table>' in body
     assert "<td>오류</td>" in body and "<td>10분</td>" in body
-    assert '<a href="https://example.com">사이트</a>' in body
+    assert (
+        '<a href="https://example.com" target="_blank" rel="noopener noreferrer">사이트</a>' in body
+    )
     assert '<li data-level="2"><a href="#work-intro">문제</a></li>' in body  # contents
     assert "<summary>더 보기</summary>" in body and "접힌 글" in body
     assert "<script>alert" not in body  # raw HTML tags dropped, their text kept (skipHtml)
@@ -104,8 +106,13 @@ def test_work_page_service_link_shows_host_only(client: Client) -> None:
     a = root(client.get("/work/a").content.decode())
     b = root(client.get("/work/b").content.decode())
 
-    assert f'<a href="{long}" rel="noopener">classroom.codemit.kr</a>' in a
-    assert '<a href="https://codemit.kr/" rel="noopener">codemit.kr</a>' in b
+    assert (
+        f'<a href="{long}" target="_blank" rel="noopener noreferrer">classroom.codemit.kr</a>' in a
+    )
+    assert (
+        '<a href="https://codemit.kr/" target="_blank" rel="noopener noreferrer">codemit.kr</a>'
+        in b
+    )
 
 
 def test_blog_pages_draw_rows_tags_and_post(client: Client) -> None:
@@ -166,3 +173,63 @@ def test_fixed_text_matches_the_app_sources() -> None:
     ]:
         assert f'"{label}"' in masthead or f">{label}<" in masthead
         assert label in top
+
+
+@pytest.mark.parametrize(
+    ("href", "external"),
+    [
+        ("https://flow.sandcorp.co.kr/x", True),
+        ("http://example.com", True),
+        ("//example.com/a", True),
+        ("HTTPS://Example.com", True),
+        ("/work/a", False),
+        ("#intro", False),
+        ("https://sandcorp.co.kr/work/a", False),
+        ("https://SANDCORP.co.kr", False),
+        ("mailto:a@b.kr", False),
+    ],
+)
+def test_external_rule(href: str, external: bool) -> None:
+    assert public_html.is_external(href) is external
+
+
+def test_markdown_and_cta_links_open_external_in_new_tab() -> None:
+    html = str(
+        public_html.prose(
+            "[밖](https://flow.sandcorp.co.kr) [안](/work/a) "
+            "[같은](https://sandcorp.co.kr/x) [앵커](#a)"
+        )
+    )
+    blank = 'target="_blank" rel="noopener noreferrer"'
+    assert f'<a href="https://flow.sandcorp.co.kr" {blank}>' in html or (
+        'href="https://flow.sandcorp.co.kr"' in html and blank in html
+    )
+    assert html.count("target=") == 1
+    cta: dict[str, JSON] = {
+        "id": "c",
+        "type": "cta",
+        "items": [
+            {
+                "label": "밖",
+                "style": "primary",
+                "target": {"kind": "url", "href": "https://example.com"},
+            },
+            {
+                "label": "안",
+                "style": "secondary",
+                "target": {"kind": "url", "href": "https://sandcorp.co.kr/a"},
+            },
+        ],
+    }
+    out = str(
+        public_html.document_html({"tabs": [{"id": "t", "title": "t", "blocks": [cta]}]}, "w-")
+    )
+    assert out.count("target=") == 1 and 'href="https://example.com"' in out
+
+
+def test_work_service_link_internal_host_stays_in_tab(client: Client) -> None:
+    PortfolioItem.objects.create(
+        slug="c", title="C", body=BODY, service_url="https://sandcorp.co.kr/x"
+    )
+    c = root(client.get("/work/c").content.decode())
+    assert 'href="https://sandcorp.co.kr/x" rel="noopener">' in c and 'x" target' not in c

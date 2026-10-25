@@ -93,3 +93,11 @@ test("서비스 주소 링크는 호스트만 보이고 href는 전체 그대로
   render(<CardMeta card={base} serviceUrl="https://codemit.kr/" />);
   expect(screen.getByRole("link", { name: "codemit.kr" })).toHaveAttribute("href", "https://codemit.kr/");
 });
+
+test("서비스 주소: 다른 호스트는 새 탭, 같은 호스트는 같은 탭", () => {
+  const { rerender } = render(<CardMeta card={base} serviceUrl="https://flow.sandcorp.co.kr/x" />);
+  expect(screen.getByRole("link")).toHaveAttribute("target", "_blank");
+  expect(screen.getByRole("link")).toHaveAttribute("rel", "noopener noreferrer");
+  rerender(<CardMeta card={base} serviceUrl={`${window.location.origin}/work/a`} />);
+  expect(screen.getByRole("link")).not.toHaveAttribute("target");
+});

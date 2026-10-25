@@ -1,3 +1,4 @@
+import { linkAttrs } from "../links";
 import { useDocumentNav } from "./nav";
 import { useRenderMode } from "./mode";
 import type { CtaBlock } from "./types";
@@ -44,8 +45,7 @@ function CtaItem({ item, print }: { item: Item; print: boolean }) {
         className="cta-button"
         data-style={item.style}
         href={target.href}
-        target="_blank"
-        rel="noopener noreferrer"
+        {...linkAttrs(target.href)}
       >
         {item.label}
       </a>

@@ -1,3 +1,4 @@
+import { linkAttrs } from "../links";
 import type { PortfolioCard } from "./types";
 import { workPath } from "./types";
 
@@ -69,7 +70,7 @@ export function CardMeta({ card, serviceUrl }: { card: PortfolioCard; serviceUrl
     ),
     card.period && <span key="period">{card.period}</span>,
     serviceUrl && (
-      <a key="url" href={serviceUrl} rel="noopener">
+      <a key="url" href={serviceUrl} rel="noopener" {...linkAttrs(serviceUrl)}>
         {serviceHost(serviceUrl)}
       </a>
     ),

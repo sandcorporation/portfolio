@@ -11,9 +11,10 @@ frontend/src/blocks so the copy looks close to the screen until React takes over
 import re
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import SafeString, mark_safe
@@ -57,9 +58,37 @@ def _drop(
     return ""
 
 
+def is_external(href: str) -> bool:
+    """A link to another host (http(s) or //host).
+
+    /path, #anchor, mailto: and the site's own host are not.
+
+    Mirror of frontend/src/links.ts. The site host is SETTINGS.SITE_URL's.
+    """
+    href = href.strip()
+    if not re.match(r"(?i)(https?:)?//", href):
+        return False
+    host = (urlsplit(href).netloc.rpartition("@")[2]).lower()
+    return host != urlsplit(settings.SITE_URL).netloc.lower()
+
+
+EXTERNAL_ATTRS = {"target": "_blank", "rel": "noopener noreferrer"}
+
+
+def _link_open(
+    self: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType
+) -> str:
+    token = tokens[idx]
+    if is_external(str(token.attrGet("href") or "")):
+        for name, value in EXTERNAL_ATTRS.items():
+            token.attrSet(name, value)
+    return self.renderToken(tokens, idx, options, env)
+
+
 _MARKDOWN = MarkdownIt("commonmark", {"html": True}).enable(["table", "strikethrough"])
 _MARKDOWN.add_render_rule("html_inline", _drop)
 _MARKDOWN.add_render_rule("html_block", _drop)
+_MARKDOWN.add_render_rule("link_open", _link_open)
 
 
 def prose(source: str) -> SafeString:
@@ -198,6 +227,12 @@ def _steps(block: StepsBlock, anchor: str) -> SafeString:
     )
 
 
+def _external_attrs(href: str) -> SafeString:
+    if not is_external(href):
+        return SafeString("")
+    return format_html(' target="{}" rel="{}"', EXTERNAL_ATTRS["target"], EXTERNAL_ATTRS["rel"])
+
+
 def _cta(block: CtaBlock, prefix: str) -> SafeString:
     links = []
     for item in block.items:
@@ -212,7 +247,11 @@ def _cta(block: CtaBlock, prefix: str) -> SafeString:
         return SafeString("")
     return format_html(
         '<div class="block-cta">{}</div>',
-        format_html_join("", '<a class="cta-button" href="{}" data-style="{}">{}</a>', links),
+        format_html_join(
+            "",
+            '<a class="cta-button" href="{}" data-style="{}"{}>{}</a>',
+            ((href, style, _external_attrs(href), label) for href, style, label in links),
+        ),
     )
 
 
