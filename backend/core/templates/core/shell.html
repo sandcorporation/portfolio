@@ -32,7 +32,7 @@
   {% if metrics_snippet_url %}<script defer src="{{ metrics_snippet_url }}" data-site="{{ metrics_site_key }}"></script>{% endif %}
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">{{ body }}</div>
   {% if data is not None %}{{ data|json_script:"page-data" }}{% endif %}
 </body>
 </html>

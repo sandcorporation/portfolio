@@ -26,7 +26,7 @@
 
 1. **스키마**: `backend/documents/blocks.py`에 `class VideoBlock(BlockBase)`를 더한다. `model_config = ConfigDict(title="VideoBlock")`(TS 타입 이름이 된다), `type: Literal["video"]`, 필드마다 `Field(description=...)`. 필드 사이 검사가 있으면 `problems()`를 덮어쓴다(경로는 블록 안 상대 경로, 예: `"tracks[1]"`). 맨 아래 `Block` 유니언에 넣는다.
 2. **생성**: `make gen` → `schema/document.schema.json`과 `frontend/src/blocks/types.gen.ts`가 바뀐다. 손으로 고치지 않는다.
-3. **렌더러**: `frontend/src/blocks/Video.tsx`에 `function Video({ block, anchor }: { block: VideoBlock; anchor: string })`. 목차에 오를 제목이 있으면 `<Heading id={anchor}>`로 단다. `registry.ts`에 `video: { Render: Video, toc: ... }`를 더한다(빠뜨리면 `tsc`가 알려 준다).
+3. **렌더러**: `frontend/src/blocks/Video.tsx`에 `function Video({ block, anchor }: { block: VideoBlock; anchor: string })`. 목차에 오를 제목이 있으면 `<Heading id={anchor}>`로 단다. `registry.ts`에 `video: { Render: Video, toc: ... }`를 더한다(빠뜨리면 `tsc`가 알려 준다). 공개 페이지의 서버 HTML(#109)도 그리도록 `backend/core/public_html.py::block_html`의 `match`에 같은 클래스 이름으로 읽을 글(제목·본문·링크)을 그리는 함수를 더한다(빠뜨리면 그 블록은 JS 없는 HTML에서 빠진다).
 4. **픽스처**: `fixtures/documents/example-proposal.json`에 그 블록을 하나 넣는다. `DocumentView.test.tsx`의 「예시 문서는 블록 타입을 모두 쓴다」 시험이 이를 확인하고, 백엔드 시험이 유효성을 확인한다.
 5. **MCP 예시**: `backend/services/blocks.py`의 `EXAMPLES`에 그 타입의 유효한 예시를 더한다(`block_schema` 도구가 돌려준다; `test_mcp.py`가 모든 타입에 예시가 있고 유효한지 확인한다).
 6. **시험**: `Video.test.tsx`에서 `documentOf(exampleBlock("…", "video"))`를 `DocumentView`로 그려 화면에 보이는 것을 확인한다. 검증 규칙이 있으면 `backend/tests/test_documents.py`에 잘못된 예와 기대 경로를 더한다.

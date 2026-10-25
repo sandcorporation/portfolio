@@ -44,7 +44,7 @@ def test_home_shell_is_indexable_and_mounts_react(client: Client) -> None:
     assert response.status_code == 200
     assert "<title>Sandcorp</title>" in html
     assert meta(html, "robots") == "index, follow"
-    assert '<div id="root"></div>' in html
+    assert '<div id="root"><header class="masthead">' in html  # server HTML first (#109)
     assert '<script type="module" src="/static/assets/main-abc123.js"></script>' in html
     assert '<link rel="stylesheet" href="/static/assets/main-def456.css">' in html
 
@@ -65,3 +65,4 @@ def test_published_proposal_shell_is_noindex_and_keeps_meta_generic(client: Clie
     assert meta(html, "robots") == "noindex, nofollow"
     assert "<title>제안서 | Sandcorp</title>" in html
     assert "가나다상사" not in html
+    assert '<div id="root"></div>' in html  # proposals get no server HTML (#109)

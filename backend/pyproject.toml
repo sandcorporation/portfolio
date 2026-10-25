@@ -8,6 +8,7 @@ dependencies = [
     "django>=6.1.2",
     "django-ninja>=1.7.1",
     "gunicorn>=26.2.0",
+    "markdown-it-py>=4.0.0",
     "mysqlclient>=2.2.7",
     "nh3>=0.3.7",
     "pydantic>=2.12",

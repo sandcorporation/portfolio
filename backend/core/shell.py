@@ -1,4 +1,5 @@
-"""HTML shell views: Django renders per-route <head> meta, then React mounts on #root.
+"""HTML shell views: Django renders per-route <head> meta (and, on the public pages, a server
+HTML copy of the body), then React renders on #root.
 
 Add a route by adding a view here that builds a PageMeta and calls render_shell.
 """
@@ -18,6 +19,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import BaseModel
 
 from content.models import Proposal, ProposalEvent, ProposalRevision
+from core import public_html
 from core.clientip import client_ip
 from core.vite import entry_assets
 from services import blog, media, pdf, proposals, publishing
@@ -55,12 +57,16 @@ def render_shell(
     status: int = 200,
     data: Mapping[str, object] | None = None,
     count_visit: bool = False,
+    body: str = "",
 ) -> HttpResponse:
     """Render the shell. `data` is embedded as JSON in #page-data for React's first render.
 
     `count_visit` adds the sandcorp-metrics snippet (when METRICS_SNIPPET_URL is set). Only the
     public pages ask for it: print and preview pages are opened by the PDF renderer and the
-    owner, proposals are private, and none of those are visits."""
+    owner, proposals are private, and none of those are visits.
+
+    `body` is the public page's server HTML for #root, drawn from the same `data` (#109,
+    core/public_html.py); React renders over it. Proposal, preview and print pages leave it out."""
     context = {
         "site_name": SITE_NAME,
         "data": data,
@@ -71,6 +77,7 @@ def render_shell(
         "assets": entry_assets(),
         "metrics_snippet_url": settings.METRICS_SNIPPET_URL if count_visit else "",
         "metrics_site_key": settings.METRICS_SITE_KEY,
+        "body": body,
     }
     return render(request, "core/shell.html", context, status=status)
 
@@ -90,6 +97,7 @@ def home(request: HttpRequest) -> HttpResponse:
         PageMeta(title=SITE_NAME, description=page.description, robots=INDEX),
         data=page.data,
         count_visit=True,
+        body=public_html.home_body(page.data),
     )
 
 
@@ -313,6 +321,7 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
     if detail is None:
         raise Http404
     card = detail["card"]
+    data = {**detail, "availability": site_availability(), "business": site_business()}
     return render_shell(
         request,
         PageMeta(
@@ -321,8 +330,9 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
             robots=INDEX,
             image=card["cover_url"],
         ),
-        data={**detail, "availability": site_availability(), "business": site_business()},
+        data=data,
         count_visit=True,
+        body=public_html.work_body(data),
     )
 
 
@@ -370,6 +380,7 @@ def blog_index(request: HttpRequest) -> HttpResponse:
         raise Http404
     narrowed = bool(tag) or page > 1  # the same posts as /blog: keep them out of the index
     title = f"{tag} · {BLOG_TITLE}" if tag else BLOG_TITLE
+    data = {**listing, "availability": site_availability(), "business": site_business()}
     return render_shell(
         request,
         PageMeta(
@@ -391,8 +402,9 @@ def blog_index(request: HttpRequest) -> HttpResponse:
                 "publisher": _publisher(),
             },
         ),
-        data={**listing, "availability": site_availability(), "business": site_business()},
+        data=data,
         count_visit=True,
+        body=public_html.blog_index_body(listing, data),
     )
 
 
@@ -402,6 +414,7 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
         raise Http404
     card = detail["card"]
     description = card["summary"] or BLOG_DESCRIPTION
+    data = {**detail, "availability": site_availability(), "business": site_business()}
     return render_shell(
         request,
         PageMeta(
@@ -425,8 +438,9 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
                 **({"image": card["cover_url"]} if card["cover_url"] else {}),
             },
         ),
-        data={**detail, "availability": site_availability(), "business": site_business()},
+        data=data,
         count_visit=True,
+        body=public_html.blog_post_body(data),
     )
 
 
