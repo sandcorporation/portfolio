@@ -789,8 +789,6 @@ h3.block-heading {
   .evidence-row {
     grid-template-columns: repeat(var(--evidence-count, 4), minmax(0, 1fr));
   }
-
-  }
 }
 
 /* table: hairline rows, tinted head */

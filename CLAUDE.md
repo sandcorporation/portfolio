@@ -27,7 +27,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 - 린트: `make lint` (ruff format --check, ruff check, eslint). 고치기: `cd backend && uv run ruff format . && uv run ruff check --fix .`
 - 타입: `make typecheck` (mypy strict + django-stubs, `tsc --noEmit`).
 - 생성: `make gen` — 백엔드 블록 스키마(Pydantic)에서 JSON Schema와 `frontend/src/blocks/types.gen.ts`를 다시 만든다. `make gen-check`는 차이가 없는지 본다(`make check`에 포함).
-- 전부: `make check`.
+- 전부: `make check` (마지막에 `make build-frontend`로 운영 빌드까지 — #107의 CSS 빈 선택자처럼 lightningcss 축소에서만 나는 오류를 잡는다).
 - 새 블록 추가 절차: `frontend/src/blocks/README.md`.
 - 공개 화면 스타일(#73): baeksang.dev 풍 편집 디자인 — 카드·그림자 없이 hairline(`--color-line` 1px)으로 나누고, 라벨은 대문자 모노(`--font-mono`, JetBrains Mono), `--radius` 2px(포커스·이미지만), 채움 버튼은 화면에 하나. 팔레트(#102)는 흰색·검정·네이비: 라이트 바탕 `#ffffff`·강조 `#1e3a8a`, 다크 바탕 `#0b0d12`·강조 `#8fb3ff`(로고의 황토 언덕·파비콘·OG 이미지만 옛 색 그대로). 토큰 이름·값은 AI-Trend-News와 같은 명세(`frontend/src/tokens.css`), 강조색 교체는 `--color-accent`·`--color-accent-tint`·`--color-focus` 라이트·다크 여섯 값만. 규칙은 `frontend/src/blocks/README.md` 「스타일」. 글꼴(Pretendard, JetBrains Mono)은 npm으로 번들돼 외부 요청이 없다.
 - 방문 메트릭(#81): sandcorp-metrics가 네 사이트 방문을 센다. 공개 셸 중 홈·`/work/…`·`/blog…`만 `METRICS_SNIPPET_URL`의 스니펫(`data-site=METRICS_SITE_KEY`, 기본 `sandcorp`)을 head에 넣고(`render_shell(count_visit=True)`), 인쇄(`/print/…`)·미리보기(`/preview/…`)·제안서(`/p/…`)·admin에는 넣지 않는다(PDF 렌더러 조회가 방문으로 잡힌다). 홈 머리띠(「● 누적 방문 N명」, 전체 누적 하나)와 포트폴리오 행(오른쪽 열 「누적 N」, 0이면 생략)의 숫자는 `adapters/metrics.py`가 `METRICS_API_URL`(기본 `https://metrics.sandcorp.co.kr/api/stats`, 빈 값이면 끔)을 3초 제한·60초 캐시로 읽고, 실패하면 마지막 성공 값(24시간)이나 숫자 없이 그린다. 행의 숫자는 `PortfolioItem.metrics_site_key`(admin·MCP `update_portfolio`; codemit·daypage·foresight·sandcorp)로 짝짓는다. 시험은 `FakeMetrics`(autouse).

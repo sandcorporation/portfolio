@@ -1,5 +1,5 @@
 # 한 줄 명령 모음. 자세한 것은 CLAUDE.md 「명령」 절.
-.PHONY: gen gen-check db test test-backend test-frontend lint typecheck check dev-backend dev-frontend prod-local prod-local-down
+.PHONY: gen gen-check db test test-backend test-frontend lint typecheck build-frontend check dev-backend dev-frontend prod-local prod-local-down
 
 db:  ## 로컬 시험·개발용 MySQL 26.10 (127.0.0.1:15442, 프로젝트 portfolio-dev, utf8mb4_0900_as_cs)
 	docker compose up -d --wait db
@@ -28,7 +28,10 @@ gen-check:  ## 생성물이 Pydantic 모델과 같은지(다르면 make gen 후 
 	cd backend && uv run python -m documents.schema_export --check
 	cd frontend && pnpm gen:types --check
 
-check: gen-check lint typecheck test
+build-frontend:  ## 운영 빌드(vite build) — lightningcss 축소가 잡는 CSS 문법 오류는 시험·린트로는 안 잡힌다
+	cd frontend && pnpm exec vite build --outDir "$$(mktemp -d)" --emptyOutDir
+
+check: gen-check lint typecheck test build-frontend
 
 dev-backend: db  ## http://localhost:8000 (프론트는 dev-frontend로 따로 띄운다)
 	cd backend && DB_PORT=15442 DJANGO_DEBUG=1 VITE_DEV_SERVER_URL=http://localhost:5173 uv run python manage.py migrate --noinput
