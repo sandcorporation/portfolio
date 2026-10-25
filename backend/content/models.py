@@ -319,7 +319,22 @@ class PortfolioItem(models.Model):
         self.check_cover()
         self.body = stored_document(self.body)
         self.tags = ", ".join(self.tag_list())
+        old_slug = (
+            PortfolioItem.objects.filter(pk=self.pk).values_list("slug", flat=True).first()
+            if self.pk
+            else None
+        )
         super().save(**kwargs)
+        if old_slug and old_slug != self.slug:
+            # The old address keeps working: /work/<old> answers 301 to the new one (#111).
+            self.slug_aliases.filter(slug=self.slug).delete()
+            PortfolioSlugAlias.objects.update_or_create(slug=old_slug, defaults={"item": self})
+
+    def check_slug(self) -> None:
+        """A slug may not be another item's old address (that address redirects there)."""
+        taken = PortfolioSlugAlias.objects.filter(slug=self.slug).exclude(item_id=self.pk)
+        if taken.exists():
+            raise ValidationError({"slug": "다른 항목의 옛 주소로 쓰이고 있습니다."})
 
     def check_cover(self) -> None:
         cover = self.cover
@@ -330,6 +345,7 @@ class PortfolioItem(models.Model):
 
     def clean(self) -> None:
         self.check_cover()
+        self.check_slug()
         try:
             self.body = stored_document(self.body)
         except InvalidDocument as exc:
@@ -337,6 +353,28 @@ class PortfolioItem(models.Model):
 
     def tag_list(self) -> list[str]:
         return [tag for tag in (t.strip() for t in self.tags.split(",")) if tag]
+
+
+class PortfolioSlugAlias(models.Model):
+    """An old address of a portfolio item. `/work/<slug>` answers 301 to the item's current slug.
+
+    Written by PortfolioItem.save when the slug changes; never edited by hand."""
+
+    slug = models.SlugField("옛 주소", unique=True)
+    item = models.ForeignKey(
+        PortfolioItem,
+        verbose_name="항목",
+        on_delete=models.CASCADE,
+        related_name="slug_aliases",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "포트폴리오 옛 주소"
+        verbose_name_plural = "포트폴리오 옛 주소"
+
+    def __str__(self) -> str:
+        return f"{self.slug} → {self.item.slug}"
 
 
 class BlogPost(models.Model):

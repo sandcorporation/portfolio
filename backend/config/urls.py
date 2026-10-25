@@ -26,6 +26,7 @@ urlpatterns = [
     path(".well-known/oauth-protected-resource/mcp", protected_resource_metadata),
     # HTML shell routes: Django fills per-route meta, React takes over in the browser.
     path("", shell.home, name="home"),
+    path("work", shell.work_hub, name="work_hub"),
     path("work/<slug:slug>", shell.work, name="work"),
     path("github/readme/personal.md", github_readme.personal, name="github_readme_personal"),
     path("github/readme/org.md", github_readme.org, name="github_readme_org"),

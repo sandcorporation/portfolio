@@ -7,11 +7,19 @@ Add a route by adding a view here that builds a PageMeta and calls render_shell.
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from email.utils import format_datetime
 from xml.sax.saxutils import escape
 
 from django.conf import settings
-from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponsePermanentRedirect,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.middleware.csrf import get_token
 from django.shortcuts import render
 from django.templatetags.static import static
@@ -28,7 +36,7 @@ from services import blog, media, pdf, proposals, publishing
 from services import proposal_access as access
 from services import proposal_events as events
 from services.home import home_page, site_availability, site_business
-from services.portfolio import public_detail, public_slugs
+from services.portfolio import public_detail, public_modified, renamed_to
 
 SITE_NAME = "Sandcorp"
 INDEX = "index, follow"
@@ -87,6 +95,8 @@ def render_shell(
         "og_image_size": OG_IMAGE_SIZE if meta.image == DEFAULT_OG_IMAGE else None,
         "jsonld": _jsonld(meta.jsonld),
         "canonical": request.build_absolute_uri(request.path),
+        "verify_google": settings.GOOGLE_SITE_VERIFICATION if meta.robots == INDEX else "",
+        "verify_naver": settings.NAVER_SITE_VERIFICATION if meta.robots == INDEX else "",
         "assets": entry_assets(),
         "metrics_snippet_url": settings.METRICS_SNIPPET_URL if count_visit else "",
         "metrics_site_key": settings.METRICS_SITE_KEY,
@@ -342,10 +352,18 @@ def proposal_print(request: HttpRequest, token: str) -> HttpResponse:
     return _private(response)
 
 
+def work_hub(request: HttpRequest) -> HttpResponse:
+    """/work has no page of its own: the portfolio list is the home's section (#111)."""
+    return HttpResponsePermanentRedirect("/#home-portfolio")
+
+
 def work(request: HttpRequest, slug: str) -> HttpResponse:
     detail = public_detail(slug)
     if detail is None:
-        raise Http404
+        current = renamed_to(slug)
+        if current is None:
+            raise Http404
+        return HttpResponsePermanentRedirect(f"/work/{current}")
     card = detail["card"]
     data = {**detail, "availability": site_availability(), "business": site_business()}
     return render_shell(
@@ -379,14 +397,23 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
 
 
 def sitemap_xml(request: HttpRequest) -> HttpResponse:
-    posts = blog.public_slugs()
-    paths = [
-        "/",
-        *(f"/work/{slug}" for slug in public_slugs()),
-        *(["/blog"] if posts else []),  # an empty blog is not worth a crawl
-        *(f"/blog/{slug}" for slug in posts),
+    works = public_modified()
+    posts = blog.public_modified_by_slug()
+    stamps = [*works.values(), *posts.values()]
+    latest = max(stamps) if stamps else None
+    entries: list[tuple[str, datetime | None]] = [
+        ("/", latest),  # the home lists both, so it changed when either did
+        *((f"/work/{slug}", at) for slug, at in works.items()),
+        # an empty blog is not worth a crawl
+        *([("/blog", max(posts.values()))] if posts else []),
+        *((f"/blog/{slug}", at) for slug, at in posts.items()),
     ]
-    urls = "".join(f"<url><loc>{escape(settings.SITE_URL + path)}</loc></url>" for path in paths)
+    urls = "".join(
+        f"<url><loc>{escape(settings.SITE_URL + path)}</loc>"
+        + (f"<lastmod>{at.isoformat()}</lastmod>" if at else "")
+        + "</url>"
+        for path, at in entries
+    )
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'

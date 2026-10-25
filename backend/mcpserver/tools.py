@@ -183,7 +183,9 @@ class CreateInput(portfolio.NewItem):
 
 
 class UpdateInput(portfolio.ItemPatch):
-    slug: str = Field(description="Which item to change; the slug itself cannot change.")
+    slug: str = Field(
+        description="Which item to change; to rename it send new_slug (old address redirects)."
+    )
 
 
 class ReorderInput(BaseModel):
@@ -271,7 +273,8 @@ def create_portfolio(token: AccessToken, args: CreateInput) -> ToolResult:
     "update_portfolio",
     "Update a portfolio item",
     "Change an item by slug. Only the fields you send change; body replaces the whole block "
-    "document, cover_media_id null removes the cover. " + SEE_SCHEMA,
+    "document, cover_media_id null removes the cover, new_slug changes the address "
+    "(the old /work/<slug> keeps working as a 301 redirect). " + SEE_SCHEMA,
     UpdateInput,
     read_only=False,
 )

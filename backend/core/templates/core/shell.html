@@ -7,6 +7,8 @@
   <meta name="description" content="{{ meta.description }}">
   <meta name="robots" content="{{ meta.robots }}">
   <link rel="canonical" href="{{ canonical }}">
+  {% if verify_google %}<meta name="google-site-verification" content="{{ verify_google }}">{% endif %}
+  {% if verify_naver %}<meta name="naver-site-verification" content="{{ verify_naver }}">{% endif %}
   <meta property="og:title" content="{{ meta.title }}">
   <meta property="og:description" content="{{ meta.description }}">
   <meta property="og:type" content="{{ meta.og_type }}">

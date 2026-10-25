@@ -372,6 +372,12 @@ def public_modified_at(slug: str) -> str | None:
     return max(post.updated_at, post.published_at).isoformat()
 
 
+def public_modified_by_slug() -> dict[str, datetime]:
+    """slug -> last change of every published post, newest first, for sitemap `lastmod`."""
+    rows = _published().values_list("slug", "updated_at", "published_at")
+    return {slug: max(updated, published) for slug, updated, published in rows if published}
+
+
 def public_slugs() -> list[str]:
     return list(_published().values_list("slug", flat=True))
 

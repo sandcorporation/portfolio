@@ -13,7 +13,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from adapters.metrics import Stats, fetch_stats
 from content.github_profile import http_url
-from content.models import Media, PortfolioItem, empty_document, media_kind, stored_document
+from content.models import (
+    Media,
+    PortfolioItem,
+    PortfolioSlugAlias,
+    empty_document,
+    media_kind,
+    stored_document,
+)
 from documents.validation import JSON, DocumentError, InvalidDocument
 from services import media
 from services.errors import Conflict, NotFound, Rejected
@@ -105,6 +112,20 @@ def public_slugs() -> list[str]:
     return [item.slug for item in public_items()]
 
 
+def renamed_to(slug: str) -> str | None:
+    """The current slug of a public item that once had `slug`, else None (#111)."""
+    alias = PortfolioSlugAlias.objects.filter(slug=slug, item__is_public=True).select_related(
+        "item"
+    )
+    found = alias.first()
+    return found.item.slug if found else None
+
+
+def public_modified() -> dict[str, datetime]:
+    """slug -> last change of every public item, for sitemap `lastmod`."""
+    return {item.slug: item.updated_at for item in public_items()}
+
+
 def public_detail(slug: str) -> PortfolioDetail | None:
     item = PortfolioItem.objects.filter(slug=slug, is_public=True).first()
     return detail_of(item) if item else None
@@ -192,6 +213,13 @@ class ItemPatch(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    new_slug: str = Field(
+        default="",
+        min_length=1,
+        max_length=50,
+        pattern=SLUG_PATTERN,
+        description="Change the address. The old /work/<slug> then redirects (301) to the new one.",
+    )
     title: str = Field(default="", min_length=1, max_length=120)
     summary: str = Field(default="", max_length=300)
     tags: list[str] = Field(default_factory=list)
@@ -290,7 +318,10 @@ def _body(document: object) -> dict[str, JSON]:
 
 def create_item(new: NewItem) -> ItemAdmin:
     """Append a new item after the last one. Nothing is saved if anything is refused."""
-    if PortfolioItem.objects.filter(slug=new.slug).exists():
+    if (
+        PortfolioItem.objects.filter(slug=new.slug).exists()
+        or PortfolioSlugAlias.objects.filter(slug=new.slug).exists()
+    ):
         raise Conflict(f"주소 {new.slug!r}는 이미 쓰고 있습니다")
     item = PortfolioItem(
         slug=new.slug,
@@ -314,6 +345,14 @@ def create_item(new: NewItem) -> ItemAdmin:
 def update_item(slug: str, patch: ItemPatch) -> ItemAdmin:
     item = _item_or_404(slug)
     given = patch.model_fields_set
+    if "new_slug" in given and patch.new_slug != item.slug:
+        taken = PortfolioItem.objects.filter(slug=patch.new_slug).exists()
+        if (
+            taken
+            or PortfolioSlugAlias.objects.filter(slug=patch.new_slug).exclude(item=item).exists()
+        ):
+            raise Conflict(f"주소 {patch.new_slug!r}는 이미 쓰고 있습니다")
+        item.slug = patch.new_slug
     if "title" in given:
         item.title = patch.title
     if "summary" in given:
