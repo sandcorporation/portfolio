@@ -364,6 +364,14 @@ def public_detail(slug: str) -> PostDetail | None:
     )
 
 
+def public_modified_at(slug: str) -> str | None:
+    """When a published post last changed (ISO 8601), for `article:modified_time`/`dateModified`."""
+    post = _published().filter(slug=slug).only("updated_at", "published_at").first()
+    if post is None or post.published_at is None:
+        return None
+    return max(post.updated_at, post.published_at).isoformat()
+
+
 def public_slugs() -> list[str]:
     return list(_published().values_list("slug", flat=True))
 

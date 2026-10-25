@@ -10,10 +10,22 @@
   <meta property="og:title" content="{{ meta.title }}">
   <meta property="og:description" content="{{ meta.description }}">
   <meta property="og:type" content="{{ meta.og_type }}">
-  {% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+  {% if og_image %}<meta property="og:image" content="{{ og_image }}">
+  {% if meta.image_alt %}<meta property="og:image:alt" content="{{ meta.image_alt }}">{% endif %}
+  {% if og_image_size %}<meta property="og:image:width" content="{{ og_image_size.0 }}">
+  <meta property="og:image:height" content="{{ og_image_size.1 }}">{% endif %}{% endif %}
   <meta property="og:url" content="{{ canonical }}">
   <meta property="og:site_name" content="{{ site_name }}">
   <meta property="og:locale" content="ko_KR">
+  {% if meta.published_time %}<meta property="article:published_time" content="{{ meta.published_time }}">{% endif %}
+  {% if meta.modified_time %}<meta property="article:modified_time" content="{{ meta.modified_time }}">{% endif %}
+  {% for tag in meta.tags %}<meta property="article:tag" content="{{ tag }}">
+  {% endfor %}
+  <meta name="twitter:card" content="{% if og_image %}summary_large_image{% else %}summary{% endif %}">
+  <meta name="twitter:title" content="{{ meta.title }}">
+  <meta name="twitter:description" content="{{ meta.description }}">
+  {% if og_image %}<meta name="twitter:image" content="{{ og_image }}">
+  {% if meta.image_alt %}<meta name="twitter:image:alt" content="{{ meta.image_alt }}">{% endif %}{% endif %}
   {% if jsonld %}<script type="application/ld+json">{{ jsonld }}</script>{% endif %}
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">

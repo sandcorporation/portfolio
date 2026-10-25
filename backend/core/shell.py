@@ -14,13 +14,15 @@ from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import render
+from django.templatetags.static import static
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import BaseModel
 
-from content.models import Proposal, ProposalEvent, ProposalRevision
+from content.models import Proposal, ProposalEvent, ProposalRevision, SiteProfile
 from core import public_html
 from core.clientip import client_ip
+from core.seo import home_jsonld, work_jsonld
 from core.vite import entry_assets
 from services import blog, media, pdf, proposals, publishing
 from services import proposal_access as access
@@ -32,6 +34,11 @@ SITE_NAME = "Sandcorp"
 INDEX = "index, follow"
 NOINDEX = "noindex, nofollow"
 DEFAULT_WORK_DESCRIPTION = "샌드코프 수행 사례"
+# The preview image of public pages that have no cover of their own (#110). Built from
+# scripts/og-image/og-default.svg by scripts/og-image/build.sh; 1200x630.
+DEFAULT_OG_IMAGE = static("core/og-default.png")
+DEFAULT_OG_IMAGE_ALT = "Sandcorp 로고"
+OG_IMAGE_SIZE = (1200, 630)
 
 
 @dataclass(frozen=True)
@@ -39,8 +46,13 @@ class PageMeta:
     title: str
     description: str
     robots: str
-    image: str = ""
+    image: str = ""  # a path or URL; "" = no preview image (proposals, print, preview)
+    image_alt: str = ""
     og_type: str = "website"
+    # article:published_time / modified_time (ISO 8601) and one article:tag per tag
+    published_time: str = ""
+    modified_time: str = ""
+    tags: tuple[str, ...] = ()
     # schema.org JSON-LD for search engines; None for pages without one
     jsonld: Mapping[str, object] | None = None
 
@@ -72,6 +84,7 @@ def render_shell(
         "data": data,
         "meta": meta,
         "og_image": request.build_absolute_uri(meta.image) if meta.image else "",
+        "og_image_size": OG_IMAGE_SIZE if meta.image == DEFAULT_OG_IMAGE else None,
         "jsonld": _jsonld(meta.jsonld),
         "canonical": request.build_absolute_uri(request.path),
         "assets": entry_assets(),
@@ -94,7 +107,20 @@ def home(request: HttpRequest) -> HttpResponse:
     page = home_page()
     return render_shell(
         request,
-        PageMeta(title=SITE_NAME, description=page.description, robots=INDEX),
+        PageMeta(
+            title=SITE_NAME,
+            description=page.description,
+            robots=INDEX,
+            image=DEFAULT_OG_IMAGE,
+            image_alt=DEFAULT_OG_IMAGE_ALT,
+            jsonld=home_jsonld(
+                site_url=settings.SITE_URL,
+                logo=request.build_absolute_uri(static("core/logo.svg")),
+                description=page.description,
+                profile=SiteProfile.objects.filter(pk=1).first() or SiteProfile(),
+                same_as=[public_html.GITHUB_URL],
+            ),
+        ),
         data=page.data,
         count_visit=True,
         body=public_html.home_body(page.data),
@@ -328,7 +354,15 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
             title=f"{card['title']} | {SITE_NAME}",
             description=card["summary"] or DEFAULT_WORK_DESCRIPTION,
             robots=INDEX,
-            image=card["cover_url"],
+            image=card["cover_url"] or DEFAULT_OG_IMAGE,
+            image_alt=card["title"] if card["cover_url"] else DEFAULT_OG_IMAGE_ALT,
+            jsonld=work_jsonld(
+                url=_absolute(request, f"/work/{card['slug']}"),
+                card=card,
+                service_url=detail["service_url"],
+                image=request.build_absolute_uri(card["cover_url"] or DEFAULT_OG_IMAGE),
+                publisher=_publisher(),
+            ),
         ),
         data=data,
         count_visit=True,
@@ -387,6 +421,8 @@ def blog_index(request: HttpRequest) -> HttpResponse:
             title=f"{title} | {SITE_NAME}",
             description=BLOG_DESCRIPTION,
             robots="noindex, follow" if narrowed else INDEX,
+            image=DEFAULT_OG_IMAGE,
+            image_alt=DEFAULT_OG_IMAGE_ALT,
             jsonld={
                 "@context": "https://schema.org",
                 "@type": "CollectionPage",
@@ -414,6 +450,8 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
         raise Http404
     card = detail["card"]
     description = card["summary"] or BLOG_DESCRIPTION
+    modified = blog.public_modified_at(slug) or card["published_at"]
+    image = card["cover_url"] or DEFAULT_OG_IMAGE
     data = {**detail, "availability": site_availability(), "business": site_business()}
     return render_shell(
         request,
@@ -421,21 +459,26 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
             title=f"{card['title']} | {SITE_NAME}",
             description=description,
             robots=INDEX,
-            image=card["cover_url"],
+            image=image,
+            image_alt=card["title"] if card["cover_url"] else DEFAULT_OG_IMAGE_ALT,
             og_type="article",
+            published_time=card["published_at"],
+            modified_time=modified,
+            tags=tuple(card["tags"]),
             jsonld={
                 "@context": "https://schema.org",
                 "@type": "BlogPosting",
                 "headline": card["title"],
                 "description": description,
                 "datePublished": card["published_at"],
+                "dateModified": modified,
                 "url": _absolute(request, f"/blog/{slug}"),
                 "mainEntityOfPage": _absolute(request, f"/blog/{slug}"),
                 "inLanguage": "ko",
                 "keywords": ", ".join(card["tags"]),
                 "author": _publisher(),
                 "publisher": _publisher(),
-                **({"image": card["cover_url"]} if card["cover_url"] else {}),
+                "image": request.build_absolute_uri(image),
             },
         ),
         data=data,

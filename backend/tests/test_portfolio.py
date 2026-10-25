@@ -139,9 +139,12 @@ def block_by_id(document: Any, block_id: str) -> Any:  # Any: raw JSON
     return next(block for block in all_blocks(document) if block["id"] == block_id)
 
 
-def test_detail_without_cover_has_no_og_image(client: Client) -> None:
+def test_detail_without_cover_uses_the_default_og_image(client: Client) -> None:
     make("plain")
-    assert "og:image" not in client.get("/work/plain").content.decode()
+    html = client.get("/work/plain").content.decode()
+    assert (
+        '<meta property="og:image" content="http://testserver/static/core/og-default.png">' in html
+    )
 
 
 def test_robots_blocks_proposals_and_points_to_the_sitemap(client: Client) -> None:
