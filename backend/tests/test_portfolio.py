@@ -96,8 +96,9 @@ def test_detail_shell_carries_item_og_meta_and_body(
     assert "<title>녹취 분석 | Sandcorp</title>" in html
     assert '<meta property="og:title" content="녹취 분석 | Sandcorp">' in html
     assert '<meta property="og:description" content="채권추심 녹취를 분석합니다">' in html
-    assert (
-        f'<meta property="og:image" content="{fake_storage.public_url(cover.object_key)}">' in html
+    assert re.search(
+        r'<meta property="og:image" content="http://testserver/og/work/voice\.png\?v=[0-9a-f]{10}">',
+        html,
     )
     assert '<meta property="og:url" content="http://testserver/work/voice">' in html
     assert '<meta name="robots" content="index, follow">' in html

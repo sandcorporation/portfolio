@@ -5,10 +5,12 @@ Add a route by adding a view here that builds a PageMeta and calls render_shell.
 """
 
 import json
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import format_datetime
+from pathlib import Path
 from xml.sax.saxutils import escape
 
 from django.conf import settings
@@ -28,7 +30,6 @@ from django.views.decorators.http import require_http_methods, require_POST
 from pydantic import BaseModel
 
 from content.models import (
-    BlogPost,
     PortfolioItem,
     Proposal,
     ProposalEvent,
@@ -39,7 +40,7 @@ from core import public_html
 from core.clientip import client_ip
 from core.seo import home_jsonld, work_jsonld
 from core.vite import entry_assets
-from services import blog, media, pdf, proposals, publishing
+from services import blog, media, og_card, pdf, proposals, publishing
 from services import proposal_access as access
 from services import proposal_events as events
 from services.home import home_page, site_availability, site_business
@@ -361,12 +362,48 @@ def proposal_print(request: HttpRequest, token: str) -> HttpResponse:
     return _private(response)
 
 
-def _cover_size(model: type[PortfolioItem] | type[BlogPost], slug: str) -> tuple[int, int] | None:
-    """Pixel size of the page's cover for og:image:width/height; read lazily for old media."""
-    owner = model.objects.select_related("cover").filter(slug=slug).first()
-    if owner is None or owner.cover is None:
-        return None
-    return media.fill_missing_size(owner.cover)
+def og_card_image(request: HttpRequest, kind: str, slug: str) -> HttpResponse:
+    """The generated link-preview card of a public item or post with a cover (#125)."""
+    if kind not in ("work", "blog"):
+        raise Http404
+    if kind == "work" and og_card.source_of("work", slug) is None:
+        current = renamed_to(slug)
+        if current is not None:
+            return HttpResponsePermanentRedirect(og_card.card_path("work", current))
+    source = og_card.source_of(kind, slug)  # type: ignore[arg-type]
+    if source is None:
+        if _exists_without_cover(kind, slug):
+            return _default_card()
+        raise Http404
+    etag = f'"{source.key[:32]}"'
+    if request.headers.get("If-None-Match") == etag:
+        response = HttpResponse(status=304)
+        response["ETag"] = etag
+        response["Cache-Control"] = "public, max-age=86400"
+        return response
+    try:
+        png = og_card.card_png(source)
+    except og_card.CardFailed as exc:
+        logging.getLogger(__name__).warning("og card %s/%s failed: %s", kind, slug, exc)
+        return _default_card()
+    response = HttpResponse(png, content_type="image/png")
+    response["ETag"] = etag
+    response["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
+def _exists_without_cover(kind: str, slug: str) -> bool:
+    if kind == "work":
+        return PortfolioItem.objects.filter(slug=slug, is_public=True).exists()
+    return blog.public_detail(slug) is not None
+
+
+def _default_card() -> HttpResponse:
+    """Stand-in when the card cannot be made: the default image, not kept for long."""
+    path = Path(__file__).resolve().parent / "static" / "core" / "og-default.png"
+    response = HttpResponse(path.read_bytes(), content_type="image/png")
+    response["Cache-Control"] = "public, max-age=60"
+    return response
 
 
 def work_hub(request: HttpRequest) -> HttpResponse:
@@ -382,6 +419,8 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
             raise Http404
         return HttpResponsePermanentRedirect(f"/work/{current}")
     card = detail["card"]
+    cover_card = og_card.preview_path("work", slug)
+    image = cover_card or DEFAULT_OG_IMAGE
     data = {**detail, "availability": site_availability(), "business": site_business()}
     return render_shell(
         request,
@@ -389,14 +428,14 @@ def work(request: HttpRequest, slug: str) -> HttpResponse:
             title=f"{card['title']} | {SITE_NAME}",
             description=card["summary"] or DEFAULT_WORK_DESCRIPTION,
             robots=INDEX,
-            image=card["cover_url"] or DEFAULT_OG_IMAGE,
-            image_alt=card["title"] if card["cover_url"] else DEFAULT_OG_IMAGE_ALT,
-            image_size=_cover_size(PortfolioItem, slug) if card["cover_url"] else None,
+            image=image,
+            image_alt=card["title"] if cover_card else DEFAULT_OG_IMAGE_ALT,
+            image_size=OG_IMAGE_SIZE,
             jsonld=work_jsonld(
                 url=_absolute(request, f"/work/{card['slug']}"),
                 card=card,
                 service_url=detail["service_url"],
-                image=request.build_absolute_uri(card["cover_url"] or DEFAULT_OG_IMAGE),
+                image=request.build_absolute_uri(image),
                 publisher=_publisher(),
             ),
         ),
@@ -496,7 +535,8 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
     card = detail["card"]
     description = card["summary"] or BLOG_DESCRIPTION
     modified = blog.public_modified_at(slug) or card["published_at"]
-    image = card["cover_url"] or DEFAULT_OG_IMAGE
+    cover_card = og_card.preview_path("blog", slug)
+    image = cover_card or DEFAULT_OG_IMAGE
     data = {**detail, "availability": site_availability(), "business": site_business()}
     return render_shell(
         request,
@@ -505,8 +545,8 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
             description=description,
             robots=INDEX,
             image=image,
-            image_alt=card["title"] if card["cover_url"] else DEFAULT_OG_IMAGE_ALT,
-            image_size=_cover_size(BlogPost, slug) if card["cover_url"] else None,
+            image_alt=card["title"] if cover_card else DEFAULT_OG_IMAGE_ALT,
+            image_size=OG_IMAGE_SIZE,
             og_type="article",
             published_time=card["published_at"],
             modified_time=modified,

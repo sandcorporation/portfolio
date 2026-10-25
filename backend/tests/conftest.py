@@ -93,6 +93,7 @@ def fake_storage(monkeypatch: pytest.MonkeyPatch) -> FakeObjectStorage:
     monkeypatch.setattr("services.media.get_storage", lambda: storage)
     monkeypatch.setattr("content.admin.get_storage", lambda: storage)
     monkeypatch.setattr("services.pdf.get_storage", lambda: storage)
+    monkeypatch.setattr("services.og_card.get_storage", lambda: storage)
     return storage
 
 
