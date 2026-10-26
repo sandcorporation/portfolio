@@ -257,7 +257,7 @@ def _cta(block: CtaBlock, prefix: str) -> SafeString:
 
 
 def _embed(block: EmbedBlock, anchor: str) -> SafeString:
-    """The frame (480px, no script: the app grows it from the page's messages) and a link that also
+    """The frame (640px, no script: the app grows it from the page's messages) and a link that also
     stands in for the frame on paper."""
     return format_html(
         '<section class="block-embed">{}'

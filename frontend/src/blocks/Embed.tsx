@@ -6,7 +6,7 @@ import type { EmbedBlock } from "./types";
 
 const HELLO = "sandcorp-flow:hello";
 const HEIGHT = "sandcorp-flow:height";
-const START_HEIGHT = 480;
+const START_HEIGHT = 640;
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 4000;
 

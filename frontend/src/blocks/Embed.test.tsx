@@ -48,11 +48,11 @@ function post(source: MessageEventSource | null, origin: string, data: unknown) 
 
 beforeEach(() => mockScheme(false));
 
-test("라이트: theme 없는 주소의 480px 프레임과 새 탭 링크", () => {
+test("라이트: theme 없는 주소의 640px 프레임과 새 탭 링크", () => {
   show();
   const frame = screen.getByTitle("Flow 체험") as HTMLIFrameElement;
   expect(frame.getAttribute("src")).toBe(`${FLOW}/try?embed=1&template=home`);
-  expect(frame.style.height).toBe("480px");
+  expect(frame.style.height).toBe("640px");
   const link = screen.getByRole("link", { name: "새 탭에서 열기" });
   expect(link.getAttribute("target")).toBe("_blank");
   expect(link.getAttribute("rel")).toBe("noopener noreferrer");
@@ -88,7 +88,7 @@ test("origin이 다르거나 source가 프레임이 아니거나 형식이 틀�
   post(win, FLOW, { type: "other", height: 900 });
   post(win, FLOW, { type: "sandcorp-flow:height", height: "900" });
   post(win, FLOW, { type: "sandcorp-flow:height", height: Number.NaN });
-  expect(frame.style.height).toBe("480px");
+  expect(frame.style.height).toBe("640px");
   post(win, FLOW, { type: "sandcorp-flow:height", height: 99999 });
   expect(frame.style.height).toBe("4000px");
 });

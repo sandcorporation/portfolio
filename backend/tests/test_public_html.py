@@ -252,7 +252,7 @@ def test_embed_block_draws_frame_and_new_tab_link() -> None:
     )
     assert 'title="Flow 체험"' in out and "아래에서 바로 고쳐 보고" in out
     assert 'target="_blank" rel="noopener noreferrer">새 탭에서 열기</a>' in out
-    assert "<script" not in out  # no script: the frame stays 480px until the app takes over
+    assert "<script" not in out  # no script: the frame stays 640px until the app takes over
 
 
 def test_home_every_external_link_opens_in_new_tab(client: Client) -> None:
