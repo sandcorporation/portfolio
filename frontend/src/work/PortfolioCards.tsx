@@ -70,7 +70,7 @@ export function CardMeta({ card, serviceUrl }: { card: PortfolioCard; serviceUrl
     ),
     card.period && <span key="period">{card.period}</span>,
     serviceUrl && (
-      <a key="url" href={serviceUrl} rel="noopener" {...linkAttrs(serviceUrl)}>
+      <a key="url" href={serviceUrl} {...linkAttrs(serviceUrl)}>
         {serviceHost(serviceUrl)}
       </a>
     ),

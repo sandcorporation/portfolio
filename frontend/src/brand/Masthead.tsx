@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { linkAttrs } from "../links";
 import type { Availability, Business, SiteVisits } from "../home/types";
 import { Wordmark } from "./Logo";
 
@@ -65,7 +66,7 @@ export function SiteMeta({
       {visits && <VisitCounts visits={visits} />}
       {availability && availability.text && <AvailabilityBadge availability={availability} />}
       <span>sandcorp.co.kr</span>
-      <a href={GITHUB_URL} rel="noopener">
+      <a href={GITHUB_URL} {...linkAttrs(GITHUB_URL)}>
         GitHub
       </a>
     </p>
@@ -77,7 +78,7 @@ export const FORESIGHT_NAV_URL = "https://news.sandcorp.co.kr/?utm_source=sandco
 const SITE_NAV = [
   { key: "company", href: "/#home-company", label: "회사 소개" },
   { key: "blog", href: "/blog", label: "기록" },
-  { key: "foresight", href: FORESIGHT_NAV_URL, label: "Foresight ↗", external: true },
+  { key: "foresight", href: FORESIGHT_NAV_URL, label: "Foresight ↗" },
   { key: "work", href: "/#home-portfolio", label: "포트폴리오" },
   { key: "inquiry", href: "/#home-inquiry", label: "문의" },
 ] as const;
@@ -91,7 +92,7 @@ export function SiteNav({ current }: { current?: "company" | "blog" | "work" | "
           <li key={item.key}>
             <a
               href={item.href}
-              rel={"external" in item ? "noopener" : undefined}
+              {...linkAttrs(item.href)}
               aria-current={item.key === current ? "page" : undefined}
             >
               {item.label}
@@ -128,7 +129,7 @@ export function SiteFooter({ business }: { business?: Business | null }) {
       )}
       <p className="site-footer-links">
         <a href="/">홈</a>
-        <a href={GITHUB_URL} rel="noopener">
+        <a href={GITHUB_URL} {...linkAttrs(GITHUB_URL)}>
           GitHub
         </a>
       </p>

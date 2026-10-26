@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { linkAttrs } from "../links";
 import { GITHUB_URL, Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { DocumentView } from "../blocks/DocumentView";
 import { PostRows } from "../blog/PostRows";
@@ -27,7 +28,7 @@ function SectionHead({
         {index} — {label}
       </span>
       {meta && <span aria-hidden="true">{meta}</span>}
-      {more && <a href={more.href}>{more.text}</a>}
+      {more && <a href={more.href} {...linkAttrs(more.href)}>{more.text}</a>}
     </p>
   );
 }
@@ -159,7 +160,7 @@ export function HomePage({ data }: { data: HomeData }) {
                   <p className="inquiry-lead">프로젝트 문의나 제안을 남겨 주시면 영업일 1일 안에 답합니다.</p>
                   <InquiryEmail email={contact.email} />
                   <p className="inquiry-links">
-                    <a href={GITHUB_URL} rel="noopener">
+                    <a href={GITHUB_URL} {...linkAttrs(GITHUB_URL)}>
                       GitHub
                     </a>
                   </p>

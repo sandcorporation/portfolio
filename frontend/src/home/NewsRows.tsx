@@ -1,4 +1,5 @@
 import type { NewsItem } from "./types";
+import { linkAttrs } from "../links";
 
 /** Foresight's newest articles: one hairline row each — mono category and age · title → · one
  * line of summary, a small thumbnail on the left when the article has one. */
@@ -8,7 +9,7 @@ export function NewsRows({ items }: { items: NewsItem[] }) {
     <ul className={`work-list feed-list news-list${hasThumbs ? " has-thumbs" : ""}`}>
       {items.map((item) => (
         <li key={item.url}>
-          <a className="work-row" href={item.url}>
+          <a className="work-row" href={item.url} {...linkAttrs(item.url)}>
             {hasThumbs && (
               <span className="work-row-thumb" aria-hidden="true">
                 {item.image_url && <img src={item.image_url} alt="" loading="lazy" />}

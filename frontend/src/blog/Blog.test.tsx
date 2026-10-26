@@ -80,13 +80,14 @@ test("홈의 기록 섹션은 글 행과 「모든 기록 보기」 링크를 �
   expect(within(section).getByRole("link", { name: "모든 기록 보기 →" })).toHaveAttribute("href", "/blog");
 });
 
-test("홈의 Foresight 섹션은 기사 행을 utm이 붙은 주소로 새 탭 없이 잇는다", () => {
+test("홈의 Foresight 섹션은 기사 행을 utm이 붙은 주소로 새 탭으로 잇는다", () => {
   render(<App path="/" data={home()} />);
 
   const section = screen.getByRole("region", { name: "Foresight · 최근 뉴스" });
   const link = within(section).getByRole("link", { name: /새 모델 공개/ });
   expect(link).toHaveAttribute("href", "https://news.sandcorp.co.kr/a/1?utm_source=sandcorp&utm_medium=home");
-  expect(link).not.toHaveAttribute("target");
+  expect(link).toHaveAttribute("target", "_blank");
+  expect(link).toHaveAttribute("rel", "noopener noreferrer");
   expect(within(section).getByText("모델")).toBeInTheDocument();
   expect(within(section).getByText("3시간 전")).toBeInTheDocument();
   expect(section.querySelectorAll("img")).toHaveLength(1); // only the article with a picture
@@ -113,8 +114,8 @@ test("상단 내비는 회사 소개 · 기록 · Foresight ↗ · 포트폴리�
     ["포트폴리오", "/#home-portfolio"],
     ["문의", "/#home-inquiry"],
   ]);
-  expect(links[2]).toHaveAttribute("rel", "noopener");
-  expect(links[2]).not.toHaveAttribute("target");
+  expect(links[2]).toHaveAttribute("rel", "noopener noreferrer");
+  expect(links[2]).toHaveAttribute("target", "_blank");
 });
 
 test("홈 섹션은 기록 · Foresight가 포트폴리오보다 위이고 목차 레일이 없다", () => {

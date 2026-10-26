@@ -253,3 +253,24 @@ def test_embed_block_draws_frame_and_new_tab_link() -> None:
     assert 'title="Flow 체험"' in out and "아래에서 바로 고쳐 보고" in out
     assert 'target="_blank" rel="noopener noreferrer">새 탭에서 열기</a>' in out
     assert "<script" not in out  # no script: the frame stays 480px until the app takes over
+
+
+def test_home_every_external_link_opens_in_new_tab(client: Client) -> None:
+    """#129: nav, masthead, footer, inquiry and the Foresight rows; internal ones stay put."""
+    body = root(client.get("/").content.decode())
+
+    anchors = re.findall(r'<a\b[^>]*\bhref="([^"]*)"([^>]*)>', body)
+    external = [
+        (h, rest) for h, rest in anchors if public_html.is_external(h.replace("&amp;", "&"))
+    ]
+    internal = [(h, rest) for h, rest in anchors if not public_html.is_external(h)]
+
+    hosts = {h.split("/")[2] for h, _ in external}
+    assert hosts == {"news.sandcorp.co.kr", "github.com"}
+    assert (
+        sum(h.startswith("https://github.com") for h, _ in external) >= 3
+    )  # masthead, footer, inquiry
+    for href, rest in external:
+        assert 'target="_blank"' in rest and 'rel="noopener noreferrer"' in rest, href
+    for href, rest in internal:
+        assert "target=" not in rest, href
