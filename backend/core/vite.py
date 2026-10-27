@@ -7,10 +7,25 @@ from pathlib import Path
 
 from django.conf import settings
 
+# Font files the first screen of nearly every public page uses (#133): the Latin + common Hangul
+# Pretendard subsets (the 92 dynamic subsets are loaded by unicode-range, so most are not needed
+# up front) and JetBrains Mono's Latin face for the mono labels. Matched by file name in the Vite
+# manifest, so the hashed build path is resolved at render time.
+PRELOAD_FONTS = (
+    "PretendardVariable.subset.91.woff2",
+    "PretendardVariable.subset.90.woff2",
+    "PretendardVariable.subset.89.woff2",
+    "PretendardVariable.subset.88.woff2",
+    "PretendardVariable.subset.86.woff2",
+    "PretendardVariable.subset.81.woff2",
+    "jetbrains-mono-latin-wght-normal.woff2",
+)
+
 
 @dataclass(frozen=True)
 class Assets:
     scripts: list[str] = field(default_factory=list)
+    fonts: list[str] = field(default_factory=list)
     styles: list[str] = field(default_factory=list)
     dev_server: str = ""
 
@@ -33,7 +48,14 @@ def entry_assets() -> Assets:
     chunk = manifest[settings.VITE_ENTRY]
     static = settings.STATIC_URL
     css = chunk.get("css", [])
+    fonts = [
+        f"{static}{manifest[key]['file']}"
+        for name in PRELOAD_FONTS
+        for key in manifest
+        if key.rsplit("/", 1)[-1] == name
+    ]
     return Assets(
         scripts=[f"{static}{chunk['file']}"],
+        fonts=fonts,
         styles=[f"{static}{name}" for name in css] if isinstance(css, list) else [],
     )

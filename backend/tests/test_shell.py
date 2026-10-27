@@ -50,6 +50,19 @@ def test_home_shell_is_indexable_and_mounts_react(client: Client) -> None:
 
 
 @pytest.mark.django_db
+def test_home_shell_preloads_the_first_screen_fonts_before_the_stylesheet(client: Client) -> None:
+    html = client.get("/").content.decode()
+    pretendard = (
+        '<link rel="preload" as="font" type="font/woff2" '
+        'href="/static/assets/PretendardVariable.subset.91-aaa111.woff2" crossorigin>'
+    )
+    mono = "/static/assets/jetbrains-mono-latin-wght-normal-bbb222.woff2"
+    assert pretendard in html
+    assert mono in html
+    assert html.index(pretendard) < html.index('rel="stylesheet"')
+
+
+@pytest.mark.django_db
 def test_published_proposal_shell_is_noindex_and_keeps_meta_generic(client: Client) -> None:
     call_command("createcachetable", verbosity=0)  # the code form reads the failure counter
     owner = Client_.objects.create(name="가나다상사", code="NEXT")
