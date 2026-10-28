@@ -23,7 +23,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 저장소 루트에서 `make <대상>`. 백엔드는 `backend/`(uv, Python 3.13), 프론트는 `frontend/`(pnpm).
 
-- 시험: `make test` (= `make test-backend` + `make test-frontend`). 백엔드 시험은 MySQL을 쓴다 — `make db`가 `mysql:26.10.0`(utf8mb4_0900_as_cs, 운영 OCI HeatWave와 같은 판·콜레이션)을 `portfolio-dev` 프로젝트로 `127.0.0.1:15442`에 띄운다(`make test-backend`가 알아서 부른다). 시험 설정은 포트 15442를 본다(운영 기본 3306). 백엔드 시험 전체는 30초 안에 끝나야 한다. MySQL에서만 보이는 성질(대소문자 구분, 첫 열람 유일, PDF 워커 둘의 SKIP LOCKED)은 `tests/test_mysql.py`.
+- 시험: `make test` (= `make test-backend` + `make test-frontend`). 백엔드 시험은 MySQL을 쓴다 — `make db`가 `mysql:26.10.0`(utf8mb4_0900_as_cs, 운영 OCI HeatWave와 같은 판·콜레이션)을 `portfolio-dev` 프로젝트로 `127.0.0.1:15442`에 띄운다(`make test-backend`가 알아서 부른다). 시험 설정은 포트 15442를 본다(운영 기본 3306). 백엔드 시험 전체는 30초 안에 끝나야 한다. 시험 하나의 본문 CPU(이 프로세스+자식, 픽스처 제외)는 1.0초 한도(#137, 목표 0.5초): `backend/tests/conftest.py` 훅이 넘은 통과를 실패로 바꾸고 기본값과 `make test-backend`의 `PORTFOLIO_TEST_CPU_LIMIT`(초, 0이면 끔)가 같은 1.0이다. 한도를 올리거나 시험별 예외를 두지 말고 원인을 줄인다(올리는 건 사람의 결정, 환경별로만). 재기: `cd backend && uv run pytest --junitxml=/tmp/j.xml` 뒤 `python3 scripts/junit-slowest.py /tmp/j.xml 25 0.3`(junit `cpu_seconds`=본문, `time`=픽스처 포함 — 둘이 크게 다르면 픽스처가 느린 것). 시험 DB 첫 생성(마이그레이션)은 첫 시험 setup에 약 8초가 붙는다. MySQL에서만 보이는 성질(대소문자 구분, 첫 열람 유일, PDF 워커 둘의 SKIP LOCKED)은 `tests/test_mysql.py`.
 - 린트: `make lint` (ruff format --check, ruff check, eslint). 고치기: `cd backend && uv run ruff format . && uv run ruff check --fix .`
 - 타입: `make typecheck` (mypy strict + django-stubs, `tsc --noEmit`).
 - 생성: `make gen` — 백엔드 블록 스키마(Pydantic)에서 JSON Schema와 `frontend/src/blocks/types.gen.ts`를 다시 만든다. `make gen-check`는 차이가 없는지 본다(`make check`에 포함).

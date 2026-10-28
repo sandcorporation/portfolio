@@ -5,10 +5,15 @@ Fake adapters are fixtures here (fake_storage, auth_server, notifier).
 """
 
 import json
-from collections.abc import Iterator
+import os
+import resource
+import time
+from collections.abc import Generator, Iterator
 from pathlib import Path
 
 import pytest
+from _pytest.reports import TestReport
+from _pytest.runner import CallInfo
 from django.core.management.color import no_style
 from django.db import connection
 from django.test import override_settings
@@ -28,6 +33,7 @@ from core.vite import _read_manifest
 from documents.validation import JSON
 from oauth.tokens import JwksCache
 
+_CPU_SPENT = pytest.StashKey[float]()
 FIXTURES = Path(__file__).parent / "fixtures"
 # Fixtures shared with the frontend renderer tests live at the repo root.
 SHARED_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
@@ -150,3 +156,45 @@ def metrics() -> Iterator[FakeMetrics]:
     metrics_adapter.set_gateway(fake)
     yield fake
     metrics_adapter.set_gateway(None)
+
+
+# --- 시험 하나의 CPU 한도 (#137) -----------------------------------------------------------
+# 시험 본문(call 단계)의 CPU 초(이 프로세스 + 자식)를 재서 한도를 넘고 통과한 시험은 실패로 바꾼다.
+# 준비·정리(픽스처)는 재지 않는다. 한도를 올리지 않고 원인을 줄인다. 시험별 예외는 두지 않는다.
+# 환경변수 PORTFOLIO_TEST_CPU_LIMIT(초, 0이면 끔)로 환경별로만
+# 조정한다. junit에는 `cpu_seconds`가 남는다.
+_CPU_LIMIT_SECONDS = float(os.environ.get("PORTFOLIO_TEST_CPU_LIMIT", "1.0"))
+
+
+def _cpu_seconds() -> float:
+    children = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return time.process_time() + children.ru_utime + children.ru_stime
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_call(item: pytest.Item) -> Generator[None]:
+    started = _cpu_seconds()
+    try:
+        return (yield)
+    finally:
+        item.stash[_CPU_SPENT] = _cpu_seconds() - started
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_makereport(
+    item: pytest.Item, call: CallInfo[None]
+) -> Generator[None, TestReport, TestReport]:
+    report = yield
+    spent = item.stash.get(_CPU_SPENT, None)
+    if report.when == "call" and spent is not None:
+        # junitxml은 teardown 보고서의 user_properties를 쓰고
+        # pytest는 보고서마다 item의 목록을 복사한다 — item과 report 양쪽에 넣어야 junit에 남는다.
+        item.user_properties.append(("cpu_seconds", round(spent, 3)))
+        report.user_properties.append(("cpu_seconds", round(spent, 3)))
+        if _CPU_LIMIT_SECONDS > 0 and spent > _CPU_LIMIT_SECONDS and report.passed:
+            report.outcome = "failed"
+            report.longrepr = (
+                f"시험 본문이 CPU {spent:.2f}초를 썼다 — 한도 {_CPU_LIMIT_SECONDS:.2f}초"
+                " (PORTFOLIO_TEST_CPU_LIMIT). 원인을 찾아 줄인다; 한도를 늘리지 않는다."
+            )
+    return report

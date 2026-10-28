@@ -6,6 +6,10 @@ db:  ## 로컬 시험·개발용 MySQL 26.10 (127.0.0.1:15442, 프로젝트 port
 
 test: test-backend test-frontend
 
+# 시험 하나의 본문 CPU 한도(초, #137). 0이면 끔. 붐벼서 올리지 않는다 — 원인을 줄인다.
+PORTFOLIO_TEST_CPU_LIMIT ?= 1.0
+export PORTFOLIO_TEST_CPU_LIMIT
+
 test-backend: db
 	cd backend && uv run pytest
 
