@@ -276,11 +276,15 @@ def _embed(block: EmbedBlock, anchor: str) -> SafeString:
 
 
 def _gallery(block: GalleryBlock, anchor: str) -> SafeString:
+    # Without JavaScript the original opens in a new tab; the app opens its viewer (Gallery.tsx).
     images = format_html_join(
         "",
-        '<li><img src="{}" alt="{}" loading="lazy">{}</li>',
+        '<li><a class="gallery-thumb" href="{}"{}><img src="{}" alt="{}" loading="lazy"></a>'
+        "{}</li>",
         (
             (
+                image.url,
+                _external_attrs(image.url),
                 image.url,
                 image.alt,
                 format_html('<p class="media-description">{}</p>', image.caption)

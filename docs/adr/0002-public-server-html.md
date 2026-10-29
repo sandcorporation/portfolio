@@ -20,7 +20,7 @@
 - `core/public_html.py`가 같은 `#page-data` 데이터로 본문을 그린다. 페이지 틀은 `core/templates/core/public/`(home·work·blog_index·blog_post, 머리띠·내비 `_top.html`, 바닥 `_footer.html`), 블록 문서는 블록 종류마다 작은 함수(`block_html`). 마크다운은 markdown-it-py(GFM 표·취소선, 원시 HTML 태그는 버림 — 앱의 `skipHtml`과 같게).
 - `render_shell(body=…)`이 그 HTML을 `<div id="root">`에 넣는다. 제안서·미리보기·인쇄·admin은 `body`를 주지 않아 지금처럼 빈 `#root`다. 메트릭 스니펫 규칙은 바뀌지 않는다.
 - `frontend/src/main.tsx`는 그대로 `createRoot(root).render(…)`다. React가 첫 커밋에서 `#root`의 서버 HTML을 지우고 자기 화면을 그리므로 JS가 켜진 화면은 전과 같다(전후 스크린샷 바이트 동일로 확인).
-- 서버 HTML은 앱과 같은 클래스 이름을 쓴다. 그래서 JS 없이도 같은 스타일시트로 거의 같은 모양이고, JS가 늦게 오는 동안 보이는 첫 화면도 앱과 크게 다르지 않다. 서버 HTML이 하지 않는 것: 문의 폼(JS가 필요), 탭 버튼(여러 탭은 차례로 펼치고 탭 제목을 h2로), 갤러리 뷰어, 오디오·영상 플레이어(제목·설명 글만).
+- 서버 HTML은 앱과 같은 클래스 이름을 쓴다. 그래서 JS 없이도 같은 스타일시트로 거의 같은 모양이고, JS가 늦게 오는 동안 보이는 첫 화면도 앱과 크게 다르지 않다. 서버 HTML이 하지 않는 것: 문의 폼(JS가 필요), 탭 버튼(여러 탭은 차례로 펼치고 탭 제목을 h2로), 갤러리 뷰어(이미지는 원본을 새 탭으로 여는 링크, #149), 오디오·영상 플레이어(제목·설명 글만).
 
 ## 결과
 

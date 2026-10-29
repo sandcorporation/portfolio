@@ -274,3 +274,46 @@ def test_home_every_external_link_opens_in_new_tab(client: Client) -> None:
         assert 'target="_blank"' in rest and 'rel="noopener noreferrer"' in rest, href
     for href, rest in internal:
         assert "target=" not in rest, href
+
+
+def test_gallery_image_keeps_its_ratio_and_links_to_the_original() -> None:
+    """#149: a gallery image is the original at its own ratio, one per row, and opens the
+    original in a new tab without JavaScript (the app opens its viewer instead)."""
+    gallery: dict[str, JSON] = {
+        "id": "shots",
+        "type": "gallery",
+        "images": [
+            {
+                "media_id": 1,
+                "alt": "시연 화면",
+                "caption": "왼쪽 기록, 오른쪽 결과",
+                "url": "https://cdn.example/a.png",
+            },
+            {"media_id": 2, "alt": "빠진 이미지"},
+        ],
+    }
+    out = str(
+        public_html.document_html({"tabs": [{"id": "t", "title": "t", "blocks": [gallery]}]}, "w-")
+    )
+    assert (
+        '<li><a class="gallery-thumb" href="https://cdn.example/a.png" target="_blank" '
+        'rel="noopener noreferrer"><img src="https://cdn.example/a.png" alt="시연 화면" '
+        'loading="lazy"></a><p class="media-description">왼쪽 기록, 오른쪽 결과</p></li>'
+    ) in out
+    assert "빠진 이미지" not in out
+    assert "aspect-ratio" not in out and "object-fit" not in out
+
+
+def test_public_image_rules_never_crop() -> None:
+    """#149: body images, gallery images and the top cover keep the original ratio: no fixed
+    aspect-ratio, no object-fit: cover, no stretching past the original width."""
+    css = (FRONTEND / "styles.css").read_text()
+    for selector in (".work-cover", ".gallery-thumb", ".gallery-thumb img", ".prose img"):
+        rules = re.findall(
+            r"(?:^|\n|,\s*)" + re.escape(selector) + r"\s*(?:,[^{]*)?\{([^}]*)\}", css
+        )
+        assert rules, selector
+        for rule in rules:
+            assert "aspect-ratio" not in rule, selector
+            assert "object-fit: cover" not in rule, selector
+            assert not re.search(r"(?<![-\w])width: 100%", rule), selector

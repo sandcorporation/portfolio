@@ -33,6 +33,7 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
           {block.title}
         </Heading>
       )}
+      {/* One image per row at its own ratio (issue 149); public_html._gallery draws the same list. */}
       <ul className="gallery-grid">
         {images.map((image, index) => (
           <li key={index}>
@@ -47,6 +48,7 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
             >
               <img src={image.url} alt={image.alt} loading={print ? "eager" : "lazy"} onError={image.onError} />
             </button>
+            {image.caption && <p className="media-description">{image.caption}</p>}
           </li>
         ))}
       </ul>

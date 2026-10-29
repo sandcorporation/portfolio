@@ -51,3 +51,20 @@ test("확대 뷰어는 닫기 버튼으로도 닫힌다", async () => {
 
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
+
+test("갤러리는 한 장씩 원본 그대로 그리고 캡션을 이미지 아래에 둔다(#149, 서버 HTML과 같은 구조)", () => {
+  renderGallery();
+
+  const grid = document.querySelector<HTMLElement>(".gallery-grid");
+  if (!grid) throw new Error("no .gallery-grid");
+  const items = within(grid).getAllByRole("listitem");
+  expect(items).toHaveLength(2);
+  const first = items[0] as HTMLElement;
+  const thumb = within(first).getByRole("button", { name: /크게 보기/ });
+  expect(thumb).toHaveClass("gallery-thumb");
+  expect(first.querySelector(".gallery-thumb + .media-description")).toHaveTextContent("처리 흐름 편집기");
+  const img = within(thumb).getByRole("img");
+  expect(img.getAttribute("style")).toBeNull();
+  expect(img).not.toHaveAttribute("width");
+  expect(img).not.toHaveAttribute("height");
+});

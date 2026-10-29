@@ -667,6 +667,11 @@ h3.block-heading {
   max-width: var(--measure);
 }
 
+.prose img {
+  max-height: 80vh;
+  object-fit: contain;
+}
+
 .prose > :first-child {
   margin-top: 0;
 }
@@ -1188,10 +1193,10 @@ h3.block-heading {
 }
 
 .work-cover {
+  /* the original at its own ratio (issue 149): never cropped, never stretched past its width */
   display: block;
-  width: 100%;
-  max-height: 70vh;
-  object-fit: cover;
+  max-height: 80vh;
+  object-fit: contain;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
   background: var(--color-tint);
@@ -1353,18 +1358,25 @@ h3.block-heading {
   margin: var(--space-5) 0;
 }
 
+/* one image per row at the column width (issue 149): a screenshot reads only at its own size */
 .gallery-grid {
   list-style: none;
   margin: var(--space-3) 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.gallery-grid .media-description {
+  margin-bottom: 0;
+  font-size: var(--text-sm);
 }
 
 .gallery-thumb {
   display: block;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
@@ -1375,9 +1387,8 @@ h3.block-heading {
 
 .gallery-thumb img {
   display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  max-height: 80vh;
+  object-fit: contain;
 }
 
 .gallery-viewer {
