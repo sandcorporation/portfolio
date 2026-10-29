@@ -13,7 +13,7 @@ export function Html({ block, anchor }: { block: HtmlBlock; anchor: string }) {
           {block.title}
         </Heading>
       )}
-      <div className="prose" dangerouslySetInnerHTML={{ __html: block.html }} />
+      <div className="prose sc-prose" dangerouslySetInnerHTML={{ __html: block.html }} />
     </section>
   );
 }

@@ -34,7 +34,7 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
         </Heading>
       )}
       {/* One image per row at its own ratio (issue 149); public_html._gallery draws the same list. */}
-      <ul className="gallery-grid">
+      <ul className="gallery-grid sc-prose-gallery">
         {images.map((image, index) => (
           <li key={index}>
             <button

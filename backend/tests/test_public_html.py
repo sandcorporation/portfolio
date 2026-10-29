@@ -302,18 +302,68 @@ def test_gallery_image_keeps_its_ratio_and_links_to_the_original() -> None:
     ) in out
     assert "빠진 이미지" not in out
     assert "aspect-ratio" not in out and "object-fit" not in out
+    assert '<ul class="gallery-grid sc-prose-gallery">' in out  # same classes as Gallery.tsx
+
+
+DESIGN_CSS = FRONTEND.parent / "node_modules" / "sandcorp-design" / "src" / "components.css"
+
+
+def _rules(css: str, selector: str) -> list[str]:
+    return re.findall(r"(?:^|\n|,\s*)" + re.escape(selector) + r"\s*(?:,[^{]*)?\{([^}]*)\}", css)
+
+
+def _assert_never_crops(rules: list[str], selector: str) -> None:
+    for rule in rules:
+        assert "aspect-ratio" not in rule, selector
+        assert "object-fit: cover" not in rule, selector
+        assert not re.search(r"(?<![-\w])width: 100%", rule), selector
 
 
 def test_public_image_rules_never_crop() -> None:
     """#149: body images, gallery images and the top cover keep the original ratio: no fixed
-    aspect-ratio, no object-fit: cover, no stretching past the original width."""
-    css = (FRONTEND / "styles.css").read_text()
-    for selector in (".work-cover", ".gallery-thumb", ".gallery-thumb img", ".prose img"):
-        rules = re.findall(
-            r"(?:^|\n|,\s*)" + re.escape(selector) + r"\s*(?:,[^{]*)?\{([^}]*)\}", css
-        )
+    aspect-ratio, no object-fit: cover, no stretching past the original width. Since #150 the
+    body, gallery and cover rules come from sandcorp-design (.sc-prose…); portfolio's styles.css
+    only adds the gallery button and its own overrides, which must not crop either."""
+    assert DESIGN_CSS.is_file(), "sandcorp-design is not installed: run pnpm install in frontend/"
+    design = DESIGN_CSS.read_text()
+    for selector in (
+        ".sc-prose img",
+        ".sc-prose-cover",
+        ".sc-prose-gallery",
+        ".sc-prose-gallery figure",
+    ):
+        rules = _rules(design, selector)
         assert rules, selector
-        for rule in rules:
-            assert "aspect-ratio" not in rule, selector
-            assert "object-fit: cover" not in rule, selector
-            assert not re.search(r"(?<![-\w])width: 100%", rule), selector
+        _assert_never_crops(rules, selector)
+    assert "max-height: 80vh" in _rules(design, ".sc-prose img")[0]
+    css = (FRONTEND / "styles.css").read_text()
+    for selector in (".gallery-thumb", ".gallery-thumb img"):
+        assert _rules(css, selector), selector
+    for selector in (
+        ".gallery-thumb",
+        ".gallery-thumb img",
+        ".prose img",
+        ".work-cover",
+        ".gallery-grid",
+    ):
+        _assert_never_crops(_rules(css, selector), selector)
+
+
+@pytest.mark.parametrize(
+    ("tsx", "classes"),
+    [
+        ("blocks/Prose.tsx", "prose sc-prose"),
+        ("blocks/Html.tsx", "prose sc-prose"),
+        ("blocks/Callout.tsx", "block-callout sc-prose-callout"),
+        ("blocks/Gallery.tsx", "gallery-grid sc-prose-gallery"),
+        ("work/WorkPage.tsx", "work-cover sc-prose-cover"),
+        ("blog/BlogPostPage.tsx", "work-cover sc-prose-cover"),
+    ],
+)
+def test_server_html_uses_the_app_body_classes(tsx: str, classes: str) -> None:
+    """#150: the body blocks carry sandcorp-design's .sc-prose… classes in both copies (#109)."""
+    assert f'className="{classes}"' in (FRONTEND / tsx).read_text()
+    server = Path(public_html.__file__).read_text() + "".join(
+        t.read_text() for t in (Path(public_html.__file__).parent / "templates").rglob("*.html")
+    )
+    assert f'class="{classes}"' in server

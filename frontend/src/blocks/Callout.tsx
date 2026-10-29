@@ -9,7 +9,7 @@ const KIND_LABEL: Record<CalloutBlock["kind"], string> = {
 
 export function Callout({ block }: { block: CalloutBlock; anchor: string }) {
   return (
-    <aside className="block-callout" data-kind={block.kind} aria-label={KIND_LABEL[block.kind]}>
+    <aside className="block-callout sc-prose-callout" data-kind={block.kind} aria-label={KIND_LABEL[block.kind]}>
       <p className="callout-title">
         <span className="callout-kind">{KIND_LABEL[block.kind]}</span>
         {block.title && <strong>{block.title}</strong>}

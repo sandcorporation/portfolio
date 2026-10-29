@@ -20,7 +20,7 @@ const components: Components = {
 export function Prose({ source }: { source: string }) {
   if (!source.trim()) return null;
   return (
-    <div className="prose">
+    <div className="prose sc-prose">
       <Markdown remarkPlugins={[remarkGfm]} skipHtml components={components}>
         {source}
       </Markdown>

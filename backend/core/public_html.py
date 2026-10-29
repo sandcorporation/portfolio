@@ -99,7 +99,7 @@ def prose(source: str) -> SafeString:
     html = _MARKDOWN.render(source)  # escapes text; links are checked by markdown-it
     html = html.replace("<table>", '<div class="table-scroll"><table>')
     html = html.replace("</table>", "</table></div>")
-    return format_html('<div class="prose">{}</div>', mark_safe(html))  # noqa: S308
+    return format_html('<div class="prose sc-prose">{}</div>', mark_safe(html))  # noqa: S308
 
 
 # --- blocks (frontend/src/blocks) ---
@@ -121,7 +121,7 @@ def _markdown(block: MarkdownBlock, anchor: str) -> SafeString:
 
 def _html(block: HtmlBlock, anchor: str) -> SafeString:
     return format_html(
-        '<section class="block-html">{}<div class="prose">{}</div></section>',
+        '<section class="block-html">{}<div class="prose sc-prose">{}</div></section>',
         _heading(block.level, anchor, block.title),
         mark_safe(block.html),  # noqa: S308 - sanitised when the document is validated
     )
@@ -184,8 +184,8 @@ CALLOUT_LABEL = {"info": "안내", "warning": "주의", "condition": "조건"}
 def _callout(block: CalloutBlock, anchor: str) -> SafeString:
     label = CALLOUT_LABEL[block.kind]
     return format_html(
-        '<aside class="block-callout" data-kind="{}" aria-label="{}"><p class="callout-title">'
-        '<span class="callout-kind">{}</span>{}</p>{}</aside>',
+        '<aside class="block-callout sc-prose-callout" data-kind="{}" aria-label="{}">'
+        '<p class="callout-title"><span class="callout-kind">{}</span>{}</p>{}</aside>',
         block.kind,
         label,
         label,
@@ -296,7 +296,8 @@ def _gallery(block: GalleryBlock, anchor: str) -> SafeString:
         ),
     )
     return format_html(
-        '<section class="block-gallery">{}<ul class="gallery-grid">{}</ul></section>',
+        '<section class="block-gallery">{}'
+        '<ul class="gallery-grid sc-prose-gallery">{}</ul></section>',
         _heading(3, anchor, block.title),
         images,
     )

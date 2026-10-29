@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const SRC = __dirname;
@@ -21,6 +22,11 @@ const sources: Record<string, string> = Object.fromEntries(
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(/;
 
 describe("design tokens", () => {
+  it("shared colors come from sandcorp-design, not from a copy here", () => {
+    expect(tokens("light")["color-canvas"]).toBeTruthy();
+    expect(sources[join(SRC, "tokens.css")]).not.toMatch(/--color-(canvas|ink|text|accent):/);
+  });
+
   it("raw color values live only in tokens.css", () => {
     const offenders = Object.entries(sources)
       .filter(([file]) => !file.endsWith("tokens.css") && !file.endsWith("types.gen.ts"))
@@ -45,9 +51,14 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Token values of one scheme: the light block is the first `:root`, dark the one in the media query. */
-function tokens(scheme: "light" | "dark"): Record<string, string> {
-  const css = sources[join(SRC, "tokens.css")] ?? "";
+// The shared palette lives in sandcorp-design (issue 150); portfolio's tokens.css may override it.
+const DESIGN_TOKENS = readFileSync(
+  fileURLToPath(import.meta.resolve("sandcorp-design/tokens.css")),
+  "utf8",
+);
+
+/** Hex token values of one scheme in one file: light is the first `:root`, dark the media query. */
+function hexTokens(css: string, scheme: "light" | "dark"): Record<string, string> {
   const [light = "", dark = ""] = css.split("@media screen and (prefers-color-scheme: dark)");
   const block = scheme === "light" ? light : dark;
   const values: Record<string, string> = {};
@@ -55,6 +66,12 @@ function tokens(scheme: "light" | "dark"): Record<string, string> {
     if (name && value) values[name] = value;
   }
   return values;
+}
+
+/** Effective token values of one scheme: design first, then portfolio's tokens.css. */
+function tokens(scheme: "light" | "dark"): Record<string, string> {
+  const own = sources[join(SRC, "tokens.css")] ?? "";
+  return { ...hexTokens(DESIGN_TOKENS, scheme), ...hexTokens(own, scheme) };
 }
 
 describe.each(["light", "dark"] as const)("contrast (%s)", (scheme) => {

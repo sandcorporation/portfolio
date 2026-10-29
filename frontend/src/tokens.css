@@ -1,20 +1,12 @@
 /*
- * Sandcorp design tokens. The ONLY file that may contain raw color values
- * (enforced by src/tokens.test.ts). Everything else uses var(--color-*).
+ * Portfolio-only tokens. The shared palette, type scale, spacing and layout tokens come from
+ * sandcorp-design (issue 150: `sandcorp-design/css`, imported first in main.tsx); this file keeps
+ * what only portfolio uses (QR, scrim, brand mark, rail/masthead sizes) and the font stacks with
+ * the metric-matched fallback faces. It is still the ONLY file here that may contain raw color
+ * values (src/tokens.test.ts). Contrast of the shared colors is checked against the design file.
  *
- * Shared spec with AI-Trend-News (#73 here, #72 there; same token names): an editorial page in
- * the style of baeksang.dev — white canvas, near-black ink, one navy accent, hairlines
- * instead of cards. Contrast (checked in tokens.test.ts): text/ink/muted >= 4.5:1 on canvas,
- * paper and tint; accent >= 4.5:1 on paper, tint and accent-tint.
- *
- * Changing the accent means changing six values only: --color-accent, --color-accent-tint and
- * --color-focus, light and dark. Nothing else derives from them.
- *
- * Fonts are bundled (no external requests): Pretendard Variable (dynamic subset) for text,
- * JetBrains Mono for labels.
+ * Fonts are bundled by `sandcorp-design/fonts.css` (no external requests).
  */
-@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
-@import "@fontsource-variable/jetbrains-mono/index.css";
 
 /*
  * Metric-matched fallback faces (#133). Until the web font arrives the browser paints with a
@@ -132,34 +124,16 @@
 }
 
 :root {
-  color-scheme: light dark;
-
   /* QR codes stay black on white in every scheme, so a phone camera reads them */
   --color-qr-bg: #ffffff;
   --color-qr-fg: #000000;
-  /* surfaces */
-  --color-canvas: #ffffff;
-  --color-paper: #f8fafc;
-  --color-tint: #f1f4f8;
-  --color-line: #dde3eb;
-  --color-line-strong: #0b0d12;
-  /* text */
-  --color-ink: #0b0d12;
-  --color-text: #1f2430;
-  --color-muted: #5b6472;
-  --color-danger: #9b2c1f;
-  /* accent: navy #1e3a8a (light) / #8fb3ff (dark), shared with the news site */
-  --color-accent: #1e3a8a;
-  --color-accent-tint: #e3e9f6;
-  --color-on-accent: #ffffff;
-  --color-focus: #1e3a8a;
   --color-scrim: rgb(11 13 18 / 0.92);
   /* brand mark: ochre dunes on a blue-black square */
   --color-mark-bg: #1b1d24;
   --color-mark-far: #8a6214;
   --color-mark-near: #d9ad4c;
 
-  /* type */
+  /* type: the design stacks plus the metric-matched fallback faces above (issue 133) */
   --font-sans: "Pretendard Variable", Pretendard, "Pretendard Fallback", "Pretendard Fallback Apple", "Pretendard Fallback Win",
     system-ui, -apple-system, "Apple SD Gothic Neo",
     "Malgun Gothic", sans-serif;
@@ -167,33 +141,13 @@
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "JetBrains Mono Fallback",
     "Pretendard Variable", Pretendard, "Pretendard Fallback", "Pretendard Fallback Apple", "Pretendard Fallback Win",
     ui-monospace, SFMono-Regular, Menlo, monospace;
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.1875rem;
-  --text-xl: 1.5rem;
   --text-2xl: 2.125rem;
-  --text-display: clamp(3rem, 8vw, 8rem);
-  --text-h2: clamp(1.75rem, 3.6vw, 2.75rem);
-  --text-metric: clamp(2.5rem, 5vw, 4rem);
-  --leading: 1.7;
   --tracking-label: 0.12em;
 
-  /* space (4px scale) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
   --space-8: 72px;
   --space-section: clamp(3rem, 8vw, 5rem);
 
-  /* shape and layout */
-  --radius: 2px;
-  --gutter: clamp(16px, 4vw, 40px);
-  --measure: 68ch;
+  /* layout */
   --rail-width: 13rem;
   --masthead-height: 56px;
   --tabs-height: 48px;
@@ -202,19 +156,6 @@
 /* Paper is always light: print media ignores this block. */
 @media screen and (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: #0b0d12;
-    --color-paper: #12151c;
-    --color-tint: #1a1f29;
-    --color-line: #2a303c;
-    --color-line-strong: #f3f5f8;
-    --color-ink: #f3f5f8;
-    --color-text: #d5dae2;
-    --color-muted: #9aa3b0;
-    --color-danger: #f0a090;
-    --color-accent: #8fb3ff;
-    --color-accent-tint: #1c2742;
-    --color-on-accent: #0b0d12;
-    --color-focus: #8fb3ff;
     --color-mark-bg: #f1eee6;
     --color-mark-far: #8a6214;
     --color-mark-near: #d9ad4c;

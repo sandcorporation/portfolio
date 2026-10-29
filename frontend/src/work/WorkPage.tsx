@@ -25,7 +25,7 @@ export function WorkPage({ data }: { data: WorkData }) {
             {card.outcome && <p className="work-outcome">{card.outcome}</p>}
             <div className="accent-rule" aria-hidden="true" />
           </header>
-          {card.cover_url && <img className="work-cover" src={card.cover_url} alt="" />}
+          {card.cover_url && <img className="work-cover sc-prose-cover" src={card.cover_url} alt="" />}
           <DocumentView document={data.body} idPrefix="work-" />
         </article>
       </main>
