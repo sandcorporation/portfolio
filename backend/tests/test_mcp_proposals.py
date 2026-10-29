@@ -6,10 +6,11 @@ from typing import Any, cast
 
 import pytest
 from django.test import Client
+from django.utils import timezone
 
 from adapters.fake_storage import FakeObjectStorage
 from adapters.storage import Bucket
-from content.models import Inquiry, Proposal, ProposalEvent
+from content.models import BlogPost, Inquiry, Media, Proposal, ProposalEvent
 from mcpserver.tools import TOOLS
 from services import proposal_events
 from tests.site_auth import SiteAuth
@@ -26,7 +27,7 @@ def mcp(client: Client, auth_server: SiteAuth) -> McpClient:
 type Data = dict[str, Any]  # Any: tool results are arbitrary JSON
 
 EXPECTED_TOOLS = {
-    "start_upload", "complete_upload", "list_media",
+    "start_upload", "complete_upload", "list_media", "delete_media",
     "list_clients", "create_client", "update_client",
     "list_proposals", "get_proposal", "create_proposal", "duplicate_proposal", "update_proposal",
     "replace_document", "replace_block", "insert_block", "delete_block",
@@ -250,3 +251,86 @@ def test_publish_and_reissue_take_a_chosen_access_code(mcp: McpClient) -> None:
     assert reissued["access_code"] == "새 코드 2027"
     auto = ok(mcp, "reissue_access_code", {"slug": slug, "access_code": ""})
     assert re.fullmatch(r"[A-Z0-9]{8}", auto["access_code"])
+
+
+def stored_media(fake: FakeObjectStorage, *, public: bool = True) -> Media:
+    media = Media.objects.create(
+        is_public=public,
+        object_key=f"k{Media.objects.count()}.png",
+        content_type="image/png",
+        size=3,
+        original_filename="a.png",
+        uploaded_at=timezone.now(),
+    )
+    bucket = Bucket.PUBLIC if public else Bucket.PRIVATE
+    fake.objects[(bucket, media.object_key)] = (b"abc", "image/png")
+    return media
+
+
+def test_delete_media_removes_an_unused_file_and_its_object(
+    mcp: McpClient, fake_storage: FakeObjectStorage
+) -> None:
+    media = stored_media(fake_storage)
+    listed = ok(mcp, "list_media", {})["items"][0]
+    assert listed["in_use"] is False and listed["can_delete"] is True
+
+    assert ok(mcp, "delete_media", {"media_id": media.pk}) == {
+        "deleted": media.pk,
+        "warnings": [],
+    }
+    assert not Media.objects.filter(pk=media.pk).exists()
+    assert (Bucket.PUBLIC, media.object_key) not in fake_storage.objects
+
+
+def test_delete_media_is_refused_while_a_live_page_uses_it(
+    mcp: McpClient, fake_storage: FakeObjectStorage
+) -> None:
+    media = stored_media(fake_storage)
+    BlogPost.objects.create(
+        slug="live", title="공개 글", status=BlogPost.Status.PUBLISHED, cover=media
+    )
+    listed = ok(mcp, "list_media", {})["items"][0]
+    assert listed["in_use"] is True and listed["can_delete"] is False
+    assert listed["used_by"]["live_pages"] == ["블로그 「공개 글」"]
+
+    message = refused(mcp, "delete_media", {"media_id": media.pk})
+    assert "공개 글" in message and "지울 수 없습니다" in message
+    assert Media.objects.filter(pk=media.pk).exists()
+    assert (Bucket.PUBLIC, media.object_key) in fake_storage.objects
+
+
+def test_delete_media_only_a_draft_uses_is_deleted_with_a_warning(
+    mcp: McpClient, fake_storage: FakeObjectStorage
+) -> None:
+    media = stored_media(fake_storage)
+    BlogPost.objects.create(slug="wip", title="초안 글", cover=media)
+
+    result = ok(mcp, "delete_media", {"media_id": media.pk})
+
+    assert not Media.objects.filter(pk=media.pk).exists()
+    assert len(result["warnings"]) == 1 and "초안 글" in result["warnings"][0]
+    assert "더 이상 제공되지 않습니다" in result["warnings"][0]
+
+
+def test_delete_media_unknown_id_is_a_readable_error(
+    mcp: McpClient, fake_storage: FakeObjectStorage
+) -> None:
+    assert "없습니다" in refused(mcp, "delete_media", {"media_id": 99999})
+
+
+def test_delete_media_needs_the_admin_scope(
+    client: Client, auth_server: SiteAuth, fake_storage: FakeObjectStorage
+) -> None:
+    media = stored_media(fake_storage)
+    body = (
+        '{"jsonrpc":"2.0","id":1,"method":"tools/call",'
+        f'"params":{{"name":"delete_media","arguments":{{"media_id":{media.pk}}}}}}}'
+    )
+    response = client.post(
+        "/mcp",
+        body,
+        content_type="application/json",
+        headers={**auth_server.bearer(scope="login"), "Accept": "application/json"},
+    )
+    assert response.status_code == 403
+    assert Media.objects.filter(pk=media.pk).exists()

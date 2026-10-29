@@ -1,4 +1,4 @@
-"""MCP tools for media: presigned upload start, completion and listing (services.media)."""
+"""MCP tools for media: presigned upload, completion, listing and deletion (services.media)."""
 
 from pydantic import BaseModel, ConfigDict, Field
 from sandcorp_authkit.tokens import AccessToken
@@ -34,7 +34,19 @@ class ListMediaInput(BaseModel):
     complete_only: bool = Field(default=True, description="false also lists unfinished uploads.")
 
 
-def _media_out(media: Media) -> dict[str, JSON]:
+def _usage_out(usage: media_service.MediaUsage) -> dict[str, JSON]:
+    return {
+        "in_use": usage.is_used,
+        "can_delete": not usage.blocks_delete,
+        "used_by": {
+            "published_revisions": list(usage.revisions),
+            "drafts": list(usage.drafts),
+            "live_pages": list(usage.pages),
+        },
+    }
+
+
+def _media_out(media: Media, usage: media_service.MediaUsage | None = None) -> dict[str, JSON]:
     return {
         "media_id": media.pk,
         "filename": media.original_filename,
@@ -43,6 +55,7 @@ def _media_out(media: Media) -> dict[str, JSON]:
         "is_public": media.is_public,
         "complete": media.is_complete,
         "url": media_service.public_url(media) if media.is_public and media.is_complete else None,
+        **(_usage_out(usage) if usage is not None else {}),
     }
 
 
@@ -101,9 +114,40 @@ def complete_upload(token: AccessToken, args: MediaIdInput) -> ToolResult:
     "list_media",
     "List media",
     "Uploaded files, newest first: media_id (what block documents reference), type, size and "
-    "the public URL of public ones.",
+    "the public URL of public ones, and where each is used (in_use, can_delete, used_by: published "
+    "revisions, drafts, live pages). Check it before delete_media.",
     ListMediaInput,
 )
 def list_media(token: AccessToken, args: ListMediaInput) -> ToolResult:
     items = media_service.list_media(public_only=args.public_only, complete_only=args.complete_only)
-    return {"items": [_media_out(m) for m in items]}
+    usages = media_service.usage_of([m.pk for m in items])  # one pass for all items
+    return {"items": [_media_out(m, usages.get(m.pk, media_service.MediaUsage())) for m in items]}
+
+
+@tool(
+    "delete_media",
+    "Delete a media file",
+    "Delete an uploaded file for good: the row and the bucket object. Cannot be undone. Refused "
+    "while a published proposal revision or a live page (portfolio, published post, profile) "
+    "uses it; the error names where, so remove it from those blocks first (list_media shows the "
+    "usage). A file only drafts use is deleted and the result warns which drafts no longer serve "
+    "it.",
+    MediaIdInput,
+    read_only=False,
+)
+def delete_media(token: AccessToken, args: MediaIdInput) -> ToolResult:
+    try:
+        media = Media.objects.get(pk=args.media_id)
+    except Media.DoesNotExist as exc:
+        raise ToolError(f"미디어 {args.media_id}번이 없습니다") from exc
+    drafts = media_service.usage_of([media.pk])[media.pk].drafts
+    try:
+        media_service.delete_media(media)
+    except media_service.MediaInUse as exc:
+        raise ToolError(f"미디어 {args.media_id}번을 지우지 않았습니다: {exc}") from exc
+    except StorageNotConfigured as exc:
+        raise ToolError(f"미디어를 지우지 못했습니다: {exc}") from exc
+    warnings: list[JSON] = (
+        [f"초안 {', '.join(drafts)}에서 이 미디어가 더 이상 제공되지 않습니다."] if drafts else []
+    )
+    return {"deleted": args.media_id, "warnings": warnings}
