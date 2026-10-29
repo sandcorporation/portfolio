@@ -116,17 +116,23 @@ def verification(html: str, name: str) -> list[str]:
 def test_verification_meta_only_with_a_value(client: Client) -> None:
     html = client.get("/").content.decode()
     assert verification(html, "google-site-verification") == []
-    assert verification(html, "naver-site-verification") == []
 
     with override_settings(GOOGLE_SITE_VERIFICATION="g-token", NAVER_SITE_VERIFICATION="n-token"):
         html = client.get("/").content.decode()
         assert verification(html, "google-site-verification") == ["g-token"]
         assert verification(html, "naver-site-verification") == ["n-token"]
 
-    with override_settings(GOOGLE_SITE_VERIFICATION="g-token"):
+    with override_settings(GOOGLE_SITE_VERIFICATION="g-token", NAVER_SITE_VERIFICATION=""):
         html = client.get("/").content.decode()
         assert verification(html, "google-site-verification") == ["g-token"]
         assert verification(html, "naver-site-verification") == []
+
+
+def test_naver_verification_default_is_in_home_head_once(client: Client) -> None:
+    html = client.get("/").content.decode()
+    assert verification(html, "naver-site-verification") == [
+        "4768f013dc8c37a24a2b074f7037a60af45c9455"
+    ]
 
 
 def test_mcp_update_input_accepts_new_slug() -> None:

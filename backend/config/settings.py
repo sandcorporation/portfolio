@@ -144,7 +144,10 @@ USE_TZ = True
 # Absolute-URL base for sitemap.xml and robots.txt (they have no request host to trust).
 # Search-engine ownership meta (#111): empty -> no tag.
 GOOGLE_SITE_VERIFICATION = env("GOOGLE_SITE_VERIFICATION").strip()
-NAVER_SITE_VERIFICATION = env("NAVER_SITE_VERIFICATION").strip()
+# 네이버 서치어드바이저 소유확인 코드는 공개 코드라 기본값으로 둔다(#143). 빈 값을 주면 끈다.
+NAVER_SITE_VERIFICATION = env(
+    "NAVER_SITE_VERIFICATION", "4768f013dc8c37a24a2b074f7037a60af45c9455"
+).strip()
 SITE_URL = env("SITE_URL", "https://sandcorp.co.kr").rstrip("/")
 # sandcorp-auth: the owner's username, the only `sub` this site accepts (empty -> /mcp is 503).
 AUTH_OWNER_SUB = env("AUTH_OWNER_SUB").strip()
