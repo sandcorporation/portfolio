@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
 
 
-def post_mcp(client: Client, headers: dict[str, str]) -> "_MonkeyPatchedWSGIResponse":
+def post_mcp(client: Client, headers: dict[str, str]) -> _MonkeyPatchedWSGIResponse:
     return client.post("/mcp", PING, content_type="application/json", headers=headers)
 
 

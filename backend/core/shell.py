@@ -266,7 +266,7 @@ def proposal_tab(request: HttpRequest, slug: str) -> HttpResponse:
         return _private(HttpResponse(status=429))
     try:
         tab = json.loads(request.body).get("tab")
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         tab = None
     tab_ids = {t.get("id") for t in revision.document.get("tabs", []) if isinstance(t, dict)}
     if not isinstance(tab, str) or tab not in tab_ids:

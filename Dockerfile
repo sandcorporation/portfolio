@@ -14,7 +14,7 @@ RUN pnpm build
 
 # Python deps. mysqlclient has no Linux wheels, so it compiles here against the MariaDB
 # Connector/C headers (`default-libmysqlclient-dev`); the runtime only needs the shared library.
-FROM python:3.13-slim AS pydeps
+FROM python:3.14-slim AS pydeps
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential pkg-config default-libmysqlclient-dev \
  && rm -rf /var/lib/apt/lists/*
@@ -27,7 +27,7 @@ WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 # libmariadb3: the client library mysqlclient links to. default-mysql-client (MariaDB's
 # mysqldump/mysql) for the daily backup and restore (#19, #63).
 RUN apt-get update \

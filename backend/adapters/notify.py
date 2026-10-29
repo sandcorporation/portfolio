@@ -96,7 +96,7 @@ class DiscordNotifier:
         try:
             with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS):  # noqa: S310
                 return True
-        except (urllib.error.URLError, OSError, ValueError):
+        except urllib.error.URLError, OSError, ValueError:
             logger.warning("Discord alert failed", exc_info=True)
             return False
 

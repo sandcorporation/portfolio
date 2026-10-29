@@ -29,7 +29,7 @@ CALLBACK = "https://sandcorp.co.kr/admin/oauth/callback/"
 START = "/admin/oauth/login/"
 
 
-def location(response: "Response") -> str:
+def location(response: Response) -> str:
     assert response.status_code == 302, response.status_code
     return str(response["Location"])
 
@@ -45,7 +45,7 @@ def sign_in(
     next_url: str = "/admin/",
     claims: dict[str, str | int] | None = None,
     signing_key: Ed25519PrivateKey | None = None,
-) -> "Response":
+) -> Response:
     callback = auth_server.authorize(begin(client, next_url), claims, signing_key=signing_key)
     return client.get(callback)
 

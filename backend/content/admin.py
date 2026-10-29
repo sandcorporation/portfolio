@@ -592,7 +592,7 @@ class HandledFilter(admin.SimpleListFilter):
     parameter_name = "handled"
 
     def lookups(
-        self, request: HttpRequest, model_admin: "admin.ModelAdmin[Inquiry]"
+        self, request: HttpRequest, model_admin: admin.ModelAdmin[Inquiry]
     ) -> list[tuple[str, str]]:
         return [("no", "미처리"), ("yes", "처리 완료")]
 

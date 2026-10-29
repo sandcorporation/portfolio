@@ -9,7 +9,7 @@ from adapters.notify import DiscordNotifier, NoNotifier, Notification, get_notif
 
 
 class _Resp:
-    def __enter__(self) -> "_Resp":
+    def __enter__(self) -> _Resp:
         return self
 
     def __exit__(self, *a: object) -> None:

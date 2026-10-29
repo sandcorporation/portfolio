@@ -25,7 +25,7 @@ class Rejected(ServiceError):
         self.errors = errors
 
     @classmethod
-    def at(cls, path: str, reason: str) -> "Rejected":
+    def at(cls, path: str, reason: str) -> Rejected:
         return cls([DocumentError(path, reason)])
 
     def lines(self) -> list[str]:
