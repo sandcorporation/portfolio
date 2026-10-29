@@ -3,16 +3,19 @@ sections' data. Foresight is always the fake (see conftest)."""
 
 import json
 import re
+import time
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
 import pytest
 from django.test import Client
 from django.utils import timezone
+from pytest_django.fixtures import Settings
 
 from adapters.fake_foresight import FakeForesight, sample_article
 from content.models import BlogPost
-from services import home
+from services import blog, home
+from services.errors import NotFound
 
 pytestmark = pytest.mark.django_db
 
@@ -137,6 +140,64 @@ def test_a_draft_and_an_unknown_slug_are_404(client: Client) -> None:
 
     assert client.get("/blog/draft").status_code == 404
     assert client.get("/blog/nope").status_code == 404
+
+
+# --- the draft preview (#147) ---
+
+
+def test_a_draft_opens_through_its_preview_link_and_nowhere_public(
+    client: Client, settings: Settings
+) -> None:
+    settings.METRICS_SNIPPET_URL = "https://metrics.example/snippet.js"
+    draft = post("draft", published=False, tags="운영, 도구")
+    BlogPost.objects.filter(pk=draft.pk).update(
+        body={"tabs": [{"id": "main", "blocks": [{"id": "a", "type": "markdown", "body": "본문"}]}]}
+    )
+
+    url = blog.issue_preview_url("draft").url
+    response = client.get(url)
+    html = response.content.decode()
+
+    assert url.startswith("/preview/blog/")
+    assert response.status_code == 200
+    assert '<meta name="robots" content="noindex, nofollow">' in html
+    assert response["Cache-Control"] == "no-store"
+    assert response["X-Robots-Tag"] == "noindex, nofollow"
+    assert "metrics.example" not in html  # not a visit
+    assert '<div id="root"></div>' in html  # no server HTML, like the proposal preview
+    assert "application/ld+json" not in html
+    data = page_data(html)
+    card = cast(dict[str, object], data["card"])
+    assert (card["title"], card["tags"]) == ("제목 draft", ["운영", "도구"])
+    assert (data["prev"], data["next"]) == (None, None)
+    assert "본문" in json.dumps(data["body"], ensure_ascii=False)
+    assert client.get("/blog/draft").status_code == 404
+    assert "Disallow: /preview/" in client.get("/robots.txt").content.decode()
+
+
+def test_a_blog_preview_link_expires_and_cannot_be_forged(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    post("draft", published=False)
+    url = blog.issue_preview_url("draft").url
+    token = url.removeprefix("/preview/blog/")
+    now = time.time()
+
+    monkeypatch.setattr(time, "time", lambda: now + timedelta(minutes=29).total_seconds())
+    assert client.get(url).status_code == 200
+    monkeypatch.setattr(time, "time", lambda: now + timedelta(minutes=31).total_seconds())
+    expired = client.get(url)
+    assert expired.status_code == 410
+    assert "만료" in expired.content.decode() and "제목 draft" not in expired.content.decode()
+    monkeypatch.undo()
+
+    assert client.get(f"/preview/blog/{token[:-2]}xx").status_code == 404
+    assert client.get(f"/preview/blog/other:{token.split(':', 1)[1]}").status_code == 404
+    assert client.get(f"/preview/{token}").status_code == 404  # not a proposal's link
+    BlogPost.objects.filter(slug="draft").delete()
+    assert client.get(url).status_code == 404
+    with pytest.raises(NotFound):
+        blog.issue_preview_url("draft")
 
 
 def test_the_feed_is_not_taken_for_a_post(client: Client) -> None:

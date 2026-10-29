@@ -258,3 +258,9 @@ test("768px 미만 머리띠: 「● 누적 방문 N명」과 가용 상태가 �
   const phone = css.slice(css.indexOf("@media (max-width: 767px)"));
   expect(phone).toMatch(/\.visit-counts:has\(\+ \.availability\)\s*\{\s*display: none;/);
 });
+
+test("블로그 초안 미리보기(/preview/blog/…)는 글 상세와 같은 화면으로 그린다", () => {
+  const card = { slug: "draft", title: "초안 제목", summary: "", cover_url: "", tags: [], published_at: "2026-10-29T00:00:00+00:00" };
+  render(<App path="/preview/blog/draft:abc:def" data={{ card, body: exampleDocument, prev: null, next: null }} />);
+  expect(document.getElementById("post-title")).toHaveTextContent("초안 제목");
+});

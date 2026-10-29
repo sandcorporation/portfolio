@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, TypedDict
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q, QuerySet
 from django.utils.text import slugify
@@ -27,7 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from content.models import BlogPost, empty_document, stored_document
 from documents.validation import JSON, DocumentError, InvalidDocument
-from services import document_edit, media
+from services import document_edit, media, preview
 from services.errors import Conflict, NotFound, Rejected
 from services.portfolio import SLUG_PATTERN, clean_tags, cover_media
 
@@ -361,6 +362,45 @@ def public_detail(slug: str) -> PostDetail | None:
         body=media.resolve_document(post.body),
         prev=_neighbor(older),
         next=_neighbor(newer),
+    )
+
+
+# --- preview: a signed, short-lived link to a post as it will look, drafts included (#147) ---
+
+PREVIEW_SALT = "blog-preview"
+
+
+def issue_preview_url(slug: str) -> preview.PreviewLink:
+    """A link (`/preview/blog/<token>`) that shows the post, draft or published, as /blog/<slug>
+    will, for `BLOG_PREVIEW_MAX_AGE` seconds."""
+    post = _post_or_404(slug)
+    return preview.issue(
+        salt=PREVIEW_SALT,
+        value=post.slug,
+        path="/preview/blog/",
+        max_age=settings.BLOG_PREVIEW_MAX_AGE,
+    )
+
+
+def preview_detail(token: str) -> PostDetail:
+    """The post a preview link names, as `public_detail` would give it (a draft is dated by its
+    last change, and has no neighbours). `preview.BadPreviewToken`/`ExpiredPreviewToken`."""
+    slug = preview.unsign(token, salt=PREVIEW_SALT, max_age=settings.BLOG_PREVIEW_MAX_AGE)
+    post = BlogPost.objects.select_related("cover").filter(slug=slug).first()
+    if post is None:
+        raise preview.BadPreviewToken
+    return PostDetail(
+        card=PostCard(
+            slug=post.slug,
+            title=post.title,
+            summary=post.summary,
+            cover_url=(media.public_url(post.cover) or "") if post.cover else "",
+            tags=post.tag_list(),
+            published_at=(post.published_at or post.updated_at).isoformat(),
+        ),
+        body=media.resolve_document(post.body),
+        prev=None,
+        next=None,
     )
 
 

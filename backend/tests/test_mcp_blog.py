@@ -16,8 +16,9 @@ type Data = dict[str, Any]  # Any: tool results are arbitrary JSON
 BLOG_TOOLS = {
     "list_posts", "get_post", "create_post", "update_post", "replace_post_block",
     "insert_post_block", "delete_post_block", "publish_post", "unpublish_post", "delete_post",
+    "blog_guide", "issue_post_preview_url",
 }  # fmt: skip
-READ_ONLY = {"list_posts", "get_post"}
+READ_ONLY = {"list_posts", "get_post", "blog_guide", "issue_post_preview_url"}
 
 
 @pytest.fixture
@@ -57,6 +58,18 @@ def test_write_publish_and_read_a_post(mcp: McpClient) -> None:
     ok(mcp, "delete_post_block", {"slug": slug, "block_id": "a"})
     assert ok(mcp, "delete_post", {"slug": slug}) == {"deleted": slug}
     assert ok(mcp, "list_posts", {})["items"] == []
+
+
+def test_a_draft_gets_a_preview_link_that_opens_it(mcp: McpClient, client: Client) -> None:
+    slug = ok(mcp, "create_post", {"title": "미리 볼 초안"})["slug"]
+
+    link = ok(mcp, "issue_post_preview_url", {"slug": slug})
+
+    assert link["url"].startswith("/preview/blog/") and link["expires_at"]
+    response = client.get(link["url"])
+    assert response.status_code == 200
+    assert "미리 볼 초안" in response.content.decode()
+    assert refused(mcp, "issue_post_preview_url", {"slug": "nope"})
 
 
 def test_refusals_become_tool_errors(mcp: McpClient) -> None:

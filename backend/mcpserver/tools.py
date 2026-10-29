@@ -97,8 +97,9 @@ class BlockSchemaInput(BaseModel):
     "proposal: proposal_guide (read it first) -> block_schema -> list_clients/create_client -> "
     "create_proposal -> replace_block/insert_block/add_tab -> issue_preview_url (look at it) -> "
     "publish (the access code is shown once; give it to the customer separately). Writing a blog "
-    "post: block_schema -> create_post -> replace_post_block/insert_post_block (gallery/video "
-    "take list_media ids) -> get_post (read it back) -> publish_post.",
+    "post: blog_guide (read it first) -> block_schema -> create_post -> replace_post_block/"
+    "insert_post_block (gallery/video take list_media ids) -> get_post (read it back) -> "
+    "issue_post_preview_url (show the draft) -> publish_post.",
     NoInput,
 )
 def whoami(token: AccessToken, args: NoInput) -> ToolResult:

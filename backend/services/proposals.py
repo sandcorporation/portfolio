@@ -9,13 +9,12 @@ published again, so edits would go nowhere; duplicate it instead).
 """
 
 import copy
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Literal
 
 from django.conf import settings
 from django.core import signing
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from pydantic import BaseModel, ConfigDict, Field
 
 from content.models import (
@@ -29,8 +28,11 @@ from content.models import (
     stored_document,
 )
 from documents.validation import JSON, DocumentError, InvalidDocument
-from services import case_refs, document_edit, media
+from services import case_refs, document_edit, media, preview
 from services.errors import Conflict, NotFound, Rejected
+from services.preview import BadPreviewToken as BadPreviewToken
+from services.preview import ExpiredPreviewToken as ExpiredPreviewToken
+from services.preview import PreviewLink
 from services.profile import get_profile
 
 PREVIEW_SALT = "proposal-preview"
@@ -338,36 +340,19 @@ def reorder_tabs(slug: str, tab_ids: list[str]) -> ProposalOut:
 # --- preview: a signed, short-lived link ---
 
 
-class PreviewLink(BaseModel):
-    url: str
-    expires_at: datetime
-
-
 def issue_preview_url(slug: str) -> PreviewLink:
     """A link that shows the proposal (draft or not) as the customer will see it, for a while."""
     p = _proposal_or_404(slug)
-    token = signing.TimestampSigner(salt=PREVIEW_SALT).sign(p.slug)
-    expires_at = timezone.now() + timedelta(seconds=settings.PROPOSAL_PREVIEW_MAX_AGE)
-    return PreviewLink(url=f"/preview/{token}", expires_at=expires_at)
-
-
-class BadPreviewToken(Exception):
-    pass
-
-
-class ExpiredPreviewToken(BadPreviewToken):
-    pass
+    return preview.issue(
+        salt=PREVIEW_SALT,
+        value=p.slug,
+        path="/preview/",
+        max_age=settings.PROPOSAL_PREVIEW_MAX_AGE,
+    )
 
 
 def proposal_for_preview(token: str) -> Proposal:
-    try:
-        slug = signing.TimestampSigner(salt=PREVIEW_SALT).unsign(
-            token, max_age=settings.PROPOSAL_PREVIEW_MAX_AGE
-        )
-    except signing.SignatureExpired:
-        raise ExpiredPreviewToken from None
-    except signing.BadSignature:
-        raise BadPreviewToken from None
+    slug = preview.unsign(token, salt=PREVIEW_SALT, max_age=settings.PROPOSAL_PREVIEW_MAX_AGE)
     p = Proposal.objects.select_related("client").filter(slug=slug).first()
     if p is None:
         raise BadPreviewToken

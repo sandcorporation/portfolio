@@ -26,7 +26,8 @@ INSTRUCTIONS = (
     "Sandcorp portfolio site (https://sandcorp.co.kr). Portfolio items, proposals and blog posts "
     "(/blog) are block documents; call block_schema to see the block types before writing one. "
     "Before writing or rewriting a proposal, read proposal_guide first: it gives the writing "
-    "rules and the recommended block order."
+    "rules and the recommended block order. Before writing or rewriting a blog post, read "
+    "blog_guide first."
 )
 
 PARSE_ERROR = -32700

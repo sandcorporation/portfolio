@@ -12,6 +12,7 @@ from documents.validation import BLOCK_TYPES, JSON, validate_document
 from mcpserver.tools import TOOLS
 from services import blocks
 from services.blocks import EXAMPLES
+from services.blog import NewPost
 from tests.site_auth import SiteAuth
 
 type Message = dict[str, JSON]
@@ -282,6 +283,69 @@ def test_proposal_guide_names_only_real_tools_block_types_and_fields(mcp: McpCli
             assert row["purpose"], row
     estimate = [row["type"] for row in map(_obj, _list(tabs[0]["blocks"]))]
     assert estimate[0] == "cover" and estimate[-1] == "cta"
+
+
+# --- blog_guide (#147) ------------------------------------------------------------------------
+
+
+def _blog_guide(mcp: McpClient) -> tuple[str, list[object]]:
+    result = mcp.call_tool("blog_guide", {})
+    assert result["isError"] is False
+    found = _obj(result["structuredContent"])
+    guide = found["guide"]
+    assert isinstance(guide, str)
+    return guide, _list(found["skeleton"])
+
+
+def test_blog_guide_is_a_read_only_tool_that_post_writers_are_pointed_to(mcp: McpClient) -> None:
+    init = _obj(mcp.request("initialize", {"protocolVersion": "2025-06-18"})["result"])
+    assert "blog_guide" in str(init["instructions"])
+
+    listed = _list(_obj(mcp.request("tools/list")["result"])["tools"])
+    by_name = {str(tool["name"]): tool for tool in map(_obj, listed)}
+    assert _obj(by_name["blog_guide"]["annotations"])["readOnlyHint"] is True
+    for writer in (
+        "whoami",
+        "create_post",
+        "update_post",
+        "replace_post_block",
+        "insert_post_block",
+    ):
+        assert "blog_guide" in str(by_name[writer]["description"]), writer
+    for other in ("create_proposal", "replace_block", "publish_post"):
+        assert "blog_guide" not in str(by_name[other]["description"]), other
+    whoami = str(by_name["whoami"]["description"])
+    blog_part = whoami[whoami.index("blog_guide") :]
+    assert blog_part.index("block_schema") < blog_part.index("issue_post_preview_url")
+    assert blog_part.index("issue_post_preview_url") < blog_part.index("publish_post")
+
+
+def test_blog_guide_gives_the_rules_and_no_real_hosts_or_addresses(mcp: McpClient) -> None:
+    guide, _ = _blog_guide(mcp)
+    assert guide.startswith("# 블로그 글 작성 지침")
+    for section in ("무엇을 쓰나", "공개 금지", "구조와 블록", "이미지", "발행"):
+        assert re.search(rf"^## \d\. {section}", guide, re.M), section
+    assert re.search(r"\b\d{1,3}(\.\d{1,3}){3}\b", guide) is None  # no IP address
+    assert re.search(r"https?://|\w+\.(co\.kr|com|dev|net)\b", guide) is None  # no host
+
+
+def test_blog_guide_names_only_real_tools_block_types_and_fields(mcp: McpClient) -> None:
+    guide, skeleton = _blog_guide(mcp)
+    known = set(TOOLS) | set(BLOCK_TYPES) | _schema_words(blocks.document_schema())
+    known |= set(NewPost.model_fields)  # the post's own fields (create_post)
+    known |= {"skeleton"}  # this tool's own answer
+    named = set(re.findall(r"`([A-Za-z][\w-]*)`", guide))
+    assert named - known == set()
+    assert {"cover", "gallery", "steps", "cover_media_id", "issue_post_preview_url"} <= named
+    assert {"start_upload", "complete_upload", "publish_post"} <= named
+
+    tabs = list(map(_obj, skeleton))
+    assert [tab["tab_id"] for tab in tabs] == ["main"]  # create_post's one tab
+    rows = list(map(_obj, _list(tabs[0]["blocks"])))
+    for row in rows:
+        assert row["type"] in BLOCK_TYPES, row
+        assert row["purpose"], row
+    assert [row["type"] for row in rows][:2] == ["cover", "markdown"]
 
 
 @pytest.mark.django_db

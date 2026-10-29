@@ -21,6 +21,7 @@ export function App({ path, data }: { path: string; data: unknown }) {
     if (isExpiredScreen(data)) return <ProposalExpiredScreen data={data} />;
     if (isProposalData(data)) return <ProposalPage data={data} lockAction={`${path}/lock`} />;
   }
+  if (path.startsWith("/preview/blog/") && isBlogPostData(data)) return <BlogPostPage data={data} />;
   if (path.startsWith("/preview/") && isProposalData(data)) return <ProposalPage data={data} />;
   if (path.startsWith("/print/") && isProposalData(data) && data.print_mode) {
     return <ProposalPrintPage data={data} />;

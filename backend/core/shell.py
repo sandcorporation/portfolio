@@ -40,7 +40,7 @@ from core import public_html
 from core.clientip import client_ip
 from core.seo import home_jsonld, work_jsonld
 from core.vite import entry_assets
-from services import blog, media, og_card, pdf, proposals, publishing
+from services import blog, media, og_card, pdf, preview, proposals, publishing
 from services import proposal_access as access
 from services import proposal_events as events
 from services.home import home_page, site_availability, site_business
@@ -571,6 +571,30 @@ def blog_post(request: HttpRequest, slug: str) -> HttpResponse:
         count_visit=True,
         body=public_html.blog_post_body(data),
     )
+
+
+def blog_preview(request: HttpRequest, token: str) -> HttpResponse:
+    """A signed, short-lived link to a post (draft or not) as /blog/<slug> will show it (#147).
+    Like the proposal preview: noindex, no-store, no visit counted, no server HTML."""
+    try:
+        detail = blog.preview_detail(token)
+    except preview.ExpiredPreviewToken:
+        response = HttpResponse(
+            "미리보기 링크가 만료되었습니다. 링크를 다시 발급해 주세요.",
+            status=410,
+            content_type="text/plain; charset=utf-8",
+        )
+    except preview.BadPreviewToken:
+        raise Http404 from None
+    else:
+        data = {**detail, "availability": site_availability(), "business": site_business()}
+        meta = PageMeta(
+            title=f"미리보기 · {detail['card']['title']} | {SITE_NAME}",
+            description=BLOG_DESCRIPTION,
+            robots=NOINDEX,
+        )
+        response = render_shell(request, meta, data=data)
+    return _private(response)
 
 
 BLOG_TITLE = f"{SITE_NAME} 기록"
