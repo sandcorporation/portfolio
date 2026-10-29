@@ -18,6 +18,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 - PR CI는 없다. 시험·린트·타입 검사는 로컬에서 돌린다. 통과하면 작업자가 바로 squash 병합한다(main 직접 push 금지).
 - main에 병합하면 Jenkins(`sub` 호스트, `oracle` 에이전트)가 빌드·배포한다. 배포 잡과 서버 설정(env 파일, NPMplus, DNS, OCI)은 조율자가 다룬다. 작업자는 원격 호스트에 쓰지 않는다.
 - 스펙은 #1, 티켓은 그 하위 이슈다.
+- 인증 코드는 sandcorp-authkit에서, 이 저장소에는 어댑터 한 파일(`backend/oauth/auth.py`)만. 의존성은 ssh git 소스(태그 고정)라 이미지 빌드는 `--ssh default`가 필요하다(로컬: `docker build --ssh default=$HOME/.ssh/github .`, Jenkins: `deploy/deploy.sh`가 `GIT_SSH_KEY`로 ssh-agent를 띄움). 운영자 로그인 뷰는 `backend/oauth/admin_login.py`.
 
 ## 명령
 

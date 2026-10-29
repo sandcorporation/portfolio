@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
+from sandcorp_authkit.tokens import AccessToken
 
 from mcpserver.tools import SEE_SCHEMA, NoInput, SlugInput, ToolResult, many, one, tool
-from oauth.tokens import AccessToken
 from services import proposals
 
 

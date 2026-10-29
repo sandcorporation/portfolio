@@ -5,7 +5,7 @@ from typing import Any, cast
 import pytest
 from django.test import Client
 
-from adapters.fake_jwks import FakeAuthServer
+from tests.site_auth import SiteAuth
 from tests.test_mcp import McpClient
 from tests.test_mcp_proposals import ok, refused
 
@@ -21,7 +21,7 @@ READ_ONLY = {"list_posts", "get_post"}
 
 
 @pytest.fixture
-def mcp(client: Client, auth_server: FakeAuthServer) -> McpClient:
+def mcp(client: Client, auth_server: SiteAuth) -> McpClient:
     return McpClient(client, auth_server)
 
 

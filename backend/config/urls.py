@@ -5,8 +5,8 @@ from django.urls import path
 from core import github_readme, shell
 from core.api import api
 from mcpserver.views import mcp_endpoint
-from oauth import login as oauth_login
-from oauth.bearer import protected_resource_metadata
+from oauth import admin_login as oauth_login
+from oauth.auth import protected_resource_metadata
 
 # No password form: the admin login page is the sandcorp-auth start (issue #29).
 admin.site.login = oauth_login.admin_login  # type: ignore[method-assign]

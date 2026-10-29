@@ -1,10 +1,10 @@
 """MCP tools for publishing, PDFs, inquiries and view events (thin shells over services)."""
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from sandcorp_authkit.tokens import AccessToken
 
 from documents.validation import JSON
 from mcpserver.tools import SlugInput, ToolResult, _failure, many, one, tool
-from oauth.tokens import AccessToken
 from services import inquiries, pdf, proposal_events, publishing
 from services.errors import ServiceError
 

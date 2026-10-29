@@ -11,6 +11,15 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+# sandcorp-authkit is a private git dependency (ssh). With GIT_SSH_KEY (Jenkins) the key goes into
+# a throwaway ssh-agent that BuildKit forwards (`--ssh default`); without it (local) the developer's
+# own agent is used. The key never enters an image layer and its path/content is not printed.
+if [ -n "${GIT_SSH_KEY:-}" ]; then
+  eval "$(ssh-agent -s)" >/dev/null
+  trap 'ssh-agent -k >/dev/null 2>&1 || true' EXIT
+  ssh-add -q "$GIT_SSH_KEY"
+fi
+
 compose() { docker compose "$@"; }
 
 wait_healthy() {
@@ -31,7 +40,7 @@ wait_healthy() {
 }
 
 echo "== 이미지 빌드"
-compose build web
+compose build --ssh default web
 
 echo "== DB 접속 확인 (.env의 DB_*)"
 # 로컬 확인(docker-compose.local.yml을 얹은 경우)에만 있는 mysql 서비스. 운영 DB는 compose 밖이다.

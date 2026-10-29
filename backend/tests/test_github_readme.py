@@ -5,11 +5,11 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.test import Client
 from pydantic import ValidationError
 
-from adapters.fake_jwks import FakeAuthServer
 from content.models import PortfolioItem, SiteProfile
 from documents.validation import JSON
 from services import github_readme
 from services.profile import ProfilePatch, update_profile
+from tests.site_auth import SiteAuth
 from tests.test_mcp import McpClient
 
 pytestmark = pytest.mark.django_db
@@ -20,7 +20,7 @@ UTM_ORG = "utm_source=github&utm_medium=readme&utm_campaign=org"
 
 
 @pytest.fixture
-def mcp(client: Client, auth_server: FakeAuthServer) -> McpClient:
+def mcp(client: Client, auth_server: SiteAuth) -> McpClient:
     return McpClient(client, auth_server)
 
 

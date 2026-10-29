@@ -149,7 +149,7 @@ SITE_URL = env("SITE_URL", "https://sandcorp.co.kr").rstrip("/")
 # sandcorp-auth: the owner's username, the only `sub` this site accepts (empty -> /mcp is 503).
 AUTH_OWNER_SUB = env("AUTH_OWNER_SUB").strip()
 ADMIN_PATH = env("DJANGO_ADMIN_PATH", "admin/").strip("/") + "/"
-# sandcorp-auth confidential client for the admin login (oauth/login.py). Registered at
+# sandcorp-auth confidential client for the admin login (oauth/admin_login.py). Registered at
 # sandcorp-auth with redirect URI `{SITE_URL}/{ADMIN_PATH}oauth/callback/`.
 # Empty -> only the sandcorp-auth admin login is off (503); the site runs.
 AUTH_CLIENT_ID = env("AUTH_CLIENT_ID").strip()

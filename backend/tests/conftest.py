@@ -19,11 +19,11 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from pytest_django.fixtures import Settings
+from sandcorp_authkit.testing import FakeJwks, FakeTokenEndpoint, FixedClock
 
 from adapters import foresight as foresight_adapter
 from adapters import metrics as metrics_adapter
 from adapters.fake_foresight import FakeForesight
-from adapters.fake_jwks import FakeAuthServer
 from adapters.fake_metrics import FakeMetrics
 from adapters.fake_notify import FakeNotifier
 from adapters.fake_renderer import FakeRenderer
@@ -31,7 +31,8 @@ from adapters.fake_storage import FakeObjectStorage
 from content.models import Media, PortfolioItem
 from core.vite import _read_manifest
 from documents.validation import JSON
-from oauth.tokens import JwksCache
+from oauth import auth
+from tests.site_auth import SiteAuth
 
 _CPU_SPENT = pytest.StashKey[float]()
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -104,21 +105,24 @@ def fake_storage(monkeypatch: pytest.MonkeyPatch) -> FakeObjectStorage:
 
 
 @pytest.fixture
-def auth_server(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> FakeAuthServer:
+def auth_server(monkeypatch: pytest.MonkeyPatch, settings: Settings) -> SiteAuth:
     """A fake sandcorp-auth: sign tokens with `auth_server.issue()` / `.bearer()`.
 
-    Its JWKS, frozen clock and token endpoint replace the real ones; `AUTH_OWNER_SUB` is its
-    owner and `AUTH_CLIENT_ID`/`AUTH_CLIENT_SECRET` its registered admin-login client.
+    The package's fake JWKS, fixed clock and token endpoint replace the real ones through the
+    `oauth.auth` seams; `AUTH_OWNER_SUB` is `owner` and `AUTH_CLIENT_ID`/`AUTH_CLIENT_SECRET`
+    the registered admin-login client.
     """
-    server = FakeAuthServer()
-    cache = JwksCache(server.fetch_jwks, server.clock)
-    settings.AUTH_OWNER_SUB = server.owner_sub
-    settings.AUTH_CLIENT_ID = server.client_id
-    settings.AUTH_CLIENT_SECRET = server.client_secret
-    monkeypatch.setattr("oauth.login.get_exchange_code", lambda: server.exchange_code)
-    monkeypatch.setattr("oauth.bearer.get_jwks_cache", lambda: cache)
-    monkeypatch.setattr("oauth.bearer.get_clock", lambda: server.clock)
-    return server
+    clock = FixedClock()
+    jwks = FakeJwks()
+    cache = jwks.cache(clock)
+    settings.AUTH_OWNER_SUB = "owner"
+    settings.AUTH_CLIENT_ID = "portfolio-admin"
+    settings.AUTH_CLIENT_SECRET = "test-client-secret"
+    endpoint = FakeTokenEndpoint(jwks, clock, client_id="portfolio-admin")
+    monkeypatch.setattr(auth, "clock", clock)
+    monkeypatch.setattr(auth, "jwks_cache", lambda: cache)
+    monkeypatch.setattr(auth, "token_transport", lambda: endpoint)
+    return SiteAuth(jwks, endpoint, clock)
 
 
 @pytest.fixture

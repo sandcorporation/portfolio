@@ -8,11 +8,11 @@ from django.http import HttpRequest, HttpResponse
 from ninja import NinjaAPI, Router, Status
 from pydantic import BaseModel, ConfigDict
 
-from oauth.bearer import BearerAuth
+from oauth.auth import admin_auth
 from services import portfolio, profile
 from services.errors import Conflict, NotFound, RateLimited, Rejected, ServiceError
 
-router = Router(auth=BearerAuth("admin"), tags=["admin"])
+router = Router(auth=admin_auth, tags=["admin"])
 
 
 class Order(BaseModel):

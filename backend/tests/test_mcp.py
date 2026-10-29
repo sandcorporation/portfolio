@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING
 import pytest
 from django.test import Client
 
-from adapters.fake_jwks import FakeAuthServer
 from documents.validation import BLOCK_TYPES, JSON, validate_document
 from mcpserver.tools import TOOLS
 from services import blocks
 from services.blocks import EXAMPLES
+from tests.site_auth import SiteAuth
 
 type Message = dict[str, JSON]
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class McpClient:
     """Speaks JSON-RPC to /mcp with a valid owner token, the way Claude Code does."""
 
-    def __init__(self, client: Client, auth_server: FakeAuthServer) -> None:
+    def __init__(self, client: Client, auth_server: SiteAuth) -> None:
         self.client = client
         self.headers = {
             **auth_server.bearer(),
@@ -57,7 +57,7 @@ class McpClient:
 
 
 @pytest.fixture
-def mcp(client: Client, auth_server: FakeAuthServer) -> McpClient:
+def mcp(client: Client, auth_server: SiteAuth) -> McpClient:
     return McpClient(client, auth_server)
 
 
@@ -167,7 +167,7 @@ def test_protocol_errors(mcp: McpClient) -> None:
 
 
 def test_get_and_delete_are_405_but_still_need_a_token(
-    client: Client, mcp: McpClient, auth_server: FakeAuthServer
+    client: Client, mcp: McpClient, auth_server: SiteAuth
 ) -> None:
     assert client.get("/mcp").status_code == 401
     response = client.get("/mcp", headers=mcp.headers)

@@ -15,9 +15,13 @@ RUN pnpm build
 # Python deps. mysqlclient has no Linux wheels, so it compiles here against the MariaDB
 # Connector/C headers (`default-libmysqlclient-dev`); the runtime only needs the shared library.
 FROM python:3.14-slim AS pydeps
+# git + openssh-client: sandcorp-authkit is a private git dependency fetched over ssh.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential pkg-config default-libmysqlclient-dev \
+ && apt-get install -y --no-install-recommends build-essential pkg-config default-libmysqlclient-dev git openssh-client \
  && rm -rf /var/lib/apt/lists/*
+# The deploy key never enters the image: BuildKit forwards the agent (`--mount=type=ssh`) for the
+# one RUN below. known_hosts lives in this build stage only; the runtime stage copies /opt/venv.
+RUN mkdir -p -m 0700 /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts
 COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_COMPILE_BYTECODE=1 \
@@ -25,7 +29,7 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_PYTHON_DOWNLOADS=never
 WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=ssh uv sync --frozen --no-dev --no-install-project
 
 FROM python:3.14-slim AS runtime
 # libmariadb3: the client library mysqlclient links to. default-mysql-client (MariaDB's

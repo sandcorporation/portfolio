@@ -10,12 +10,12 @@ from xml.etree import ElementTree
 import pytest
 from django.test import Client
 
-from adapters.fake_jwks import FakeAuthServer
 from content.models import Media, PortfolioItem
 from documents.validation import JSON
 from services import portfolio as portfolio_service
 from services import profile as profile_service
 from services.errors import ServiceError
+from tests.site_auth import SiteAuth
 from tests.test_mcp import McpClient
 from tests.test_portfolio import page_data
 
@@ -124,7 +124,7 @@ class McpDoor:
 
 
 class ApiDoor:
-    def __init__(self, client: Client, auth_server: FakeAuthServer) -> None:
+    def __init__(self, client: Client, auth_server: SiteAuth) -> None:
         self.client = client
         self.headers = auth_server.bearer()
 
@@ -167,7 +167,7 @@ class ApiDoor:
 
 
 @pytest.fixture(params=["service", "mcp", "api"])
-def door(request: pytest.FixtureRequest, client: Client, auth_server: FakeAuthServer) -> Door:
+def door(request: pytest.FixtureRequest, client: Client, auth_server: SiteAuth) -> Door:
     if request.param == "service":
         return ServiceDoor()
     if request.param == "mcp":
@@ -393,7 +393,7 @@ ROUTES = [
 
 @pytest.mark.parametrize(("method", "path"), ROUTES)
 def test_admin_api_needs_a_token_with_admin_scope(
-    client: Client, auth_server: FakeAuthServer, method: str, path: str
+    client: Client, auth_server: SiteAuth, method: str, path: str
 ) -> None:
     def send(path: str, data: str, **kw: Any) -> Any:
         return client.generic(method.upper(), path, data, **kw)
@@ -406,7 +406,7 @@ def test_admin_api_needs_a_token_with_admin_scope(
 
 
 def test_mcp_content_tools_need_a_token_with_admin_scope(
-    client: Client, auth_server: FakeAuthServer
+    client: Client, auth_server: SiteAuth
 ) -> None:
     body = json.dumps(
         {
@@ -439,7 +439,7 @@ CONTENT_TOOLS = {
 }  # fmt: skip (the other tools are checked in test_mcp_proposals)
 
 
-def test_tool_list_marks_writers_and_readers(client: Client, auth_server: FakeAuthServer) -> None:
+def test_tool_list_marks_writers_and_readers(client: Client, auth_server: SiteAuth) -> None:
     tools = McpClient(client, auth_server).request("tools/list")["result"]
     assert isinstance(tools, dict) and isinstance(tools["tools"], list)
     read_only = {t["name"]: t["annotations"]["readOnlyHint"] for t in tools["tools"]}  # type: ignore[index,call-overload]

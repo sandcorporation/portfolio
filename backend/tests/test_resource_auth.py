@@ -6,11 +6,11 @@ Rules are sandcorp-auth docs/resource-server-token-validation.md (B*, T*, S*, J*
 from typing import TYPE_CHECKING
 
 import pytest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.test import Client
 from pytest_django.fixtures import Settings
+from sandcorp_authkit.testing import SigningKey
 
-from adapters.fake_jwks import Claim, FakeAuthServer
+from tests.site_auth import SiteAuth
 
 META = 'resource_metadata="https://sandcorp.co.kr/.well-known/oauth-protected-resource"'
 NO_TOKEN = f"Bearer {META}"
@@ -41,7 +41,7 @@ def test_protected_resource_metadata_names_sandcorp_auth(client: Client) -> None
         }
 
 
-def test_valid_token_passes(client: Client, auth_server: FakeAuthServer) -> None:
+def test_valid_token_passes(client: Client, auth_server: SiteAuth) -> None:
     response = post_mcp(client, auth_server.bearer())
     assert response.status_code == 200
     assert response.json() == {"jsonrpc": "2.0", "id": 1, "result": {}}
@@ -53,14 +53,14 @@ def test_valid_token_passes(client: Client, auth_server: FakeAuthServer) -> None
     ids=["no-header", "basic", "empty-bearer"],
 )
 def test_no_token_is_401_with_resource_metadata(
-    client: Client, auth_server: FakeAuthServer, headers: dict[str, str]
+    client: Client, auth_server: SiteAuth, headers: dict[str, str]
 ) -> None:
     response = post_mcp(client, headers)
     assert response.status_code == 401
     assert response["WWW-Authenticate"] == NO_TOKEN
 
 
-def test_token_in_query_string_is_ignored(client: Client, auth_server: FakeAuthServer) -> None:
+def test_token_in_query_string_is_ignored(client: Client, auth_server: SiteAuth) -> None:
     response = client.post(
         f"/mcp?access_token={auth_server.issue()}", PING, content_type="application/json"
     )
@@ -68,16 +68,16 @@ def test_token_in_query_string_is_ignored(client: Client, auth_server: FakeAuthS
     assert response["WWW-Authenticate"] == NO_TOKEN
 
 
-def test_bearer_scheme_is_case_insensitive(client: Client, auth_server: FakeAuthServer) -> None:
+def test_bearer_scheme_is_case_insensitive(client: Client, auth_server: SiteAuth) -> None:
     headers = {"Authorization": f"bEaReR {auth_server.issue()}"}
     assert post_mcp(client, headers).status_code == 200
 
 
-def _other_key() -> Ed25519PrivateKey:
-    return Ed25519PrivateKey.generate()
+def _other_key() -> SigningKey:
+    return SigningKey(kid="test-key")  # same kid, another private key
 
 
-BAD_TOKENS: dict[str, dict[str, Claim]] = {
+BAD_TOKENS: dict[str, dict[str, object]] = {
     "wrong-aud": {"aud": "https://news.sandcorp.co.kr/mcp"},
     "aud-trailing-slash": {"aud": "https://sandcorp.co.kr/mcp/"},
     "aud-case": {"aud": "https://Sandcorp.co.kr/mcp"},
@@ -94,7 +94,7 @@ BAD_TOKENS: dict[str, dict[str, Claim]] = {
 
 @pytest.mark.parametrize("claims", BAD_TOKENS.values(), ids=BAD_TOKENS.keys())
 def test_bad_claims_are_401_invalid_token(
-    client: Client, auth_server: FakeAuthServer, claims: dict[str, Claim]
+    client: Client, auth_server: SiteAuth, claims: dict[str, object]
 ) -> None:
     response = post_mcp(client, auth_server.bearer(auth_server.issue_with(claims)))
     assert response.status_code == 401
@@ -102,7 +102,7 @@ def test_bad_claims_are_401_invalid_token(
     assert response.json() == {"error": "unauthorized"}  # the reason stays in the log
 
 
-def test_expiry_allows_30_seconds_of_leeway(client: Client, auth_server: FakeAuthServer) -> None:
+def test_expiry_allows_30_seconds_of_leeway(client: Client, auth_server: SiteAuth) -> None:
     token = auth_server.issue()  # exp = now + 600
     auth_server.clock.advance(600 + 30)
     assert post_mcp(client, auth_server.bearer(token)).status_code == 200
@@ -112,14 +112,14 @@ def test_expiry_allows_30_seconds_of_leeway(client: Client, auth_server: FakeAut
     assert response["WWW-Authenticate"] == INVALID
 
 
-def test_signature_from_another_key_is_401(client: Client, auth_server: FakeAuthServer) -> None:
-    headers = auth_server.bearer(auth_server.issue(signing_key=_other_key()))
+def test_signature_from_another_key_is_401(client: Client, auth_server: SiteAuth) -> None:
+    headers = auth_server.bearer(auth_server.issue(key=_other_key()))
     response = post_mcp(client, headers)
     assert response.status_code == 401
     assert response["WWW-Authenticate"] == INVALID
 
 
-def test_tampered_payload_is_401(client: Client, auth_server: FakeAuthServer) -> None:
+def test_tampered_payload_is_401(client: Client, auth_server: SiteAuth) -> None:
     header, _, signature = auth_server.issue(scope="login").split(".")
     forged = auth_server.issue(scope="admin").split(".")[1]
     headers = auth_server.bearer(f"{header}.{forged}.{signature}")
@@ -128,13 +128,13 @@ def test_tampered_payload_is_401(client: Client, auth_server: FakeAuthServer) ->
 
 
 @pytest.mark.parametrize("token", ["not-a-jwt", "a.b.c", "x.y"])
-def test_malformed_token_is_401(client: Client, auth_server: FakeAuthServer, token: str) -> None:
+def test_malformed_token_is_401(client: Client, auth_server: SiteAuth, token: str) -> None:
     response = post_mcp(client, auth_server.bearer(token))
     assert response.status_code == 401
     assert response["WWW-Authenticate"] == INVALID
 
 
-def test_alg_other_than_eddsa_is_401(client: Client, auth_server: FakeAuthServer) -> None:
+def test_alg_other_than_eddsa_is_401(client: Client, auth_server: SiteAuth) -> None:
     import base64
     import json
 
@@ -144,103 +144,103 @@ def test_alg_other_than_eddsa_is_401(client: Client, auth_server: FakeAuthServer
 
     claims_part = auth_server.issue().split(".")[1]
     for alg in ("none", "HS256", "RS256"):
-        forged = f"{b64({'alg': alg, 'typ': 'JWT', 'kid': auth_server.kid})}.{claims_part}."
+        forged = (
+            f"{b64({'alg': alg, 'typ': 'JWT', 'kid': auth_server.jwks.key.kid})}.{claims_part}."
+        )
         response = post_mcp(client, auth_server.bearer(forged))
         assert response.status_code == 401, alg
         assert response["WWW-Authenticate"] == INVALID
 
 
-def test_missing_kid_is_401(client: Client, auth_server: FakeAuthServer) -> None:
+def test_missing_kid_is_401(client: Client, auth_server: SiteAuth) -> None:
     import jwt
 
-    token = jwt.encode({"sub": "owner"}, auth_server.private_key, algorithm="EdDSA")
+    token = jwt.encode({"sub": "owner"}, auth_server.jwks.key.private, algorithm="EdDSA")
     response = post_mcp(client, auth_server.bearer(token))
     assert response.status_code == 401
 
 
 @pytest.mark.parametrize("scope", ["login", "administrator", "", "adminlogin"])
 def test_missing_scope_is_403_insufficient_scope(
-    client: Client, auth_server: FakeAuthServer, scope: str
+    client: Client, auth_server: SiteAuth, scope: str
 ) -> None:
     response = post_mcp(client, auth_server.bearer(scope=scope))
     assert response.status_code == 403
     assert response["WWW-Authenticate"] == 'Bearer error="insufficient_scope", scope="admin"'
 
 
-def test_scope_is_a_space_separated_set(client: Client, auth_server: FakeAuthServer) -> None:
+def test_scope_is_a_space_separated_set(client: Client, auth_server: SiteAuth) -> None:
     headers = auth_server.bearer(scope="login  admin")
     assert post_mcp(client, headers).status_code == 200
 
 
 def test_unknown_kid_refetches_jwks_once_and_follows_rotation(
-    client: Client, auth_server: FakeAuthServer
+    client: Client, auth_server: SiteAuth
 ) -> None:
     assert post_mcp(client, auth_server.bearer()).status_code == 200
-    assert auth_server.fetches == 1
-    auth_server.rotate("key-2")
+    assert auth_server.jwks.fetches == 1
+    auth_server.jwks.rotate("key-2")
     assert post_mcp(client, auth_server.bearer()).status_code == 200
-    assert auth_server.fetches == 2
+    assert auth_server.jwks.fetches == 2
 
 
 def test_unknown_kid_still_unknown_after_refetch_is_401(
-    client: Client, auth_server: FakeAuthServer
+    client: Client, auth_server: SiteAuth
 ) -> None:
     assert post_mcp(client, auth_server.bearer()).status_code == 200
     stray = auth_server.issue(headers={"kid": "nobody"})
     response = post_mcp(client, auth_server.bearer(stray))
     assert response.status_code == 401
-    assert auth_server.fetches == 2
+    assert auth_server.jwks.fetches == 2
     # Within 60 s another unknown kid does not hit the JWKS again (rule J2).
     auth_server.clock.advance(59)
     post_mcp(client, auth_server.bearer(stray))
-    assert auth_server.fetches == 2
+    assert auth_server.jwks.fetches == 2
     auth_server.clock.advance(1)
     post_mcp(client, auth_server.bearer(stray))
-    assert auth_server.fetches == 3
+    assert auth_server.jwks.fetches == 3
 
 
-def test_jwks_is_cached_for_ten_minutes(client: Client, auth_server: FakeAuthServer) -> None:
+def test_jwks_is_cached_for_ten_minutes(client: Client, auth_server: SiteAuth) -> None:
     for _ in range(3):
         post_mcp(client, auth_server.bearer())
-    assert auth_server.fetches == 1
+    assert auth_server.jwks.fetches == 1
     auth_server.clock.advance(600)
     assert post_mcp(client, auth_server.bearer()).status_code == 200
-    assert auth_server.fetches == 2
+    assert auth_server.jwks.fetches == 2
 
 
 def test_jwks_failure_keeps_old_keys_and_waits_60_seconds(
-    client: Client, auth_server: FakeAuthServer
+    client: Client, auth_server: SiteAuth
 ) -> None:
     assert post_mcp(client, auth_server.bearer()).status_code == 200
-    auth_server.failing = True
+    auth_server.jwks.failing = True
     auth_server.clock.advance(600)
     assert post_mcp(client, auth_server.bearer()).status_code == 200
-    assert auth_server.fetches == 2
+    assert auth_server.jwks.fetches == 2
     auth_server.clock.advance(30)
     post_mcp(client, auth_server.bearer())
-    assert auth_server.fetches == 2
+    assert auth_server.jwks.fetches == 2
 
 
-def test_unreachable_jwks_with_empty_cache_is_401(
-    client: Client, auth_server: FakeAuthServer
-) -> None:
-    auth_server.failing = True
+def test_unreachable_jwks_with_empty_cache_is_401(client: Client, auth_server: SiteAuth) -> None:
+    auth_server.jwks.failing = True
     response = post_mcp(client, auth_server.bearer())
     assert response.status_code == 401
     assert response["WWW-Authenticate"] == INVALID
 
 
 def test_without_owner_setting_mcp_is_503_and_site_is_up(
-    client: Client, auth_server: FakeAuthServer, settings: Settings
+    client: Client, auth_server: SiteAuth, settings: Settings
 ) -> None:
     settings.AUTH_OWNER_SUB = ""
     response = post_mcp(client, auth_server.bearer())
     assert response.status_code == 503
     assert client.get("/.well-known/oauth-protected-resource").status_code == 200
-    assert auth_server.fetches == 0
+    assert auth_server.jwks.fetches == 0
 
 
-def test_ninja_admin_api_uses_the_same_check(client: Client, auth_server: FakeAuthServer) -> None:
+def test_ninja_admin_api_uses_the_same_check(client: Client, auth_server: SiteAuth) -> None:
     response = client.get("/api/admin/whoami", headers=auth_server.bearer(scope="admin login"))
     assert response.status_code == 200
     assert response.json() == {

@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
+from sandcorp_authkit.tokens import AccessToken
 
 from documents.validation import BLOCK_TYPES, JSON
-from oauth.tokens import AccessToken
 from services import blocks, portfolio, profile
 from services.errors import Conflict, NotFound, Rejected, ServiceError
 

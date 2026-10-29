@@ -4,11 +4,13 @@ from django.db import connection
 from django.db.utils import DatabaseError
 from django.http import HttpRequest
 from ninja import NinjaAPI, Schema, Status
+from sandcorp_authkit.django import install_bearer_errors
+from sandcorp_authkit.tokens import AccessToken
 
 from core.admin_api import install_service_errors
 from core.admin_api import router as admin_router
 from core.inquiry_api import router as inquiry_router
-from oauth.bearer import BearerAuth, bearer_token, install_bearer_errors
+from oauth.auth import admin_auth
 
 api = NinjaAPI(title="Sandcorp portfolio API", docs_url=None)
 install_bearer_errors(api)
@@ -40,10 +42,11 @@ class Whoami(Schema):
     expires_at: int
 
 
-@api.get("/admin/whoami", response=Whoami, auth=BearerAuth("admin"))
+@api.get("/admin/whoami", response=Whoami, auth=admin_auth)
 def admin_whoami(request: HttpRequest) -> Whoami:
     """The sandcorp-auth token's identity; the admin API's bearer check in its smallest form."""
-    token = bearer_token(request)
+    token = request.auth  # type: ignore[attr-defined]  # set by ninja from admin_auth
+    assert isinstance(token, AccessToken)
     return Whoami(
         sub=token.sub, client_id=token.client_id, scopes=sorted(token.scopes), expires_at=token.exp
     )

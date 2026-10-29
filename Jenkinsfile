@@ -37,7 +37,11 @@ pipeline {
 
     stage('빌드·배포') {
       steps {
-        sh 'bash deploy/deploy.sh'
+        // sandcorp-authkit is a private git dependency: the image build gets this key over
+        // BuildKit SSH forwarding (deploy.sh loads it into a throwaway ssh-agent).
+        withCredentials([sshUserPrivateKey(credentialsId: 'github-farrar142', keyFileVariable: 'GIT_SSH_KEY')]) {
+          sh 'bash deploy/deploy.sh'
+        }
       }
     }
   }

@@ -1,12 +1,12 @@
 """MCP tools for media: presigned upload start, completion and listing (services.media)."""
 
 from pydantic import BaseModel, ConfigDict, Field
+from sandcorp_authkit.tokens import AccessToken
 
 from adapters.storage import StorageNotConfigured
 from content.models import Media
 from documents.validation import JSON
 from mcpserver.tools import ToolError, ToolResult, tool
-from oauth.tokens import AccessToken
 from services import media as media_service
 
 

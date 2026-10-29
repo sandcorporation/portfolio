@@ -7,19 +7,19 @@ from typing import Any, cast
 import pytest
 from django.test import Client
 
-from adapters.fake_jwks import FakeAuthServer
 from adapters.fake_storage import FakeObjectStorage
 from adapters.storage import Bucket
 from content.models import Inquiry, Proposal, ProposalEvent
 from mcpserver.tools import TOOLS
 from services import proposal_events
+from tests.site_auth import SiteAuth
 from tests.test_mcp import McpClient
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def mcp(client: Client, auth_server: FakeAuthServer) -> McpClient:
+def mcp(client: Client, auth_server: SiteAuth) -> McpClient:
     return McpClient(client, auth_server)
 
 
@@ -204,7 +204,7 @@ def test_view_events_are_listed(mcp: McpClient) -> None:
     assert refused(mcp, "list_proposal_events", {"slug": "nope"})
 
 
-def test_tools_need_the_admin_scope(client: Client, auth_server: FakeAuthServer) -> None:
+def test_tools_need_the_admin_scope(client: Client, auth_server: SiteAuth) -> None:
     body = (
         '{"jsonrpc":"2.0","id":1,"method":"tools/call",'
         '"params":{"name":"publish","arguments":{"slug":"x"}}}'

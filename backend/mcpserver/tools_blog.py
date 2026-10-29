@@ -1,9 +1,9 @@
 """MCP tools for the blog 「기록」 (services.blog): thin shells, one service call each."""
 
 from pydantic import BaseModel, ConfigDict, Field
+from sandcorp_authkit.tokens import AccessToken
 
 from mcpserver.tools import SEE_SCHEMA, ToolResult, _failure, many, one, tool
-from oauth.tokens import AccessToken
 from services import blog
 from services.errors import ServiceError
 
