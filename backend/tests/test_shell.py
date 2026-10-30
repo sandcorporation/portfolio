@@ -7,6 +7,7 @@ from django.test import Client
 
 from content.models import Client as Client_
 from content.models import Proposal, SiteProfile
+from core.public_html import HERO_LEAD
 from services import publishing
 
 
@@ -28,10 +29,10 @@ def test_home_shell_carries_title_description_and_og_from_the_profile(client: Cl
 
     html = client.get("/").content.decode()
 
-    assert "<title>Sandcorp</title>" in html
-    assert meta(html, "description") == "음성·영상 처리와 사내 시스템을 만듭니다"
-    assert og(html, "title") == "Sandcorp"
-    assert og(html, "description") == "음성·영상 처리와 사내 시스템을 만듭니다"
+    assert "<title>샌드코프(Sandcorp) — 웹·모바일 1인 개발사</title>" in html
+    assert meta(html, "description") == HERO_LEAD
+    assert og(html, "title") == "샌드코프(Sandcorp) — 웹·모바일 1인 개발사"
+    assert og(html, "description") == HERO_LEAD
     assert og(html, "url") == "http://testserver/"
     assert '<link rel="canonical" href="http://testserver/">' in html
 
@@ -42,7 +43,7 @@ def test_home_shell_is_indexable_and_mounts_react(client: Client) -> None:
     html = response.content.decode()
 
     assert response.status_code == 200
-    assert "<title>Sandcorp</title>" in html
+    assert "<title>샌드코프(Sandcorp) — 웹·모바일 1인 개발사</title>" in html
     assert meta(html, "robots") == "index, follow"
     assert '<div id="root"><header class="masthead">' in html  # server HTML first (#109)
     assert '<script type="module" src="/static/assets/main-abc123.js"></script>' in html

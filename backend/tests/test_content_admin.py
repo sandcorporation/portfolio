@@ -334,7 +334,7 @@ def test_profile_update_reaches_the_home_page(door: Door, client: Client) -> Non
     assert updated.ok, updated.error
     assert updated.data["tagline"] == "웹을 만듭니다"
     home = client.get("/").content.decode()
-    assert '<meta name="description" content="웹을 만듭니다">' in home
+    assert "웹을 만듭니다" in home  # hero-claim (the head description is HERO_LEAD, #159)
     data = page_data(home)
     assert data["company_intro"]["tabs"][0]["blocks"][0]["body"] == "회사 소개 문장"
     assert data["contact"]["email"] == "hello@sandcorp.co.kr"
