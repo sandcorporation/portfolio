@@ -117,7 +117,6 @@ img {
 .document-toc::before,
 .kpi-label,
 .table-unit,
-.sc-prose-callout-kind,
 .cover-recipient,
 .proposal-facts dt,
 .gate-form label,
@@ -664,23 +663,15 @@ h3.block-heading {
 }
 
 /*
- * Body text is the shared .sc-prose (sandcorp-design v0.6.0, issue 155): headings, spacing, images,
- * hr, tables in .sc-prose-table-scroll and callout titles all come from the design. Left here:
- * table cells keep the body text color (the design's .sc-prose table turns them ink), and the html
- * block keeps its own wrapping and self-scrolling tables (its tables have no scroll box).
+ * Body text is the shared .sc-prose (sandcorp-design v0.6.1, issues 155, 157): headings, spacing, images,
+ * hr, tables (cells keep the body color; tables outside .sc-prose-table-scroll scroll themselves and
+ * wrap long words) and callout titles all come from the design. Left here (issue 157): the html
+ * block keeps overflow-wrap: anywhere on the whole body, because the design applies it to the table
+ * only and a long URL in a paragraph or link would otherwise only break at break-word sizing.
  */
-.prose table {
-  color: inherit;
-}
 
 .block-html .prose {
   overflow-wrap: anywhere;
-}
-
-.block-html .prose table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
 }
 
 /* kpi: a row of big numbers, mono label under each, hairline on top */
