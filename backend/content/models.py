@@ -159,7 +159,7 @@ class SiteProfile(models.Model):
         "한 줄 소개",
         max_length=160,
         blank=True,
-        help_text="홈의 description·OG 설명으로 쓴다.",
+        help_text="홈 첫 화면 강조 문구(hero-claim)와 GitHub 프로필 README에 쓴다. 비우면 숨긴다.",
     )
     company_intro = models.JSONField("회사 소개 문서", default=empty_document)
     ceo_intro = models.JSONField("대표 소개 문서", default=empty_document)

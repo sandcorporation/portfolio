@@ -202,7 +202,7 @@ class VisibilityInput(SlugInput):
 @tool(
     "get_profile",
     "Get site profile",
-    "The home page profile: tagline, contact fields, availability (the masthead's "
+    "The home page profile: tagline (the hero claim), contact fields, availability (the masthead's "
     '"새 프로젝트 받는 중" and its date), career_started_on and response_promise (the home '
     "evidence row), business_name / representative / business_number (the public footer, "
     "which also shows address) and the two block documents (company_intro, ceo_intro).",

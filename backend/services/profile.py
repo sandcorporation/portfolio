@@ -37,7 +37,12 @@ class ProfilePatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     tagline: str = Field(
-        default="", max_length=160, description="One-line intro (home description)."
+        default="",
+        max_length=160,
+        description=(
+            "One-line claim shown on the home hero (hero-claim) and in the GitHub "
+            "profile README; empty hides it."
+        ),
     )
     company_intro: dict[str, object] = Field(
         default_factory=dict, description="Block document (see block_schema)."
