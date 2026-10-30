@@ -16,7 +16,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: portfolio-web:latest
+    # 운영(oracle)은 Jenkins가 PORTFOLIO_IMAGE로 ghcr의 <커밋 sha> 이미지를 준다(#165). 없으면 로컬에서 빌드한다.
+    image: ${PORTFOLIO_IMAGE:-portfolio-web:latest}
     env_file: [.env]
     environment:
       DJANGO_DEBUG: "0"
@@ -40,8 +41,8 @@ services:
 
   # Revision PDF jobs (#40): same image as web, one job at a time (`manage.py pdf_worker`).
   worker:
-    image: portfolio-web:latest
-    pull_policy: never  # built by `compose build web`
+    image: ${PORTFOLIO_IMAGE:-portfolio-web:latest}
+    pull_policy: never  # web과 같은 이미지: deploy.sh가 pull(운영) 또는 build(로컬)로 이미 받아 둔다
     command: ["python", "manage.py", "pdf_worker"]
     env_file: [.env]
     environment:
@@ -55,8 +56,8 @@ services:
   # once per 04:00 KST to the private bucket's `backups/`, then drops copies older than 30 days.
   # Idle almost always; mysqldump of this small DB takes seconds. Restore: docs/ops/backup-restore.md.
   backup:
-    image: portfolio-web:latest
-    pull_policy: never  # built by `compose build web`
+    image: ${PORTFOLIO_IMAGE:-portfolio-web:latest}
+    pull_policy: never  # web과 같은 이미지: deploy.sh가 pull(운영) 또는 build(로컬)로 이미 받아 둔다
     command: ["python", "manage.py", "db_backup"]
     env_file: [.env]
     environment:
