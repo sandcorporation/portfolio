@@ -1,127 +1,12 @@
 /*
  * Portfolio-only tokens. The shared palette, type scale, spacing and layout tokens come from
  * sandcorp-design (issue 150: `sandcorp-design/css`, imported first in main.tsx); this file keeps
- * what only portfolio uses (QR, scrim, brand mark, rail/masthead sizes) and the font stacks with
- * the metric-matched fallback faces. It is still the ONLY file here that may contain raw color
- * values (src/tokens.test.ts). Contrast of the shared colors is checked against the design file.
+ * what only portfolio uses (QR, scrim, brand mark, rail/masthead sizes). The font stacks and the
+ * metric-matched fallback faces (issues 133, 135) moved to the design in v0.6.0 (issue 155). It is
+ * still the ONLY file here that may contain raw color values (src/tokens.test.ts). Contrast of the shared colors is checked against the design file.
  *
  * Fonts are bundled by `sandcorp-design/fonts.css` (no external requests).
  */
-
-/*
- * Metric-matched fallback faces (#133). Until the web font arrives the browser paints with a
- * local font; these faces size that local font like Pretendard / JetBrains Mono so the swap does
- * not move anything. Numbers come from the font files (fontTools):
- *   Pretendard: unitsPerEm 2048, hhea ascent 1950 (95.2%), descent 494 (24.1%), lineGap 0.
- *   Latin: mean advance of a sample English sentence + digits (em): Pretendard 400 = 0.4661,
- *     700 = 0.4900; Arial/Liberation Sans 400 = 0.4581, 700 = 0.4915 -> size-adjust 101.8% / 99.7%.
- *   Hangul: every syllable in Pretendard advances 1770/2048 = 0.8643em. The Hangul faces are
- *     split per platform (#135), each measured from the real font file (fontTools, mean advance
- *     of 40 common syllables; every syllable in these fonts has the same advance):
- *       Malgun Gothic (Windows) malgun.ttf / malgunbd.ttf: 2048/2048 = 1.000em -> size-adjust
- *         0.8643/1.000 = 86.4%.
- *       Apple SD Gothic Neo (macOS/iOS), every weight: 865/1000 = 0.865em -> size-adjust
- *         0.8643/0.865 = 100% (the old 86.4% shrank macOS Hangul by 13.6%).
- *       Noto Sans (Linux/Android) draws on a 1em body -> 86.4% (assumed, Noto CJK KR is 1em).
- *     "Pretendard Fallback Apple" / "Pretendard Fallback Win" are separate families, placed after
- *     "Pretendard Fallback" in the font stack, so each platform's local() font gets its own numbers.
- *   Vertical (the overrides replace the font's own hhea values): Apple SD Gothic Neo hhea is
- *     0.900/0.300, Malgun Gothic 1.0884/0.2417, both different from Pretendard 0.9521/0.2412.
- *   ascent/descent-override are the Pretendard values divided by size-adjust (the overrides are
- *     applied before size-adjust scales the face), line-gap-override 0: 100% -> 95.2% / 24.1%,
- *     86.4% -> 110.2% / 27.9%.
- *   JetBrains Mono: advance 0.6em, ascent 1.02, descent 0.3; Menlo/DejaVu Sans Mono/Liberation
- *     Mono/Courier New advance 0.6em (Menlo 0.602) -> size-adjust 100%.
- * Weight 400 face covers 100-599, the 700 face 600-900.
- */
-@font-face {
-  font-family: "Pretendard Fallback";
-  src: local("Arial"), local("Liberation Sans"), local("Arimo"), local("Helvetica");
-  font-weight: 100 599;
-  size-adjust: 101.8%;
-  ascent-override: 93.5%;
-  descent-override: 23.7%;
-  line-gap-override: 0%;
-}
-@font-face {
-  font-family: "Pretendard Fallback";
-  src: local("Arial Bold"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Helvetica Bold");
-  font-weight: 600 900;
-  size-adjust: 99.7%;
-  ascent-override: 95.5%;
-  descent-override: 24.2%;
-  line-gap-override: 0%;
-}
-@font-face {
-  font-family: "Pretendard Fallback";
-  src: local("Noto Sans KR"), local("Noto Sans CJK KR"), local("Nanum Gothic");
-  font-weight: 100 599;
-  size-adjust: 86.4%;
-  ascent-override: 110.2%;
-  descent-override: 27.9%;
-  line-gap-override: 0%;
-  unicode-range: U+1100-11ff, U+3130-318f, U+ac00-d7a3;
-}
-@font-face {
-  font-family: "Pretendard Fallback";
-  src: local("Noto Sans KR Bold"), local("Noto Sans CJK KR Bold"), local("Nanum Gothic Bold");
-  font-weight: 600 900;
-  size-adjust: 86.4%;
-  ascent-override: 110.2%;
-  descent-override: 27.9%;
-  line-gap-override: 0%;
-  unicode-range: U+1100-11ff, U+3130-318f, U+ac00-d7a3;
-}
-@font-face {
-  font-family: "Pretendard Fallback Apple";
-  src: local("Apple SD Gothic Neo"), local("Apple SD Gothic Neo Regular"),
-    local("AppleSDGothicNeo-Regular");
-  font-weight: 100 599;
-  size-adjust: 100%;
-  ascent-override: 95.2%;
-  descent-override: 24.1%;
-  line-gap-override: 0%;
-  unicode-range: U+1100-11ff, U+3130-318f, U+ac00-d7a3;
-}
-@font-face {
-  font-family: "Pretendard Fallback Apple";
-  src: local("Apple SD Gothic Neo Bold"), local("AppleSDGothicNeo-Bold");
-  font-weight: 600 900;
-  size-adjust: 100%;
-  ascent-override: 95.2%;
-  descent-override: 24.1%;
-  line-gap-override: 0%;
-  unicode-range: U+1100-11ff, U+3130-318f, U+ac00-d7a3;
-}
-@font-face {
-  font-family: "Pretendard Fallback Win";
-  src: local("Malgun Gothic"), local("MalgunGothic");
-  font-weight: 100 599;
-  size-adjust: 86.4%;
-  ascent-override: 110.2%;
-  descent-override: 27.9%;
-  line-gap-override: 0%;
-  unicode-range: U+1100-11ff, U+3130-318f, U+ac00-d7a3;
-}
-@font-face {
-  font-family: "Pretendard Fallback Win";
-  src: local("Malgun Gothic Bold"), local("MalgunGothicBold");
-  font-weight: 600 900;
-  size-adjust: 86.4%;
-  ascent-override: 110.2%;
-  descent-override: 27.9%;
-  line-gap-override: 0%;
-  unicode-range: U+1100-11ff, U+3130-318f, U+ac00-d7a3;
-}
-@font-face {
-  font-family: "JetBrains Mono Fallback";
-  src: local("Menlo"), local("DejaVu Sans Mono"), local("Liberation Mono"), local("Courier New");
-  font-weight: 100 900;
-  size-adjust: 100%;
-  ascent-override: 102%;
-  descent-override: 30%;
-  line-gap-override: 0%;
-}
 
 :root {
   /* QR codes stay black on white in every scheme, so a phone camera reads them */
@@ -133,14 +18,7 @@
   --color-mark-far: #8a6214;
   --color-mark-near: #d9ad4c;
 
-  /* type: the design stacks plus the metric-matched fallback faces above (issue 133) */
-  --font-sans: "Pretendard Variable", Pretendard, "Pretendard Fallback", "Pretendard Fallback Apple", "Pretendard Fallback Win",
-    system-ui, -apple-system, "Apple SD Gothic Neo",
-    "Malgun Gothic", sans-serif;
-  /* JetBrains Mono has no Hangul: Korean in a mono label falls back to Pretendard */
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "JetBrains Mono Fallback",
-    "Pretendard Variable", Pretendard, "Pretendard Fallback", "Pretendard Fallback Apple", "Pretendard Fallback Win",
-    ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* type: --font-sans / --font-mono and their fallback faces come from the design (issue 155) */
   --text-2xl: 2.125rem;
   --tracking-label: 0.12em;
 

@@ -71,7 +71,7 @@ export function Table({ block, anchor }: { block: TableBlock; anchor: string }) 
         </Heading>
       )}
       {block.unit && <p className="table-unit">{block.unit}</p>}
-      <div className="table-scroll">
+      <div className="sc-prose-table-scroll">
         <table>
           <thead>
             <tr>

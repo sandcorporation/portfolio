@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -25,6 +25,18 @@ describe("design tokens", () => {
   it("shared colors come from sandcorp-design, not from a copy here", () => {
     expect(tokens("light")["color-canvas"]).toBeTruthy();
     expect(sources[join(SRC, "tokens.css")]).not.toMatch(/--color-(canvas|ink|text|accent):/);
+  });
+
+  it("font stacks and their metric-matched fallback faces come from sandcorp-design (issue 155)", () => {
+    const here = sources[join(SRC, "tokens.css")];
+    expect(here).not.toMatch(/@font-face|--font-(sans|mono):/);
+    const fallback = readFileSync(
+      join(dirname(fileURLToPath(import.meta.resolve("sandcorp-design/tokens.css"))), "fallback.css"),
+      "utf8",
+    );
+    for (const family of ["Pretendard Fallback", "Pretendard Fallback Apple", "Pretendard Fallback Win", "JetBrains Mono Fallback"]) {
+      expect(fallback).toContain(`font-family: "${family}";`);
+    }
   });
 
   it("raw color values live only in tokens.css", () => {

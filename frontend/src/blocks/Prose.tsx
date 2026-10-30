@@ -10,7 +10,7 @@ const components: Components = {
     </a>
   ),
   table: ({ children }) => (
-    <div className="table-scroll">
+    <div className="sc-prose-table-scroll">
       <table>{children}</table>
     </div>
   ),

@@ -142,7 +142,7 @@ function Metrics({ block }: { block: AudioCompareBlock }) {
   if (!metrics) return null;
   return (
     <div className="block-table audio-compare-metrics">
-      <div className="table-scroll">
+      <div className="sc-prose-table-scroll">
         <table>
           <thead>
             <tr>

@@ -88,7 +88,7 @@ def test_work_page_draws_title_and_block_document(client: Client) -> None:
     assert '<h1 id="work-title" class="work-title">Codemit</h1>' in body
     assert '<h2 id="work-intro" class="block-heading">문제</h2>' in body
     assert "<strong>세 시간</strong>" in body
-    assert '<div class="table-scroll"><table>' in body
+    assert '<div class="sc-prose-table-scroll"><table>' in body
     assert "<td>오류</td>" in body and "<td>10분</td>" in body
     assert (
         '<a href="https://example.com" target="_blank" rel="noopener noreferrer">사이트</a>' in body
@@ -355,13 +355,17 @@ def test_public_image_rules_never_crop() -> None:
         ("blocks/Prose.tsx", "prose sc-prose"),
         ("blocks/Html.tsx", "prose sc-prose"),
         ("blocks/Callout.tsx", "block-callout sc-prose-callout"),
+        ("blocks/Callout.tsx", "sc-prose-callout-title"),
+        ("blocks/Callout.tsx", "sc-prose-callout-kind"),
+        ("blocks/Prose.tsx", "sc-prose-table-scroll"),
+        ("blocks/Table.tsx", "sc-prose-table-scroll"),
         ("blocks/Gallery.tsx", "gallery-grid sc-prose-gallery"),
         ("work/WorkPage.tsx", "work-cover sc-prose-cover"),
         ("blog/BlogPostPage.tsx", "work-cover sc-prose-cover"),
     ],
 )
 def test_server_html_uses_the_app_body_classes(tsx: str, classes: str) -> None:
-    """#150: the body blocks carry sandcorp-design's .sc-prose… classes in both copies (#109)."""
+    """#150, #155: body blocks carry sandcorp-design's .sc-prose… classes in both copies (#109)."""
     assert f'className="{classes}"' in (FRONTEND / tsx).read_text()
     server = Path(public_html.__file__).read_text() + "".join(
         t.read_text() for t in (Path(public_html.__file__).parent / "templates").rglob("*.html")

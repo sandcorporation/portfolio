@@ -97,7 +97,7 @@ def prose(source: str) -> SafeString:
     if not source.strip():
         return SafeString("")
     html = _MARKDOWN.render(source)  # escapes text; links are checked by markdown-it
-    html = html.replace("<table>", '<div class="table-scroll"><table>')
+    html = html.replace("<table>", '<div class="sc-prose-table-scroll"><table>')
     html = html.replace("</table>", "</table></div>")
     return format_html('<div class="prose sc-prose">{}</div>', mark_safe(html))  # noqa: S308
 
@@ -168,8 +168,8 @@ def _table(block: TableBlock, anchor: str) -> SafeString:
     )
     notes = format_html_join("", "<li>{}</li>", ((n,) for n in block.footnotes))
     return format_html(
-        '<section class="block-table">{}{}<div class="table-scroll"><table><thead><tr>{}</tr>'
-        "</thead><tbody>{}</tbody></table></div>{}</section>",
+        '<section class="block-table">{}{}<div class="sc-prose-table-scroll"><table>'
+        "<thead><tr>{}</tr></thead><tbody>{}</tbody></table></div>{}</section>",
         _heading(3, anchor, block.title),
         format_html('<p class="table-unit">{}</p>', block.unit) if block.unit else "",
         head,
@@ -185,7 +185,8 @@ def _callout(block: CalloutBlock, anchor: str) -> SafeString:
     label = CALLOUT_LABEL[block.kind]
     return format_html(
         '<aside class="block-callout sc-prose-callout" data-kind="{}" aria-label="{}">'
-        '<p class="callout-title"><span class="callout-kind">{}</span>{}</p>{}</aside>',
+        '<p class="sc-prose-callout-title"><span class="sc-prose-callout-kind">{}</span>{}</p>'
+        "{}</aside>",
         block.kind,
         label,
         label,

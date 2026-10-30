@@ -93,29 +93,6 @@ img {
   height: auto;
 }
 
-/* sandcorp-design's base makes media blocks, mono pre/code and a thicker hover underline;
-   portfolio keeps the browser defaults it was built on (issue 150) */
-img,
-svg,
-video {
-  display: inline;
-}
-
-svg,
-video {
-  max-width: none;
-}
-
-code,
-kbd,
-pre {
-  font-family: monospace;
-}
-
-a:hover {
-  text-decoration-thickness: 1px;
-}
-
 /* the mono label: section heads, meta, tab names, buttons */
 .section-head,
 .masthead-desc,
@@ -140,7 +117,7 @@ a:hover {
 .document-toc::before,
 .kpi-label,
 .table-unit,
-.callout-kind,
+.sc-prose-callout-kind,
 .cover-recipient,
 .proposal-facts dt,
 .gate-form label,
@@ -687,77 +664,23 @@ h3.block-heading {
 }
 
 /*
- * Body text is the shared .sc-prose (sandcorp-design, issue 150). Where portfolio's body text
- * differs from it, the rules below keep portfolio's look (they win by coming later at the same
- * specificity). Remaining differences to settle in the design: headings inside markdown, the
- * last child's bottom margin, image frames, hr, figcaption and table margins.
+ * Body text is the shared .sc-prose (sandcorp-design v0.6.0, issue 155): headings, spacing, images,
+ * hr, tables in .sc-prose-table-scroll and callout titles all come from the design. Left here:
+ * table cells keep the body text color (the design's .sc-prose table turns them ink), and the html
+ * block keeps its own wrapping and self-scrolling tables (its tables have no scroll box).
  */
-.prose {
-  overflow-wrap: break-word;
+.prose table {
+  color: inherit;
 }
 
-.prose h2,
-.prose h3,
-.prose h4 {
-  margin: 0;
-  padding-top: 0;
-  border-top: 0;
-  font-size: revert;
-  font-weight: 700;
-}
-
-.prose > p:last-child {
-  margin-bottom: var(--space-3);
-}
-
-.prose > :is(ul, ol, blockquote, pre, .table-scroll):last-child {
-  margin-bottom: var(--space-4);
-}
-
-.block-callout .prose > :last-child {
-  margin-bottom: 0;
-}
-
-.prose pre code {
-  background: var(--color-tint);
-}
-
-.prose hr {
-  margin: revert;
-  border: revert;
-}
-
-.prose img {
-  display: inline;
-  border: 0;
-  border-radius: 0;
-  background: none;
-}
-
-.prose figcaption {
-  margin-top: 0;
-}
-
-/* html block: framed images, tables flush (they scroll by themselves, from .sc-prose) */
 .block-html .prose {
   overflow-wrap: anywhere;
 }
 
-.block-html .prose img {
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius);
-}
-
 .block-html .prose table {
-  margin: 0;
-}
-
-/* markdown tables sit in .table-scroll, which scrolls; the table itself stays a table */
-.table-scroll > table {
-  display: table;
-  max-width: none;
-  margin: 0;
-  overflow-x: visible;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* kpi: a row of big numbers, mono label under each, hairline on top */
@@ -849,15 +772,7 @@ h3.block-heading {
   text-align: right;
 }
 
-.table-scroll {
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  margin: var(--space-3) 0 var(--space-4);
-  border-top: 1px solid var(--color-line-strong);
-}
-
-.block-table table,
-.prose table {
+.block-table table {
   border-collapse: collapse;
   width: 100%;
   font-size: var(--text-sm);
@@ -866,9 +781,7 @@ h3.block-heading {
 }
 
 .block-table th,
-.block-table td,
-.prose th,
-.prose td {
+.block-table td {
   border: 0;
   border-bottom: 1px solid var(--color-line);
   padding: var(--space-3);
@@ -876,8 +789,7 @@ h3.block-heading {
   vertical-align: top;
 }
 
-.block-table th,
-.prose th {
+.block-table th {
   background: var(--color-tint);
   color: var(--color-ink);
   font-weight: 650;
@@ -910,26 +822,13 @@ h3.block-heading {
   padding-left: var(--space-4);
 }
 
-/* callout: the shared .sc-prose-callout (2px rule on the left, accent for warning); portfolio adds
-   the condition kind and its own mono kind label */
+/* callout: the shared .sc-prose-callout (2px rule on the left, kind label + title, accent for
+   warning); portfolio adds the condition kind */
 .block-callout[data-kind="condition"] {
   border-left-color: var(--color-accent);
 }
 
-.callout-title {
-  margin: 0 0 var(--space-1);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-.callout-kind {
-  color: var(--color-muted);
-}
-
-.block-callout[data-kind="warning"] .callout-kind,
-.block-callout[data-kind="condition"] .callout-kind {
+.block-callout[data-kind="condition"] .sc-prose-callout-kind {
   color: var(--color-accent);
 }
 
@@ -1382,12 +1281,6 @@ h3.block-heading {
 /* ---- gallery ---- */
 .block-gallery {
   margin: var(--space-5) 0;
-}
-
-/* one image per row at its own size (issue 149) comes from .sc-prose-gallery; portfolio keeps the
-   tighter gap under the gallery title */
-.gallery-grid {
-  margin: var(--space-3) 0 0;
 }
 
 .gallery-grid .media-description {
@@ -2392,7 +2285,7 @@ h3.block-heading {
     display: table-header-group;
   }
 
-  .table-scroll {
+  .sc-prose-table-scroll {
     overflow: visible;
   }
 
