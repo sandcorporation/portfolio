@@ -26,6 +26,8 @@ urlpatterns = [
     path(".well-known/oauth-protected-resource/mcp", protected_resource_metadata),
     # HTML shell routes: Django fills per-route meta, React takes over in the browser.
     path("", shell.home, name="home"),
+    path("services", shell.services_hub, name="services_hub"),
+    path("services/<slug:slug>", shell.service, name="service"),
     path("work", shell.work_hub, name="work_hub"),
     path("work/<slug:slug>", shell.work, name="work"),
     path("og/<str:kind>/<slug:slug>.png", shell.og_card_image, name="og_card"),

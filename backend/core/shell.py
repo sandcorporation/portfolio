@@ -8,7 +8,7 @@ import json
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 from email.utils import format_datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -39,9 +39,9 @@ from content.models import (
 from core import public_html
 from core.clientip import client_ip
 from core.public_html import HERO_LEAD
-from core.seo import home_jsonld, work_jsonld
+from core.seo import home_jsonld, service_jsonld, work_jsonld
 from core.vite import entry_assets
-from services import blog, media, og_card, pdf, preview, proposals, publishing
+from services import blog, media, offerings, og_card, pdf, preview, proposals, publishing
 from services import proposal_access as access
 from services import proposal_events as events
 from services.home import home_page, site_availability, site_business
@@ -413,6 +413,37 @@ def work_hub(request: HttpRequest) -> HttpResponse:
     return HttpResponsePermanentRedirect("/#home-portfolio")
 
 
+def services_hub(request: HttpRequest) -> HttpResponse:
+    """/services has no page of its own: the two rows are the home's section (issue 163)."""
+    return HttpResponsePermanentRedirect("/#home-services")
+
+
+def service(request: HttpRequest, slug: str) -> HttpResponse:
+    """/services/<slug>: one of the two service pages; the copy is services/offerings.py."""
+    offering = offerings.get(slug)
+    if offering is None:
+        raise Http404
+    data = {"offering": offering, "availability": site_availability(), "business": site_business()}
+    return render_shell(
+        request,
+        PageMeta(
+            title=f"{offering['name']} | {SITE_NAME}",
+            description=offering["summary"],
+            robots=INDEX,
+            image=DEFAULT_OG_IMAGE,
+            image_alt=DEFAULT_OG_IMAGE_ALT,
+            jsonld=service_jsonld(
+                site_url=settings.SITE_URL,
+                url=_absolute(request, offerings.path(slug)),
+                offering=offering,
+            ),
+        ),
+        data=data,
+        count_visit=True,
+        body=public_html.service_body(data),
+    )
+
+
 def work(request: HttpRequest, slug: str) -> HttpResponse:
     detail = public_detail(slug)
     if detail is None:
@@ -460,12 +491,13 @@ def sitemap_xml(request: HttpRequest) -> HttpResponse:
     posts = blog.public_modified_by_slug()
     stamps = [*works.values(), *posts.values()]
     latest = max(stamps) if stamps else None
-    entries: list[tuple[str, datetime | None]] = [
+    entries: list[tuple[str, date | None]] = [
         ("/", latest),  # the home lists both, so it changed when either did
         *((f"/work/{slug}", at) for slug, at in works.items()),
         # an empty blog is not worth a crawl
         *([("/blog", max(posts.values()))] if posts else []),
         *((f"/blog/{slug}", at) for slug, at in posts.items()),
+        *((offerings.path(o["slug"]), offerings.UPDATED_ON) for o in offerings.OFFERINGS),
     ]
     urls = "".join(
         f"<url><loc>{escape(settings.SITE_URL + path)}</loc>"

@@ -1,3 +1,4 @@
+import type { OfferingCard } from "../services/types";
 import type { Document } from "../blocks/types";
 import type { PostCard } from "../blog/types";
 import type { PortfolioCard } from "../work/types";
@@ -67,6 +68,8 @@ export interface HomeData {
   business?: Business | null;
   /** The row under the hero; empty/absent hides it. */
   evidence?: EvidenceItem[];
+  /** The 「서비스」 rows (issue 163); empty/absent hides the section. */
+  services?: OfferingCard[];
   contact: { email: string; phone: string; address: string };
 }
 

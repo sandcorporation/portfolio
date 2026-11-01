@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from urllib.parse import urlsplit
 
 from content.models import SiteProfile
+from services.offerings import Offering
 from services.portfolio import PortfolioCard
 
 CONTEXT = "https://schema.org"
@@ -85,3 +86,19 @@ def work_jsonld(
     if urlsplit(service_url).scheme in ("http", "https"):
         data["sameAs"] = service_url
     return data
+
+
+def service_jsonld(*, site_url: str, url: str, offering: Offering) -> dict[str, object]:
+    """A service page (issue 163) as a Service offered by the home's Organization. No price:
+    the pages quote none."""
+    return {
+        "@context": CONTEXT,
+        "@type": "Service",
+        "name": offering["name"],
+        "description": offering["summary"],
+        "serviceType": offering["service_type"],
+        "url": url,
+        "inLanguage": "ko",
+        "provider": {"@id": f"{site_url}/#organization"},
+        "areaServed": {"@type": "Country", "name": "KR"},
+    }

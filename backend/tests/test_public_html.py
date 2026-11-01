@@ -74,7 +74,7 @@ def test_home_draws_hero_intro_rows_and_nav(client: Client) -> None:
     assert '<a class="work-row portfolio-row" href="/work/codemit">' in body
     assert '<a class="work-row" href="/blog/ssr">' in body
     assert '<a href="/blog">기록</a>' in body
-    numbers = re.findall(r"(\d\d) — (?:Company|Notes|Foresight|Work|Contact)", body)
+    numbers = re.findall(r"(\d\d) — (?:Company|Services|Notes|Foresight|Work|Contact)", body)
     assert numbers == [f"{n:02d}" for n in range(1, len(numbers) + 1)]  # only shown sections
 
 

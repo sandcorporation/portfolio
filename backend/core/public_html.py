@@ -495,6 +495,7 @@ def home_body(data: HomeData) -> SafeString:
     """The home. Section numbers count only the shown sections, as HomePage.tsx works out."""
     shown = [
         "company",
+        *(["services"] if data["services"] else []),
         *(["notes"] if data["posts"] else []),
         *(["news"] if data["news"] else []),
         *(["work"] if data["portfolio"] else []),
@@ -530,3 +531,8 @@ def blog_index_body(listing: PostListing, data: Mapping[str, object]) -> SafeStr
 def blog_post_body(data: Mapping[str, object]) -> SafeString:
     """/blog/<slug>: PostDetail plus the masthead's availability and the footer."""
     return _render("blog_post", data)
+
+
+def service_body(data: Mapping[str, object]) -> SafeString:
+    """/services/<slug> (issue 163): the offering, the masthead's availability, the footer."""
+    return _render("service", data)

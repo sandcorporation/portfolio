@@ -13,7 +13,7 @@ from adapters.foresight import fetch_stats as fetch_foresight_stats
 from adapters.metrics import Stats, fetch_stats
 from content.models import SiteProfile
 from documents.validation import JSON
-from services import blog, media
+from services import blog, media, offerings
 from services.portfolio import PortfolioCard, card_of, public_items
 
 RECENT_POSTS = 3
@@ -89,6 +89,7 @@ class HomeData(TypedDict):
     availability: Availability | None  # None (empty profile field) leaves it out
     business: Business | None  # None (all empty) leaves the footer line out
     evidence: list[EvidenceItem]  # the row under the hero; empty hides it (fewer than 2 items)
+    services: list[offerings.OfferingCard]  # the 「서비스」 rows (issue 163); empty hides them
 
 
 def relative_time(then: datetime, now: datetime) -> str:
@@ -266,6 +267,7 @@ def home_page() -> HomePage:
             evidence=evidence_of(
                 profile, portfolio, fetch_foresight_stats(), timezone.localdate(), stats
             ),
+            services=offerings.cards(),
         ),
     )
 

@@ -5,6 +5,7 @@ import { DocumentView } from "../blocks/DocumentView";
 import { PostRows } from "../blog/PostRows";
 import { PortfolioCards } from "../work/PortfolioCards";
 import { portfolioMeta } from "../work/types";
+import { ServiceRows } from "../services/ServiceRows";
 import { InquiryEmail } from "./InquiryEmail";
 import { InquiryForm } from "./InquiryForm";
 import { NewsRows } from "./NewsRows";
@@ -46,9 +47,12 @@ export function HomePage({ data }: { data: HomeData }) {
   const news = data.news ?? [];
   const hasPosts = posts.length > 0;
   const hasNews = news.length > 0;
+  const services = data.services ?? [];
+  const hasServices = services.length > 0;
   // The mono numbers count only the sections that are shown.
   const shown = [
     "company",
+    ...(hasServices ? ["services"] : []),
     ...(hasPosts ? ["notes"] : []),
     ...(hasNews ? ["news"] : []),
     ...(hasPortfolio ? ["work"] : []),
@@ -115,6 +119,15 @@ export function HomePage({ data }: { data: HomeData }) {
               </h2>
               <DocumentView document={data.company_intro} idPrefix="company-" hideToc />
             </section>
+            {hasServices && (
+              <section className="page-section" aria-labelledby="home-services">
+                <SectionHead index={no("services")} label="Services" />
+                <h2 id="home-services" className="page-section-title">
+                  서비스
+                </h2>
+                <ServiceRows services={services} />
+              </section>
+            )}
             {hasPosts && (
               <section className="page-section" aria-labelledby="home-notes">
                 <SectionHead

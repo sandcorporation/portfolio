@@ -77,6 +77,7 @@ export const FORESIGHT_NAV_URL = "https://news.sandcorp.co.kr/?utm_source=sandco
 
 const SITE_NAV = [
   { key: "company", href: "/#home-company", label: "회사 소개" },
+  { key: "services", href: "/#home-services", label: "서비스" },
   { key: "blog", href: "/blog", label: "기록" },
   { key: "foresight", href: FORESIGHT_NAV_URL, label: "Foresight ↗" },
   { key: "work", href: "/#home-portfolio", label: "포트폴리오" },
@@ -84,7 +85,7 @@ const SITE_NAV = [
 ] as const;
 
 /** The mono row under the masthead; the current item carries the accent square. */
-export function SiteNav({ current }: { current?: "company" | "blog" | "work" | "inquiry" }) {
+export function SiteNav({ current }: { current?: "company" | "services" | "blog" | "work" | "inquiry" }) {
   return (
     <nav className="site-nav" aria-label="사이트">
       <ul>

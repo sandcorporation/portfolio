@@ -42,6 +42,8 @@ def test_sitemap_lastmod_for_works_posts_and_home(client: Client) -> None:
         "https://sandcorp.co.kr/work/a",
         "https://sandcorp.co.kr/blog",
         "https://sandcorp.co.kr/blog/hello",
+        "https://sandcorp.co.kr/services/mcp-integration",
+        "https://sandcorp.co.kr/services/claude-code-automation",
     ]
     assert got["https://sandcorp.co.kr/work/a"] == a.updated_at.isoformat()
     assert got["https://sandcorp.co.kr/blog/hello"] == max(post.updated_at, published).isoformat()

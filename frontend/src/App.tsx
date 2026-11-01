@@ -7,6 +7,8 @@ import { ProposalCodeScreen, ProposalExpiredScreen } from "./proposal/ProposalGa
 import { ProposalPrintPage } from "./proposal/ProposalPrintPage";
 import { ProposalPage } from "./proposal/ProposalPage";
 import { isCodeScreen, isExpiredScreen, isProposalData } from "./proposal/types";
+import { ServicePage } from "./services/ServicePage";
+import { isServiceData } from "./services/types";
 import { WorkPage } from "./work/WorkPage";
 import { isWorkData } from "./work/types";
 
@@ -16,6 +18,7 @@ export function App({ path, data }: { path: string; data: unknown }) {
   if (path === "/blog" && isBlogIndexData(data)) return <BlogIndexPage data={data} />;
   if (path.startsWith("/blog/") && isBlogPostData(data)) return <BlogPostPage data={data} />;
   if (path.startsWith("/work/") && isWorkData(data)) return <WorkPage data={data} />;
+  if (path.startsWith("/services/") && isServiceData(data)) return <ServicePage data={data} />;
   if (path.startsWith("/p/")) {
     if (isCodeScreen(data)) return <ProposalCodeScreen data={data} action={path} />;
     if (isExpiredScreen(data)) return <ProposalExpiredScreen data={data} />;

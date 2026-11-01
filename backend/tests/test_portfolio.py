@@ -66,6 +66,8 @@ def test_sitemap_has_home_and_public_items_only(client: Client) -> None:
         "https://sandcorp.co.kr/",
         "https://sandcorp.co.kr/work/a",
         "https://sandcorp.co.kr/work/b",
+        "https://sandcorp.co.kr/services/mcp-integration",  # the code's service pages (issue 163)
+        "https://sandcorp.co.kr/services/claude-code-automation",
     ]
 
 

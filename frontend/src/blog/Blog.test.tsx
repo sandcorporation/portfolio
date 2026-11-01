@@ -103,19 +103,20 @@ test("글이 없거나 뉴스가 비면 그 섹션을 통째로 뺀다", () => {
   expect(screen.getByText(/Contact/)).toHaveTextContent("02 — Contact");
 });
 
-test("상단 내비는 회사 소개 · 기록 · Foresight ↗ · 포트폴리오 · 문의 순서로 주소를 건다", () => {
+test("상단 내비는 회사 소개 · 서비스 · 기록 · Foresight ↗ · 포트폴리오 · 문의 순서로 주소를 건다", () => {
   render(<App path="/" data={home()} />);
 
   const links = within(screen.getByRole("navigation", { name: "사이트" })).getAllByRole("link");
   expect(links.map((l) => [l.textContent, l.getAttribute("href")])).toEqual([
     ["회사 소개", "/#home-company"],
+    ["서비스", "/#home-services"],
     ["기록", "/blog"],
     ["Foresight ↗", "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medium=nav"],
     ["포트폴리오", "/#home-portfolio"],
     ["문의", "/#home-inquiry"],
   ]);
-  expect(links[2]).toHaveAttribute("rel", "noopener noreferrer");
-  expect(links[2]).toHaveAttribute("target", "_blank");
+  expect(links[3]).toHaveAttribute("rel", "noopener noreferrer");
+  expect(links[3]).toHaveAttribute("target", "_blank");
 });
 
 test("홈 섹션은 기록 · Foresight가 포트폴리오보다 위이고 목차 레일이 없다", () => {
