@@ -8,7 +8,7 @@ oracle(aarch64, 4코어)은 운영 서비스 열 개 남짓이 CPU를 나눠 쓴
 ```
 main push ─▶ 이미지 빌드 ─────────────────────▶ 배포(oracle)
              macos (M4 Pro, arm64 네이티브)       docker pull ghcr.io/sandcorporation/sandcorp-portfolio:<sha>
-             └ 3분 안에 실행기를 못 잡으면        DB 확인 → migrate → web·worker·backup 교체 → 헬스 확인
+             └ 3분 안에 실행기를 못 잡으면        DB 확인 → migrate → web·worker 교체 → 헬스 확인
                sub(built-in, QEMU로 arm64)         (빌드 없음)
 ```
 
@@ -33,7 +33,7 @@ Jenkins `sandcorp-portfolio`를 「Build with Parameters」로 `ROLLBACK_SHA=<�
 
 ## portfolio 사정
 
-- 이미지 하나(`portfolio-web`)를 web·worker·backup이 같이 쓴다. 셋 다 `${PORTFOLIO_IMAGE:-portfolio-web:latest}`다. 변수가 없으면(`make prod-local`) 예전처럼 로컬에서 빌드한다. renderer(browserless)는 그대로다.
+- 이미지 하나(`portfolio-web`)를 web·worker가 같이 쓴다. 둘 다 `${PORTFOLIO_IMAGE:-portfolio-web:latest}`다. 변수가 없으면(`make prod-local`) 예전처럼 로컬에서 빌드한다. renderer(browserless)는 그대로다.
 - 비공개 의존성 sandcorp-authkit 때문에 빌드 노드에서 `GIT_SSH_KEY`(자격 `github-farrar142`)를 BuildKit `--ssh default`로 넘긴다. oracle의 `deploy.sh`는 pull만 하므로 ssh-agent를 띄우지 않는다.
 - 배포 단계는 oracle의 같은 잡 워크스페이스(`/var/jenkins_home/workspace/portfolio`, 운영 `.env`가 있는 곳)를 그대로 쓴다.
 - oracle에서 빌드할 때 필요했던 `docker-compose.oracle.yml`의 `build.network: host`는 이제 쓰이지 않지만(로컬 빌드 때만) 둔다.

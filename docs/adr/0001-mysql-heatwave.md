@@ -13,7 +13,7 @@ DB는 운영 compose 안의 Postgres 17 컨테이너였다. 같은 oracle 호스
 - 콜레이션은 대소문자·악센트를 구분하는 `utf8mb4_0900_as_cs`로 정해 slug·고객 코드·username이 Postgres와 같은 뜻을 갖게 한다.
 - 트랜잭션 격리는 Django 기본(READ COMMITTED)을 그대로 둔다. 문서번호 직렬화(`services/publishing.py`)가 잠금 뒤 최신 커밋을 읽는 데 기대고, REPEATABLE READ에서는 갭 락 교착이 났다.
 - MySQL에 없는 부분 유일 제약(`event_first_view_once`)은 같은 뜻의 식 기반 유일 인덱스로 바꾼다.
-- 백업은 `mysqldump`(gzip)로 바꾸고 버킷·보관 규칙은 그대로 둔다.
+- 백업은 `mysqldump`(gzip)로 바꾼다. (#167에서 앱 자체 백업을 걷어냈다. 지금은 sandcorp-backup 컨테이너가 맡는다.)
 
 ## 결과
 

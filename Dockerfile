@@ -32,10 +32,9 @@ COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN --mount=type=ssh uv sync --frozen --no-dev --no-install-project
 
 FROM python:3.14-slim AS runtime
-# libmariadb3: the client library mysqlclient links to. default-mysql-client (MariaDB's
-# mysqldump/mysql) for the daily backup and restore (#19, #63).
+# libmariadb3: the client library mysqlclient links to.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libmariadb3 default-mysql-client \
+ && apt-get install -y --no-install-recommends libmariadb3 \
  && rm -rf /var/lib/apt/lists/*
 ENV PATH=/opt/venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \

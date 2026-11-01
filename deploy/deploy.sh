@@ -85,11 +85,7 @@ wait_healthy web
 echo "== PDF 렌더러·워커"
 # 렌더러는 고정 태그라 설정이 같으면 그대로 둔다. 워커는 새 이미지로 바꾼다(진행 중 PDF는 끝내고 멈춤).
 compose up -d --no-deps renderer
-compose up -d --no-deps $BUILD_FLAG --force-recreate worker
-
-echo "== DB 백업 사이드카"
-# 재시작해도 하루에 두 번 돌지 않는다(버킷의 마지막 백업 시각을 본다).
-compose up -d --no-deps $BUILD_FLAG --force-recreate backup
+compose up -d --no-deps --remove-orphans $BUILD_FLAG --force-recreate worker
 
 echo "== 헬스 확인"
 compose exec -T web python -c "
