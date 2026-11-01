@@ -24,7 +24,9 @@ from services.errors import NotFound, RateLimited
 logger = logging.getLogger(__name__)
 
 DEFAULT_SITE = "portfolio"
-Kind = Literal["문의", "제안", "신규 개발", "유지보수", "기타"]  # Inquiry.Kind values
+Kind = Literal[
+    "문의", "제안", "신규 개발", "유지보수", "기타", "MCP 연동", "Claude Code 자동화"
+]  # Inquiry.Kind values
 Text = Annotated[str, StringConstraints(strip_whitespace=True)]
 
 

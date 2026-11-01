@@ -12,6 +12,7 @@ from pytest_django.fixtures import Settings
 from adapters.fake_notify import ExplodingNotifier, FakeNotifier
 from adapters.notify import Notification, discord_payload
 from content.models import Inquiry
+from services import offerings
 
 URL = "/api/inquiries"
 FORM = {
@@ -242,3 +243,21 @@ def test_admin_lists_and_filters_the_new_kinds(owner_client: Client) -> None:
 
     filtered = owner_client.get("/admin/content/inquiry/", {"kind": "신규 개발"}).content.decode()
     assert "가나" in filtered and "다라" not in filtered
+
+
+@pytest.mark.parametrize("offering", offerings.OFFERINGS, ids=lambda o: o["slug"])
+def test_each_offering_is_an_inquiry_kind_by_its_name(
+    client: Client, notifier: FakeNotifier, offering: offerings.Offering
+) -> None:
+    assert offering["inquiry_kind"] in Inquiry.Kind.values
+    assert post(client, {**FORM, "kind": offering["inquiry_kind"]}) == 201
+    saved = Inquiry.objects.get()
+    assert saved.kind == offering["inquiry_kind"]
+    assert offering["inquiry_kind"] in notifier.sent[0].title
+    assert len(saved.kind) == len(offering["inquiry_kind"])  # not cut by the column
+
+
+def test_admin_shows_an_offering_kind(owner_client: Client) -> None:
+    Inquiry.objects.create(kind="Claude Code 자동화", name="마바", contact="c", message="m")
+    page = owner_client.get("/admin/content/inquiry/").content.decode()
+    assert "Claude Code 자동화" in page

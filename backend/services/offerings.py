@@ -30,6 +30,9 @@ class Offering(TypedDict):
     slug: str
     name: str
     summary: str  # the home row and the meta description
+    inquiry_kind: (
+        str  # its value in the inquiry form's 「구분」 (content.Inquiry.Kind), the short name
+    )
     lead: str  # under the page title
     service_type: str  # JSON-LD serviceType
     audience: list[str]
@@ -45,12 +48,14 @@ class OfferingCard(TypedDict):
     slug: str
     name: str
     summary: str
+    inquiry_kind: str
 
 
 OFFERINGS: tuple[Offering, ...] = (
     Offering(
         slug="mcp-integration",
         name="사내 MCP 서버·AI 에이전트 연동 구축",
+        inquiry_kind="MCP 연동",
         summary=(
             "회사 안의 DB·사내 API·메신저를 Claude 같은 AI가 쓸 수 있게 MCP 서버로 만들고, "
             "로그인·권한·감사 로그까지 붙입니다."
@@ -166,6 +171,7 @@ OFFERINGS: tuple[Offering, ...] = (
     Offering(
         slug="claude-code-automation",
         name="Claude Code 기반 개발 자동화 도입",
+        inquiry_kind="Claude Code 자동화",
         summary=(
             "팀 저장소에 Claude Code 작업 흐름(이슈 → 워크트리 → 시험 → PR)과 훅·스킬, "
             "시험 속도 예산, 토큰 관리를 들여 정착시킵니다."
@@ -278,7 +284,12 @@ def get(slug: str) -> Offering | None:
 
 def cards() -> list[OfferingCard]:
     """The home's rows, in page order."""
-    return [OfferingCard(slug=o["slug"], name=o["name"], summary=o["summary"]) for o in OFFERINGS]
+    return [
+        OfferingCard(
+            slug=o["slug"], name=o["name"], summary=o["summary"], inquiry_kind=o["inquiry_kind"]
+        )
+        for o in OFFERINGS
+    ]
 
 
 def path(slug: str) -> str:

@@ -647,9 +647,13 @@ class Inquiry(models.Model):
         NEW = "신규 개발", "신규 개발"
         MAINTENANCE = "유지보수", "유지보수"
         OTHER = "기타", "기타"
+        # The two offerings: the value is the offering's `inquiry_kind` in services/offerings.py
+        # (tests/test_inquiries.py keeps them equal).
+        MCP_INTEGRATION = "MCP 연동", "MCP 연동"
+        CLAUDE_CODE_AUTOMATION = "Claude Code 자동화", "Claude Code 자동화"
 
     site = models.CharField("사이트", max_length=40, default="portfolio")
-    kind = models.CharField("구분", max_length=10, choices=Kind, default=Kind.INQUIRY)
+    kind = models.CharField("구분", max_length=20, choices=Kind, default=Kind.INQUIRY)
     name = models.CharField("이름", max_length=80)
     company = models.CharField("회사", max_length=120, blank=True)
     contact = models.CharField("연락처", max_length=200)

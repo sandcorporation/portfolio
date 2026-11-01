@@ -42,7 +42,7 @@ test("서비스 화면은 제목·리드 → 대상 → 할 일 → 진행 방�
   expect(cases.map((a) => a.getAttribute("href"))).toEqual(["/blog/auth", "/work/flow"]);
   expect(cases[0]).not.toHaveAttribute("target");
   const quote = screen.getByRole("link", { name: "견적 문의 →" });
-  expect(quote).toHaveAttribute("href", "/#home-inquiry");
+  expect(quote).toHaveAttribute("href", `/?inquiry=${offering().slug}#home-inquiry`);
   expect(quote).toHaveAttribute("data-style", "primary");
   expect(document.querySelectorAll('[data-style="primary"]')).toHaveLength(1);
   const nav = within(screen.getByRole("navigation", { name: "사이트" }));
@@ -67,8 +67,8 @@ test("홈의 서비스 섹션은 회사 소개 바로 뒤에 두 페이지로 �
       path="/"
       data={home({
         services: [
-          { slug: "mcp-integration", name: "사내 MCP 연동", summary: "하나" },
-          { slug: "claude-code-automation", name: "개발 자동화", summary: "둘" },
+          { slug: "mcp-integration", name: "사내 MCP 연동", inquiry_kind: "MCP 연동", summary: "하나" },
+          { slug: "claude-code-automation", name: "개발 자동화", inquiry_kind: "Claude Code 자동화", summary: "둘" },
         ],
       })}
     />,

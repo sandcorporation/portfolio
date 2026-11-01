@@ -122,7 +122,8 @@ def test_the_server_html_draws_every_section_cases_and_one_quote_button(
         assert f'<a class="work-row" href="{case["href"]}">' in html  # same tab: our own pages
     assert html.count('data-style="primary"') == 1
     assert (
-        '<a class="cta-button" data-style="primary" href="/#home-inquiry">견적 문의 →</a>' in html
+        f'<a class="cta-button" data-style="primary" href="/?inquiry={offering["slug"]}'
+        '#home-inquiry">견적 문의 →</a>' in html
     )
     assert 'aria-current="page">서비스</a>' in html
     assert not re.search(r"\d[\d,]*\s*만?\s*원", re.sub(r"<[^>]+>", "", html))  # no price
@@ -167,7 +168,7 @@ def test_fixed_text_matches_the_app_sources() -> None:
         "진행 방식",
         "실제 사례",
         "견적 문의 →",
-        "/#home-inquiry",
+        "?inquiry=",
         "Service",
         *(f'"{label}"' for label in ["For", "What", "Process", "Cases", "Contact"]),
     ]:

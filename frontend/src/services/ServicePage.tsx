@@ -98,7 +98,7 @@ export function ServicePage({ data }: { data: ServiceData }) {
             <Head index="05" label="Contact" id="service-contact" title="문의" />
             <p className="section-lead">{o.contact}</p>
             <p className="post-cta">
-              <a className="cta-button" data-style="primary" href="/#home-inquiry">
+              <a className="cta-button" data-style="primary" href={`/?inquiry=${o.slug}#home-inquiry`}>
                 견적 문의 →
               </a>
             </p>

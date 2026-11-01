@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import type { OfferingCard } from "../services/types";
 
 type Status = "idle" | "sending" | "done" | "error";
 
@@ -7,7 +8,16 @@ const ERRORS: Record<number, string> = {
   422: "입력을 확인해 주세요. 이름, 연락처, 내용은 꼭 필요합니다.",
 };
 
-export function InquiryForm() {
+const PLAIN_KINDS = ["신규 개발", "유지보수"];
+
+/** The 구분 to preselect: `?inquiry=<offering slug>` (the service pages' 「견적 문의」 link) picks that
+ * offering, whose `inquiry_kind` is its Inquiry.Kind value; anything else keeps the default. */
+function initialKind(offerings: OfferingCard[]): string {
+  const slug = new URLSearchParams(window.location.search).get("inquiry");
+  return offerings.find((o) => o.slug === slug)?.inquiry_kind ?? "신규 개발";
+}
+
+export function InquiryForm({ offerings = [] }: { offerings?: OfferingCard[] }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
 
@@ -46,11 +56,12 @@ export function InquiryForm() {
     <form className="inquiry-form" onSubmit={(e) => void submit(e)}>
       <label>
         구분
-        <select name="kind" defaultValue="신규 개발">
-          <option value="신규 개발">신규 개발</option>
-          <option value="유지보수">유지보수</option>
-          <option value="제안">제안</option>
-          <option value="기타">기타</option>
+        <select name="kind" defaultValue={initialKind(offerings)}>
+          {[...PLAIN_KINDS, ...offerings.map((o) => o.inquiry_kind), "제안", "기타"].map((kind) => (
+            <option key={kind} value={kind}>
+              {kind}
+            </option>
+          ))}
         </select>
       </label>
       <label>

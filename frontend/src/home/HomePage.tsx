@@ -179,7 +179,7 @@ export function HomePage({ data }: { data: HomeData }) {
                   </p>
                 </div>
                 <div className="inquiry-body">
-                  <InquiryForm />
+                  <InquiryForm offerings={services} />
                 </div>
               </div>
             </section>

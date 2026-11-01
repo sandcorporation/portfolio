@@ -33,6 +33,8 @@ export interface OfferingCard {
   slug: string;
   name: string;
   summary: string;
+  /** Its value in the inquiry form's 구분 (Inquiry.Kind). */
+  inquiry_kind: string;
 }
 
 /** The shell's #page-data on `/services/<slug>`. */

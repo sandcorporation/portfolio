@@ -54,3 +54,31 @@ test("구분은 신규 개발 · 유지보수 · 제안 · 기타 순이고 기�
   ]);
   expect(select).toHaveValue("신규 개발");
 });
+
+const OFFERINGS = [
+  { slug: "mcp-integration", name: "사내 MCP", inquiry_kind: "MCP 연동", summary: "s" },
+  { slug: "claude-code-automation", name: "Claude Code", inquiry_kind: "Claude Code 자동화", summary: "s" },
+];
+
+test("상품이 있으면 구분에 이름으로 끼고 질의 값의 slug로 미리 고른다", () => {
+  window.history.pushState({}, "", "/?inquiry=claude-code-automation");
+  render(<InquiryForm offerings={OFFERINGS} />);
+  const select = screen.getByLabelText("구분");
+  expect(Array.from(select.querySelectorAll("option")).map((o) => o.value)).toEqual([
+    "신규 개발",
+    "유지보수",
+    "MCP 연동",
+    "Claude Code 자동화",
+    "제안",
+    "기타",
+  ]);
+  expect(select).toHaveValue("Claude Code 자동화");
+  window.history.pushState({}, "", "/");
+});
+
+test("알 수 없는 질의 값은 기본값을 쓴다", () => {
+  window.history.pushState({}, "", "/?inquiry=nope");
+  render(<InquiryForm offerings={OFFERINGS} />);
+  expect(screen.getByLabelText("구분")).toHaveValue("신규 개발");
+  window.history.pushState({}, "", "/");
+});
