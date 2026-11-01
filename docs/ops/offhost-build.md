@@ -9,10 +9,10 @@ oracle(aarch64, 4코어)은 운영 서비스 열 개 남짓이 CPU를 나눠 쓴
 main push ─▶ 이미지 빌드 ─────────────────────▶ 배포(oracle)
              macos (M4 Pro, arm64 네이티브)       docker pull ghcr.io/sandcorporation/sandcorp-portfolio:<sha>
              └ 3분 안에 실행기를 못 잡으면        DB 확인 → migrate → web·worker 교체 → 헬스 확인
-               sub(built-in, QEMU로 arm64)         (빌드 없음)
+               home(built-in, QEMU로 arm64)         (빌드 없음)
 ```
 
-- **노드를 못 잡았을 때만** sub로 넘어간다. macos에서 빌드가 실패하면 실패로 끝낸다(다시 sub로 굽지 않는다).
+- **노드를 못 잡았을 때만** home으로 넘어간다. macos에서 빌드가 실패하면 실패로 끝낸다(다시 home으로 굽지 않는다).
 - 빌드 노드는 콘솔(`== 빌드 노드: macos (...)`)과 빌드 설명(`<sha12> · 빌드 macos · oracle pull`)·디스코드 알림에 남는다.
 - 이미지: `ghcr.io/sandcorporation/portfolio:<커밋 sha 40자>`, 레이블 `org.opencontainers.image.source`·`revision`. 빌드 캐시는 `portfolio-buildcache:arm64`(레지스트리, `mode=max`).
 - 자격: ghcr 쓰기 `ghcr-push-token`(Secret text, codemit과 공유), 비공개 의존성용 SSH `github-farrar142`. oracle은 호스트 docker 설정에 있는 ghcr **읽기** 로그인을 쓴다(sandcorp-flow와 같다).
@@ -21,8 +21,8 @@ main push ─▶ 이미지 빌드 ───────────────�
 
 | 이름 | 기본 | 뜻 |
 |---|---|---|
-| `BUILDER` | `auto` | `auto` / `macos` / `sub` — 시험용으로 빌드 노드를 강제 |
-| `MAC_WAIT_SECONDS` | `180` | auto에서 macos 실행기를 기다리는 시간. 넘으면 sub |
+| `BUILDER` | `auto` | `auto` / `macos` / `home` — 시험용으로 빌드 노드를 강제 |
+| `MAC_WAIT_SECONDS` | `180` | auto에서 macos 실행기를 기다리는 시간. 넘으면 home |
 | `ROLLBACK_SHA` | 빈 값 | 채우면 빌드 없이 그 커밋의 이미지로 되돌린다 |
 
 ## 이전 sha로 되돌리기
@@ -41,6 +41,6 @@ Jenkins `sandcorp-portfolio`를 「Build with Parameters」로 `ROLLBACK_SHA=<�
 ## 주의점
 
 - Jenkins 스크립트 승인이 필요 없는 표준 단계만 쓴다. 노드 대기 시간 제한은 `parallel(failFast)` + `sleep` 감시다.
-- macos 실행기는 1개이고 다른 열차와 나눠 쓴다. 대기가 3분을 넘으면 sub로 간다. sub는 QEMU라 캐시가 없으면 느리다(레지스트리 캐시 `mode=max`를 두 노드가 공유).
+- macos 실행기는 1개이고 다른 열차와 나눠 쓴다. 대기가 3분을 넘으면 home으로 간다. home는 QEMU라 캐시가 없으면 느리다(레지스트리 캐시 `mode=max`를 두 노드가 공유).
 - 병합 뒤 첫 빌드가 돌아야 `BUILDER` 등 파라미터가 잡에 등록된다.
 - 빌드 노드의 `buildx`에 `docker-container` 빌더가 필요하다(스크립트가 `portfolio-images`를 만든다).
