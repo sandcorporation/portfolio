@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 배포 전 검사: `make check`와 같은 것(gen-check·lint·typecheck·시험·운영 프론트 빌드)을 도커 안에서 돌린다.
 # Jenkins `sandcorp-portfolio`(jenkins-shared 라이브러리 sandcorpDeploy의 「검사」)가 빌드 노드에서 이미지를 굽기 전에 부르고,
-# 실패하면 이미지를 굽지도 배포하지도 않는다. 노드에 uv·pnpm이 없어도 되고, 로컬에서도 그대로 돈다.
+# 실패하면 이미지를 굽지도 배포하지도 않는다. PR 검사(`sandcorp-portfolio-pr`, Jenkinsfile.pr의 sandcorpPrCheck)도 같은 것을 부른다. 노드에 uv·pnpm이 없어도 되고, 로컬에서도 그대로 돈다.
 #
 #   bash scripts/ci/check.sh
 #

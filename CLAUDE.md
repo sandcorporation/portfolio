@@ -15,7 +15,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 ## 작업 흐름
 
 - 이슈마다 워크트리 `~/workspace/portfolio-wt/<브랜치>`에서 작업하고 `origin/main`으로 PR을 연다.
-- PR CI는 없다. 시험·린트·타입 검사는 로컬에서 돌린다. 통과하면 작업자가 바로 squash 병합한다(main 직접 push 금지).
+- PR을 열면 Jenkins `sandcorp-portfolio-pr`(멀티브랜치, `Jenkinsfile.pr` → 공용 라이브러리 `sandcorpPrCheck`)가 빌드 노드에서 PR 머지 결과로 파괴적 migrate 검사와 `scripts/ci/check.sh`(= `make check`)를 돌려 PR head 커밋 상태 `continuous-integration/jenkins/pr-merge`로 올린다. 작업자는 로컬 `make check` 뒤 PR을 열고 `wait-ci.py <PR>`가 SUCCESS일 때만 squash 병합한다(main 직접 push 금지, 보호 규칙이 없어 이 규칙과 배포 전 검사가 강제다). 지우기·이름 바꾸기·null 불가 전환 migration은 expand/contract 두 배포로 나누고 contract 쪽 파일에 `# sandcorp: destructive-ok — <이유>`(jenkins-shared README 「파괴적 migrate 검사」).
 - main에 병합하면 Jenkins `sandcorp-portfolio`가 공용 라이브러리 `sandcorp`(sandcorporation/jenkins-shared `sandcorpDeploy`; `Jenkinsfile`은 이 저장소 값만 넘기는 호출 하나)로 배포한다: main이 직전 성공 배포 뒤로 안 움직였으면(작업 브랜치 push 등) `NOT_BUILT`로 끝나고, 아니면 빌드 노드(macos, 3분 못 잡으면 home)에서 `scripts/ci/check.sh`(= `make check`를 도커 안에서, 실패하면 배포 안 함) 뒤 이미지를 `ghcr.io/sandcorporation/portfolio:<sha>`로 굽고, `oracle`은 pull·migrate·교체·헬스 확인만 한다(헬스 실패면 직전 성공 이미지로 자동 롤백, 파라미터 `BUILDER`·`MAC_WAIT_SECONDS`·`ROLLBACK_SHA`, `docs/ops/offhost-build.md`). `deploy/deploy.sh`는 로컬 운영 compose 확인용이다. 배포 잡과 서버 설정(env 파일, NPMplus, DNS, OCI)은 조율자가 다룬다. 작업자는 원격 호스트에 쓰지 않는다.
 - 스펙은 #1, 티켓은 그 하위 이슈다.
 - 인증 코드는 sandcorp-authkit에서, 이 저장소에는 어댑터 한 파일(`backend/oauth/auth.py`)만. 의존성은 ssh git 소스(태그 고정)라 이미지 빌드(macos·home 노드, 라이브러리 `build-image.sh`·`scripts/ci/check.sh`)는 `--ssh default`가 필요하다(로컬: `docker build --ssh default=$HOME/.ssh/github .`, Jenkins: 라이브러리가 `GIT_SSH_KEY`로 ssh-agent를 띄움). 운영자 로그인 뷰는 `backend/oauth/admin_login.py`.
