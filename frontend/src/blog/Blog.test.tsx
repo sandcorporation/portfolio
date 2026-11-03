@@ -205,6 +205,15 @@ test("글 화면은 메타·제목·요약·커버·블록 본문·이전/다음
   expect(screen.getByRole("link", { name: "← 기록" })).toHaveAttribute("href", "/blog");
 });
 
+test("글 화면의 목차는 본문 블록 앞 형제라 CSS가 오른쪽 패널로 뺀다", () => {
+  render(<App path="/blog/a" data={post()} />);
+
+  const toc = document.querySelector(".page.post .document-body > .document-toc[data-spy]");
+  expect(toc).not.toBeNull();
+  expect(toc?.nextElementSibling).toHaveClass("document-blocks");
+  expect(toc?.querySelector("a")).toHaveAttribute("href", "#post-intro");
+});
+
 test("가장 오래된·새 글은 없는 쪽 이웃 링크를 두지 않는다", () => {
   render(<App path="/blog/a" data={post({ prev: null, card: card("a") })} />);
 

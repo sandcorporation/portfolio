@@ -135,6 +135,9 @@ def test_blog_pages_draw_rows_tags_and_post(client: Client) -> None:
     assert '<h1 id="post-title" class="work-title">글 new</h1>' in post
     assert '<a href="/blog/old" rel="prev">' in post
     assert "<li>전화 확인</li>" in post
+    # the contents list is the body's first child, the same shape React draws (CSS moves it right)
+    assert '<div class="document-body"><nav class="document-toc"' in post
+    assert '</nav><div class="document-blocks">' in post
 
 
 def test_text_is_escaped(client: Client) -> None:
