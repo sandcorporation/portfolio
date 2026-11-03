@@ -357,11 +357,15 @@ img {
   margin-inline: auto;
 }
 
-/* issue 191: visual blocks (cover image, gallery, video, embed) and the wide table and steps blocks break out of the reading column.
-   --post-wide is how far each may stick out: the free room beside the column minus the gutter and a
-   scrollbar's worth, at most 240px. Text, callouts and lists stay at the measure. */
+/* issue 191: visual blocks (cover image, gallery, video, embed) and the wide table and steps blocks
+   break out of the reading column, symmetrically around its centre. --post-wide is how far each
+   sticks out on each side: the free room beside the column minus the gutter and a scrollbar's
+   worth, at most 240px. 100cqw is the column width (the page is a size container), which a
+   percentage cannot give inside the zero-width contents-panel grid track. Text, callouts and
+   lists stay at the measure. */
 .page.post {
-  --post-wide: clamp(0px, calc((100vw - 100%) / 2 - var(--gutter) - 1rem), 240px);
+  container-type: inline-size;
+  --post-wide: clamp(0px, calc((100vw - 100cqw) / 2 - var(--gutter) - 1rem), 240px);
 }
 
 .page.post .work-cover.sc-prose-cover {
@@ -382,19 +386,16 @@ img {
   justify-items: center;
 }
 
-/* with a contents panel on the right the figures grow to the left only, so they never reach it */
+/* with a contents panel (>= 1280px) it sits right of the widened blocks: column edge + --post-wide
+   + gap. The panel needs gap + rail-width + 32px beside the widest block, so --post-wide shrinks
+   (to 0 at 1280px) as the room does; blocks stay symmetric and below 1280px the panel folds. */
 @media screen and (min-width: 1280px) {
-  .page.post:has(.document-toc[data-spy]) .work-cover.sc-prose-cover,
-  .page.post:has(.document-toc[data-spy]) .block-gallery,
-  .page.post:has(.document-toc[data-spy]) .block-video,
-  .page.post:has(.document-toc[data-spy]) .block-embed,
-  .page.post:has(.document-toc[data-spy]) .block-table,
-  .page.post:has(.document-toc[data-spy]) .block-steps {
-    margin-right: 0;
-  }
-
-  .page.post:has(.document-toc[data-spy]) .work-cover.sc-prose-cover {
-    max-width: calc(100% + var(--post-wide));
+  .page.post:has(.document-toc[data-spy]) {
+    --post-wide: clamp(
+      0px,
+      calc((100vw - 100cqw) / 2 - var(--space-7) - var(--rail-width) - 32px),
+      240px
+    );
   }
 }
 
@@ -406,6 +407,19 @@ img {
 
   .page.post .work-cover.sc-prose-cover {
     border-radius: 0;
+  }
+
+  /* issue 193: the figure or table itself stays edge to edge, but the text around it (titles,
+     captions, units, footnotes) keeps the page gutter so it lines up with the body text */
+  .page.post :is(.block-gallery, .block-table, .block-video, .block-embed) > :is(h2, h3, h4),
+  .page.post .table-unit,
+  .page.post .table-footnotes,
+  .page.post .gallery-grid .media-description,
+  .page.post .block-video .media-description,
+  .page.post .block-video figcaption,
+  .page.post .block-embed .embed-intro,
+  .page.post .block-embed .embed-where {
+    padding-inline: var(--gutter);
   }
 
   /* one-column steps keep the text edge: their text would touch the screen edge */
@@ -469,7 +483,7 @@ img {
     grid-column: 2;
     grid-row: 1 / span 1000;
     width: var(--rail-width);
-    margin: 0 0 0 var(--space-7);
+    margin: 0 0 0 calc(var(--post-wide) + var(--space-7));
     padding: 0;
     border: 0;
     position: sticky;
