@@ -407,6 +407,12 @@ img {
   margin-inline: calc(-1 * var(--post-wide));
 }
 
+/* issue 197: a table written inside a prose (markdown) block widens like the table block; the
+   wrapper is a direct child of .sc-prose so tables nested in callouts or lists stay put */
+.page.post .sc-prose > .sc-prose-table-scroll {
+  margin-inline: calc(-1 * var(--post-wide));
+}
+
 .page.post :is(.block-gallery, .block-table, .block-video, .block-embed, .block-steps) > :is(h2, h3, h4),
 .page.post .table-unit,
 .page.post .table-footnotes,
@@ -1153,6 +1159,7 @@ h3.block-heading {
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.35;
+  text-wrap: balance;
 }
 
 .work-row:hover .work-row-title {
@@ -1317,6 +1324,8 @@ h3.block-heading {
   line-height: 1;
   letter-spacing: -0.03em;
   margin: var(--space-4) 0 var(--space-4);
+  /* issue 197: even out the lines so the last one is not a single word (keep-all stays) */
+  text-wrap: balance;
 }
 
 .work-summary {
@@ -2525,4 +2534,9 @@ h3.block-heading {
   .audio-compare-text {
     grid-template-columns: repeat(auto-fit, minmax(60mm, 1fr));
   }
+}
+
+/* issue 197: headings inside prose are short; balance them too */
+.sc-prose :is(h2, h3) {
+  text-wrap: balance;
 }
