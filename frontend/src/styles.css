@@ -357,6 +357,63 @@ img {
   margin-inline: auto;
 }
 
+/* issue 191: visual blocks (cover image, gallery, video, embed) and the wide table and steps blocks break out of the reading column.
+   --post-wide is how far each may stick out: the free room beside the column minus the gutter and a
+   scrollbar's worth, at most 240px. Text, callouts and lists stay at the measure. */
+.page.post {
+  --post-wide: clamp(0px, calc((100vw - 100%) / 2 - var(--gutter) - 1rem), 240px);
+}
+
+.page.post .work-cover.sc-prose-cover {
+  width: fit-content;
+  max-width: calc(100% + 2 * var(--post-wide));
+  margin-inline: calc(-1 * var(--post-wide));
+}
+
+.page.post .block-gallery,
+.page.post .block-video,
+.page.post .block-embed,
+.page.post .block-table,
+.page.post .block-steps {
+  margin-inline: calc(-1 * var(--post-wide));
+}
+
+.page.post .sc-prose-gallery {
+  justify-items: center;
+}
+
+/* with a contents panel on the right the figures grow to the left only, so they never reach it */
+@media screen and (min-width: 1280px) {
+  .page.post:has(.document-toc[data-spy]) .work-cover.sc-prose-cover,
+  .page.post:has(.document-toc[data-spy]) .block-gallery,
+  .page.post:has(.document-toc[data-spy]) .block-video,
+  .page.post:has(.document-toc[data-spy]) .block-embed,
+  .page.post:has(.document-toc[data-spy]) .block-table,
+  .page.post:has(.document-toc[data-spy]) .block-steps {
+    margin-right: 0;
+  }
+
+  .page.post:has(.document-toc[data-spy]) .work-cover.sc-prose-cover {
+    max-width: calc(100% + var(--post-wide));
+  }
+}
+
+/* phone: edge to edge, the page gutter cancelled */
+@media (max-width: 600px) {
+  .page.post {
+    --post-wide: var(--gutter);
+  }
+
+  .page.post .work-cover.sc-prose-cover {
+    border-radius: 0;
+  }
+
+  /* one-column steps keep the text edge: their text would touch the screen edge */
+  .page.post .block-steps {
+    margin-inline: 0;
+  }
+}
+
 /* the fold button exists in every contents list but only the blog post shows it, below 1280px */
 .document-toc-toggle {
   display: none;
