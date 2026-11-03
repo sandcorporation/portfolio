@@ -357,20 +357,45 @@ img {
   margin-inline: auto;
 }
 
-/* issue 191: visual blocks (cover image, gallery, video, embed) and the wide table and steps blocks
-   break out of the reading column, symmetrically around its centre. --post-wide is how far each
-   sticks out on each side: the free room beside the column minus the gutter and a scrollbar's
-   worth, at most 240px. 100cqw is the column width (the page is a size container), which a
-   percentage cannot give inside the zero-width contents-panel grid track. Text, callouts and
-   lists stay at the measure. */
-.page.post {
+/* issue 191, issue 195: visual blocks (cover image, gallery, video, embed) and the wide table and
+   steps blocks break out of the reading column, symmetrically around its centre. --post-wide is
+   how far each sticks out on each side: the free room beside the column minus the gutter, at
+   most 240px. It is worked out on .page.post from 100cqw of its parent (a size container), so a
+   classic scrollbar is left out; 100vw would count it. Being a registered length it inherits as
+   pixels. Text, callouts and lists stay at the measure, and so do the titles, footnotes and
+   descriptions of the wide blocks; only the image, the table and the row of step cards widen. */
+@property --post-wide {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+:has(> .page.post) {
   container-type: inline-size;
-  --post-wide: clamp(0px, calc((100vw - 100cqw) / 2 - var(--gutter) - 1rem), 240px);
+}
+
+.page.post {
+  --post-column: min(var(--measure), 100cqw - 2 * var(--gutter));
+  --post-wide: clamp(0px, calc((100cqw - var(--post-column)) / 2 - var(--gutter)), 240px);
+}
+
+/* the head (back link, date and tags, title, rule) spans the wide width too so the title wraps
+   less and lines up with the cover; the summary gets a little more than the measure */
+.page.post > .back-link {
+  margin-inline-start: calc(-1 * var(--post-wide));
+}
+
+.page.post .work-head {
+  margin-inline: calc(-1 * var(--post-wide));
+}
+
+.page.post .work-summary {
+  max-width: min(100%, calc(var(--measure) + 8rem));
 }
 
 .page.post .work-cover.sc-prose-cover {
-  width: fit-content;
-  max-width: calc(100% + 2 * var(--post-wide));
+  width: calc(100% + 2 * var(--post-wide));
+  max-width: none;
   margin-inline: calc(-1 * var(--post-wide));
 }
 
@@ -382,18 +407,39 @@ img {
   margin-inline: calc(-1 * var(--post-wide));
 }
 
+.page.post :is(.block-gallery, .block-table, .block-video, .block-embed, .block-steps) > :is(h2, h3, h4),
+.page.post .table-unit,
+.page.post .table-footnotes,
+.page.post .block-video .media-description,
+.page.post .block-video figcaption,
+.page.post .block-embed .embed-intro,
+.page.post .block-embed .embed-where {
+  margin-inline: var(--post-wide);
+}
+
+/* an image narrower than the wide width sits in its middle; its caption takes the image's width
+   and left edge (the caption does not widen the item) */
 .page.post .sc-prose-gallery {
   justify-items: center;
 }
 
-/* with a contents panel (>= 1280px) it sits right of the widened blocks: column edge + --post-wide
+.page.post .gallery-grid > li {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.page.post .gallery-grid .media-description {
+  contain: inline-size;
+}
+
+/* with a contents panel (>= 1600px) it sits right of the widened blocks: column edge + --post-wide
    + gap. The panel needs gap + rail-width + 32px beside the widest block, so --post-wide shrinks
-   (to 0 at 1280px) as the room does; blocks stay symmetric and below 1280px the panel folds. */
-@media screen and (min-width: 1280px) {
+   as the room does; blocks stay symmetric and below 1600px the panel folds above the text. */
+@media screen and (min-width: 1600px) {
   .page.post:has(.document-toc[data-spy]) {
     --post-wide: clamp(
       0px,
-      calc((100vw - 100cqw) / 2 - var(--space-7) - var(--rail-width) - 32px),
+      calc((100cqw - var(--post-column)) / 2 - var(--space-7) - var(--rail-width) - 32px),
       240px
     );
   }
@@ -409,31 +455,30 @@ img {
     border-radius: 0;
   }
 
-  /* issue 193: the figure or table itself stays edge to edge, but the text around it (titles,
-     captions, units, footnotes) keeps the page gutter so it lines up with the body text */
-  .page.post :is(.block-gallery, .block-table, .block-video, .block-embed) > :is(h2, h3, h4),
-  .page.post .table-unit,
-  .page.post .table-footnotes,
-  .page.post .gallery-grid .media-description,
-  .page.post .block-video .media-description,
-  .page.post .block-video figcaption,
-  .page.post .block-embed .embed-intro,
-  .page.post .block-embed .embed-where {
+  /* the head text keeps the page gutter; only the cover runs to the screen edge */
+  .page.post > .back-link,
+  .page.post .work-head {
+    margin-inline: 0;
+  }
+
+  /* issue 193: the figure itself stays edge to edge, but its caption keeps the page gutter so it
+     lines up with the body text */
+  .page.post .gallery-grid .media-description {
     padding-inline: var(--gutter);
   }
 
   /* one-column steps keep the text edge: their text would touch the screen edge */
   .page.post .block-steps {
-    margin-inline: 0;
+    --post-wide: 0px;
   }
 }
 
-/* the fold button exists in every contents list but only the blog post shows it, below 1280px */
+/* the fold button exists in every contents list but only the blog post shows it, below 1600px */
 .document-toc-toggle {
   display: none;
 }
 
-@media screen and (max-width: 1279.98px) {
+@media screen and (max-width: 1599.98px) {
   .page.post .document:not(.document-print) .document-toc::before {
     display: none;
   }
@@ -469,7 +514,7 @@ img {
   }
 }
 
-@media screen and (min-width: 1280px) {
+@media screen and (min-width: 1600px) {
   .page.post .document:not(.document-print) .document-body:has(> .document-toc[data-spy]) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 0;

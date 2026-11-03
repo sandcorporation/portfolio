@@ -182,7 +182,7 @@ function Toc({ entries, spy = false }: { entries: TocEntry[]; spy?: boolean }) {
   if (entries.length === 0) return null;
   return (
     <nav className="document-toc" aria-label="목차" data-spy={spy ? "" : undefined} data-open={open ? "" : undefined}>
-      {/* only the blog post shows this (CSS), below 1280px, where the list folds away */}
+      {/* only the blog post shows this (CSS), below 1600px, where the list folds away */}
       <button type="button" className="document-toc-toggle" aria-expanded={open} aria-controls={listId} onClick={() => setOpen(!open)}>
         목차
       </button>
