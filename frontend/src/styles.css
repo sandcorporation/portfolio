@@ -350,6 +350,14 @@ img {
   min-width: 0;
 }
 
+/* Blog post only: the reading block (contents rail + measure) sits centred on wide screens. */
+@media (min-width: 1024px) {
+  .page.post {
+    max-width: calc(var(--rail-width) + var(--space-7) + var(--measure) + 2 * var(--gutter));
+    margin-inline: auto;
+  }
+}
+
 .placeholder {
   min-height: 100vh;
   display: grid;
