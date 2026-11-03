@@ -357,6 +357,47 @@ img {
   margin-inline: auto;
 }
 
+/* the fold button exists in every contents list but only the blog post shows it, below 1280px */
+.document-toc-toggle {
+  display: none;
+}
+
+@media screen and (max-width: 1279.98px) {
+  .page.post .document:not(.document-print) .document-toc::before {
+    display: none;
+  }
+
+  .page.post .document:not(.document-print) .document-toc-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-muted);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .page.post .document:not(.document-print) .document-toc-toggle::after {
+    content: "+";
+    font-family: var(--font-mono);
+  }
+
+  .page.post .document:not(.document-print) .document-toc[data-open] .document-toc-toggle::after {
+    content: "\2212";
+  }
+
+  .page.post .document:not(.document-print) .document-toc[data-open] .document-toc-toggle {
+    margin-bottom: var(--space-1);
+  }
+
+  .page.post .document:not(.document-print) .document-toc:not([data-open]) ul {
+    display: none;
+  }
+}
+
 @media screen and (min-width: 1280px) {
   .page.post .document:not(.document-print) .document-body:has(> .document-toc[data-spy]) {
     display: grid;

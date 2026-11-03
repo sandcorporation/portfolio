@@ -137,6 +137,7 @@ def test_blog_pages_draw_rows_tags_and_post(client: Client) -> None:
     assert "<li>전화 확인</li>" in post
     # the contents list is the body's first child, the same shape React draws (CSS moves it right)
     assert '<div class="document-body"><nav class="document-toc"' in post
+    assert '<button type="button" class="document-toc-toggle" aria-expanded="false"' in post
     assert '</nav><div class="document-blocks">' in post
 
 

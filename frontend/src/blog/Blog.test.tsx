@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { App } from "../App";
 import { exampleDocument } from "../blocks/testing";
 import type { HomeData } from "../home/types";
@@ -212,6 +212,12 @@ test("글 화면의 목차는 본문 블록 앞 형제라 CSS가 오른쪽 패�
   expect(toc).not.toBeNull();
   expect(toc?.nextElementSibling).toHaveClass("document-blocks");
   expect(toc?.querySelector("a")).toHaveAttribute("href", "#post-intro");
+  const toggle = screen.getByRole("button", { name: "목차" });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(toc).not.toHaveAttribute("data-open");
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(toc).toHaveAttribute("data-open");
 });
 
 test("가장 오래된·새 글은 없는 쪽 이웃 링크를 두지 않는다", () => {

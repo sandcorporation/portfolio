@@ -177,10 +177,16 @@ function TabbedView({
  */
 function Toc({ entries, spy = false }: { entries: TocEntry[]; spy?: boolean }) {
   const current = useCurrentAnchor(entries, spy);
+  const [open, setOpen] = useState(false);
+  const listId = useId();
   if (entries.length === 0) return null;
   return (
-    <nav className="document-toc" aria-label="목차" data-spy={spy ? "" : undefined}>
-      <ul>
+    <nav className="document-toc" aria-label="목차" data-spy={spy ? "" : undefined} data-open={open ? "" : undefined}>
+      {/* only the blog post shows this (CSS), below 1280px, where the list folds away */}
+      <button type="button" className="document-toc-toggle" aria-expanded={open} aria-controls={listId} onClick={() => setOpen(!open)}>
+        목차
+      </button>
+      <ul id={listId}>
         {entries.map((entry) => (
           <li key={entry.anchor} data-level={entry.level}>
             <a href={`#${entry.anchor}`} aria-current={entry.anchor === current ? "location" : undefined}>

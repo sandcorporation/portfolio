@@ -115,7 +115,7 @@ test("지워진 미디어의 트랙은 고를 수 없고 그렇다고 말한다"
   };
   renderBlock(gone);
 
-  for (const button of screen.getAllByRole("button")) expect(button).toBeDisabled();
+  for (const button of screen.getAllByRole("button").filter((b) => !b.closest(".document-toc"))) expect(button).toBeDisabled();
   expect(screen.getByText("이 자료는 더 이상 제공되지 않습니다.")).toBeInTheDocument();
   expect(player()).toBeNull();
 });

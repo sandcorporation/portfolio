@@ -435,7 +435,12 @@ def document_html(document: Mapping[str, JSON], prefix: str, toc: bool = True) -
                 entries.append((title[1], f"#{prefix}{block.id}", title[0]))
     nav = (
         format_html(
-            '<nav class="document-toc" aria-label="목차"><ul>{}</ul></nav>',
+            '<nav class="document-toc" aria-label="목차">'
+            '<button type="button" class="document-toc-toggle" aria-expanded="false" '
+            'aria-controls="{}">목차</button>'
+            '<ul id="{}">{}</ul></nav>',
+            f"{prefix}toc",
+            f"{prefix}toc",
             format_html_join("", '<li data-level="{}"><a href="{}">{}</a></li>', entries),
         )
         if toc and entries
