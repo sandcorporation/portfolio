@@ -222,8 +222,10 @@ def _steps(block: StepsBlock, anchor: str) -> SafeString:
         ),
     )
     return format_html(
-        '<section class="block-steps" data-layout="{}">{}<ol class="steps-list">{}</ol></section>',
+        '<section class="block-steps" data-layout="{}" data-numbered="{}">'
+        '{}<ol class="steps-list">{}</ol></section>',
         block.layout,
+        "true" if block.numbered else "false",
         _heading(3, anchor, block.title),
         items,
     )

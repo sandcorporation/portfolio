@@ -259,6 +259,20 @@ def test_embed_block_draws_frame_and_new_tab_link() -> None:
     assert "<script" not in out  # no script: the frame stays 640px until the app takes over
 
 
+@pytest.mark.parametrize("numbered", [True, False])
+def test_steps_block_draws_data_numbered(numbered: bool) -> None:
+    steps: dict[str, JSON] = {
+        "id": "s",
+        "type": "steps",
+        "numbered": numbered,
+        "items": [{"id": "a", "title": "하나"}, {"id": "b", "title": "둘"}],
+    }
+    out = str(
+        public_html.document_html({"tabs": [{"id": "t", "title": "t", "blocks": [steps]}]}, "w-")
+    )
+    assert f'data-numbered="{"true" if numbered else "false"}"' in out
+
+
 def test_home_every_external_link_opens_in_new_tab(client: Client) -> None:
     """#129: nav, masthead, footer, inquiry and the Foresight rows; internal ones stay put."""
     body = root(client.get("/").content.decode())

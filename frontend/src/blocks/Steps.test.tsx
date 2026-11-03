@@ -86,3 +86,15 @@ test("가로 배치는 단계 수와 상관없이 한 목록에 모두 그린다
 
   expect(container.querySelectorAll(".block-steps ol > li")).toHaveLength(8);
 });
+
+test("번호가 있으면 data-numbered=true, 없으면 false로 내려 CSS가 화살표를 끈다", async () => {
+  const on = renderBlock({ ...block, numbered: true });
+  expect(on.container.querySelector(".block-steps")).toHaveAttribute("data-numbered", "true");
+  on.unmount();
+  const off = renderBlock({ ...block, numbered: false });
+  expect(off.container.querySelector(".block-steps")).toHaveAttribute("data-numbered", "false");
+
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf8");
+  expect(css).toMatch(/\.block-steps\[data-numbered="false"\] \.step::after\s*\{\s*content: none !important/);
+});

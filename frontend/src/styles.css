@@ -360,10 +360,12 @@ img {
 /* issue 191, issue 195: visual blocks (cover image, gallery, video, embed) and the wide table and
    steps blocks break out of the reading column, symmetrically around its centre. --post-wide is
    how far each sticks out on each side: the free room beside the column minus the gutter, at
-   most 240px. It is worked out on .page.post from 100cqw of its parent (a size container), so a
+   most 80px (issue 199: same as the Foresight article page, so every wide block, the cover and the
+   head share one left and right edge). It is worked out on .page.post from 100cqw of its parent (a size container), so a
    classic scrollbar is left out; 100vw would count it. Being a registered length it inherits as
-   pixels. Text, callouts and lists stay at the measure, and so do the titles, footnotes and
-   descriptions of the wide blocks; only the image, the table and the row of step cards widen. */
+   pixels. Text, callouts and lists stay at the measure. Titles, footnotes and descriptions of the
+   wide blocks start at the block's own left edge (issue 199; on a phone, where that edge is the
+   screen edge, they keep the page gutter). */
 @property --post-wide {
   syntax: "<length>";
   inherits: true;
@@ -376,11 +378,11 @@ img {
 
 .page.post {
   --post-column: min(var(--measure), 100cqw - 2 * var(--gutter));
-  --post-wide: clamp(0px, calc((100cqw - var(--post-column)) / 2 - var(--gutter)), 240px);
+  --post-wide: clamp(0px, calc((100cqw - var(--post-column)) / 2 - var(--gutter)), 80px);
 }
 
 /* the head (back link, date and tags, title, rule) spans the wide width too so the title wraps
-   less and lines up with the cover; the summary gets a little more than the measure */
+   less and lines up with the cover; the summary keeps the measure */
 .page.post > .back-link {
   margin-inline-start: calc(-1 * var(--post-wide));
 }
@@ -390,7 +392,7 @@ img {
 }
 
 .page.post .work-summary {
-  max-width: min(100%, calc(var(--measure) + 8rem));
+  max-width: var(--measure);
 }
 
 .page.post .work-cover.sc-prose-cover {
@@ -413,14 +415,21 @@ img {
   margin-inline: calc(-1 * var(--post-wide));
 }
 
-.page.post :is(.block-gallery, .block-table, .block-video, .block-embed, .block-steps) > :is(h2, h3, h4),
-.page.post .table-unit,
-.page.post .table-footnotes,
-.page.post .block-video .media-description,
-.page.post .block-video figcaption,
-.page.post .block-embed .embed-intro,
-.page.post .block-embed .embed-where {
-  margin-inline: var(--post-wide);
+.page.post .work-title {
+  font-size: 4rem;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.page.post .work-summary {
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
+
+/* issue 199: tables in a post read at 16px (the body text is 18px) */
+.page.post .sc-prose-table-scroll table,
+.page.post .sc-prose-table-scroll :is(th, td) {
+  font-size: 1rem;
 }
 
 /* an image narrower than the wide width sits in its middle; its caption takes the image's width
@@ -446,7 +455,7 @@ img {
     --post-wide: clamp(
       0px,
       calc((100cqw - var(--post-column)) / 2 - var(--space-7) - var(--rail-width) - 32px),
-      240px
+      80px
     );
   }
 }
@@ -465,6 +474,20 @@ img {
   .page.post > .back-link,
   .page.post .work-head {
     margin-inline: 0;
+  }
+
+  .page.post .work-title {
+    font-size: 2.25rem;
+  }
+
+  .page.post :is(.block-gallery, .block-table, .block-video, .block-embed, .block-steps) > :is(h2, h3, h4),
+  .page.post .table-unit,
+  .page.post .table-footnotes,
+  .page.post .block-video .media-description,
+  .page.post .block-video figcaption,
+  .page.post .block-embed .embed-intro,
+  .page.post .block-embed .embed-where {
+    margin-inline: var(--post-wide);
   }
 
   /* issue 193: the figure itself stays edge to edge, but its caption keeps the page gutter so it
@@ -2278,6 +2301,12 @@ h3.block-heading {
   .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(2):last-child) .step:nth-child(2n)::after,
   .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(4):last-child) .step:nth-child(2n)::after {
     content: none;
+  }
+
+  /* issue 199: steps without numbers are not a sequence, so no arrows between them (the
+     selectors above are more specific, hence !important) */
+  .block-steps[data-numbered="false"] .step::after {
+    content: none !important;
   }
 }
 
