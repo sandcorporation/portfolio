@@ -5,6 +5,10 @@
  * metric-matched fallback faces (issues 133, 135) moved to the design in v0.6.0 (issue 155). It is
  * still the ONLY file here that may contain raw color values (src/tokens.test.ts). Contrast of the shared colors is checked against the design file.
  *
+ * issue 187: public screens only, one step bigger. The type scale below overrides the design's
+ * values here (design is shared with Foresight and stays as is); display/hero/h2/metric are kept.
+ * Print (proposal PDF, /print) goes back to the design values so page breaks do not move.
+ *
  * Fonts are bundled by `sandcorp-design/fonts.css` (no external requests).
  */
 
@@ -20,6 +24,12 @@
 
   /* type: --font-sans / --font-mono and their fallback faces come from the design (issue 155) */
   --text-2xl: 2.125rem;
+  --text-label: 0.8125rem;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.125rem;
+  --text-lg: 1.3125rem;
+  --text-xl: 1.75rem;
   --tracking-label: 0.12em;
 
   --space-8: 72px;
@@ -37,5 +47,17 @@
     --color-mark-bg: #f1eee6;
     --color-mark-far: #8a6214;
     --color-mark-near: #d9ad4c;
+  }
+}
+
+/* issue 187: paper keeps the design's original scale */
+@media print {
+  :root {
+    --text-label: 0.75rem;
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.1875rem;
+    --text-xl: 1.5rem;
   }
 }
