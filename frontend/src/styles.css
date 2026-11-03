@@ -2112,13 +2112,20 @@ h3.block-heading {
 }
 
 @media (min-width: 601px) {
+  /* issue 189: at most three per row so a card never gets squeezed; 2 or 4 steps use two columns
+     (2x2 instead of 3+1), the rest wrap 3 per row */
   .block-steps[data-layout="horizontal"] .steps-list {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-5);
   }
 
+  .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(2):last-child),
+  .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(4):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .block-steps[data-layout="horizontal"] .step {
-    flex: 1 1 0;
     min-width: 0;
   }
 
@@ -2131,6 +2138,21 @@ h3.block-heading {
     color: var(--color-muted);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
+  }
+
+  /* no arrow at the end of a row: the next row starts with its own number */
+  .block-steps[data-layout="horizontal"] .step:nth-child(3n)::after {
+    content: none;
+  }
+
+  .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(2):last-child) .step:nth-child(3n)::after,
+  .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(4):last-child) .step:nth-child(3n)::after {
+    content: "→";
+  }
+
+  .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(2):last-child) .step:nth-child(2n)::after,
+  .block-steps[data-layout="horizontal"] .steps-list:has(> .step:nth-child(4):last-child) .step:nth-child(2n)::after {
+    content: none;
   }
 }
 

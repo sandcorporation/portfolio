@@ -80,3 +80,9 @@ test("steps 블록의 제목은 목차에 오른다", () => {
 
   expect(screen.getByRole("link", { name: "제작 흐름" })).toHaveAttribute("href", "#lecture-flow");
 });
+
+test("가로 배치는 단계 수와 상관없이 한 목록에 모두 그린다 (줄바꿈은 CSS grid)", () => {
+  const { container } = renderBlock(stepsWith(8, { layout: "horizontal" }));
+
+  expect(container.querySelectorAll(".block-steps ol > li")).toHaveLength(8);
+});
