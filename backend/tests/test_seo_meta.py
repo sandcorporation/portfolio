@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from content.models import BlogPost, PortfolioItem, Proposal, SiteProfile
 from content.models import Client as Customer
-from core.public_html import HERO_LEAD
+from core.public_html import HOME_DESCRIPTION
 from services import publishing
 
 pytestmark = pytest.mark.django_db
@@ -59,12 +59,16 @@ def test_home_has_the_default_image_twitter_card_and_organization_graph(client: 
     assert tags(html, "og:image:height") == ["630"]
     assert tags(html, "twitter:card") == ["summary_large_image"]
     assert tags(html, "twitter:image") == [DEFAULT_IMAGE]
-    assert tags(html, "twitter:title") == ["샌드코프(Sandcorp) — 웹·모바일 1인 개발사"]
-    assert tags(html, "twitter:description") == [HERO_LEAD]
-    assert tags(html, "og:title") == ["샌드코프(Sandcorp) — 웹·모바일 1인 개발사"]
-    assert tags(html, "og:description") == [HERO_LEAD]
-    assert "<title>샌드코프(Sandcorp) — 웹·모바일 1인 개발사</title>" in html
-    assert nodes["WebSite"]["description"] == HERO_LEAD
+    assert tags(html, "twitter:title") == [
+        "샌드코프(Sandcorp) — 웹·AI 제품을 만들고 운영하는 1인 개발사"
+    ]
+    assert tags(html, "twitter:description") == [HOME_DESCRIPTION]
+    assert tags(html, "og:title") == [
+        "샌드코프(Sandcorp) — 웹·AI 제품을 만들고 운영하는 1인 개발사"
+    ]
+    assert tags(html, "og:description") == [HOME_DESCRIPTION]
+    assert "<title>샌드코프(Sandcorp) — 웹·AI 제품을 만들고 운영하는 1인 개발사</title>" in html
+    assert nodes["WebSite"]["description"] == HOME_DESCRIPTION
     assert set(nodes) == {"Organization", "WebSite", "Person"}
     org, site, person = nodes["Organization"], nodes["WebSite"], nodes["Person"]
     assert org["name"] == "샌드코프(Sandcorp)"

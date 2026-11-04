@@ -143,6 +143,8 @@ def test_home_has_the_services_section_after_the_company_and_the_nav_link(
     assert data["services"] == offerings.cards()
     body = root(html)
     assert '<a href="/#home-services">서비스</a>' in body
+    assert '<a href="#home-services">서비스 →</a>' in body
+    assert 'class="page-section-title">외주로 맡는 일</h2>' in body
     section = body.index('aria-labelledby="home-services"')
     assert (
         body.index('aria-labelledby="home-company"')
@@ -177,3 +179,17 @@ def test_fixed_text_matches_the_app_sources() -> None:
     assert '"Services"' in home and "서비스" in home
     assert '{ key: "services", href: "/#home-services", label: "서비스" }' in masthead
     assert "— Services</span>" in (TEMPLATES / "home.html").read_text()
+
+
+def test_the_rag_card_comes_first_and_has_no_page_of_its_own(client: Client) -> None:
+    cards = offerings.cards()
+    assert [c["slug"] for c in cards] == ["rag-chatbot", *SLUGS]
+    assert cards[0]["name"] == "RAG 상담 챗봇 구축"
+    assert cards[0]["href"] == "/?inquiry=rag-chatbot#home-inquiry"
+    assert [c["href"] for c in cards[1:]] == [f"/services/{s}" for s in SLUGS]
+
+    assert client.get("/services/rag-chatbot").status_code == 404
+    assert "/services/rag-chatbot" not in client.get("/sitemap.xml").content.decode()
+    body = root(client.get("/").content.decode())
+    assert 'href="/?inquiry=rag-chatbot#home-inquiry"' in body
+    assert body.index("RAG 상담 챗봇 구축") < body.index("사내 MCP 서버")

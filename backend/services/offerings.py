@@ -49,6 +49,7 @@ class OfferingCard(TypedDict):
     name: str
     summary: str
     inquiry_kind: str
+    href: str  # the service page, or the inquiry form for a card without a page
 
 
 OFFERINGS: tuple[Offering, ...] = (
@@ -275,6 +276,21 @@ OFFERINGS: tuple[Offering, ...] = (
     ),
 )
 
+# Cards without a page of their own (no /services/<slug>: 404, not in the sitemap, no JSON-LD):
+# the link opens the inquiry form with its 「구분」 preselected. A page comes with settled copy.
+CARD_ONLY: tuple[OfferingCard, ...] = (
+    OfferingCard(
+        slug="rag-chatbot",
+        name="RAG 상담 챗봇 구축",
+        summary=(
+            "가진 문서·FAQ로 답하는 상담 챗봇을 만들어 홈페이지·메신저에 붙입니다. "
+            "직접 운영하는 챗봇 빌더(Flow)에서 쌓은 방식 그대로입니다."
+        ),
+        inquiry_kind="RAG 상담 챗봇",
+        href="/?inquiry=rag-chatbot#home-inquiry",
+    ),
+)
+
 _BY_SLUG = {offering["slug"]: offering for offering in OFFERINGS}
 
 
@@ -285,10 +301,17 @@ def get(slug: str) -> Offering | None:
 def cards() -> list[OfferingCard]:
     """The home's rows, in page order."""
     return [
-        OfferingCard(
-            slug=o["slug"], name=o["name"], summary=o["summary"], inquiry_kind=o["inquiry_kind"]
-        )
-        for o in OFFERINGS
+        *CARD_ONLY,
+        *(
+            OfferingCard(
+                slug=o["slug"],
+                name=o["name"],
+                summary=o["summary"],
+                inquiry_kind=o["inquiry_kind"],
+                href=path(o["slug"]),
+            )
+            for o in OFFERINGS
+        ),
     ]
 
 

@@ -38,7 +38,7 @@ from content.models import (
 )
 from core import public_html
 from core.clientip import client_ip
-from core.public_html import HERO_LEAD
+from core.public_html import HOME_DESCRIPTION
 from core.seo import home_jsonld, service_jsonld, work_jsonld
 from core.vite import entry_assets
 from services import (
@@ -59,7 +59,7 @@ from services.home import home_page, site_availability, site_business
 from services.portfolio import public_detail, public_modified, renamed_to
 
 SITE_NAME = "Sandcorp"
-HOME_TITLE = "샌드코프(Sandcorp) — 웹·모바일 1인 개발사"
+HOME_TITLE = "샌드코프(Sandcorp) — 웹·AI 제품을 만들고 운영하는 1인 개발사"
 INDEX = "index, follow"
 NOINDEX = "noindex, nofollow"
 DEFAULT_WORK_DESCRIPTION = "샌드코프 수행 사례"
@@ -142,14 +142,14 @@ def home(request: HttpRequest) -> HttpResponse:
         request,
         PageMeta(
             title=HOME_TITLE,
-            description=HERO_LEAD,
+            description=HOME_DESCRIPTION,
             robots=INDEX,
             image=DEFAULT_OG_IMAGE,
             image_alt=DEFAULT_OG_IMAGE_ALT,
             jsonld=home_jsonld(
                 site_url=settings.SITE_URL,
                 logo=request.build_absolute_uri(static("core/logo.svg")),
-                description=HERO_LEAD,
+                description=HOME_DESCRIPTION,
                 profile=SiteProfile.objects.filter(pk=1).first() or SiteProfile(),
                 same_as=[public_html.GITHUB_URL],
             ),

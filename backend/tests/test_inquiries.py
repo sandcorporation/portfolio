@@ -245,9 +245,11 @@ def test_admin_lists_and_filters_the_new_kinds(owner_client: Client) -> None:
     assert "가나" in filtered and "다라" not in filtered
 
 
-@pytest.mark.parametrize("offering", offerings.OFFERINGS, ids=lambda o: o["slug"])
+@pytest.mark.parametrize(
+    "offering", [*offerings.OFFERINGS, *offerings.CARD_ONLY], ids=lambda o: o["slug"]
+)
 def test_each_offering_is_an_inquiry_kind_by_its_name(
-    client: Client, notifier: FakeNotifier, offering: offerings.Offering
+    client: Client, notifier: FakeNotifier, offering: offerings.Offering | offerings.OfferingCard
 ) -> None:
     assert offering["inquiry_kind"] in Inquiry.Kind.values
     assert post(client, {**FORM, "kind": offering["inquiry_kind"]}) == 201

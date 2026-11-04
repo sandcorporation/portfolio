@@ -134,6 +134,8 @@ export function SiteFooter({ business }: { business?: Business | null }) {
       )}
       <p className="site-footer-links">
         <a href="/">홈</a>
+        <a href="/blog">기록</a>
+        <a href="/tips">팁</a>
         <a href={GITHUB_URL} {...linkAttrs(GITHUB_URL)}>
           GitHub
         </a>

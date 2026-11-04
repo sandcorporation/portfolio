@@ -67,23 +67,27 @@ test("홈의 서비스 섹션은 회사 소개 바로 뒤에 두 페이지로 �
       path="/"
       data={home({
         services: [
-          { slug: "mcp-integration", name: "사내 MCP 연동", inquiry_kind: "MCP 연동", summary: "하나" },
-          { slug: "claude-code-automation", name: "개발 자동화", inquiry_kind: "Claude Code 자동화", summary: "둘" },
+          { slug: "rag-chatbot", name: "RAG 상담 챗봇 구축", inquiry_kind: "RAG 상담 챗봇", summary: "영", href: "/?inquiry=rag-chatbot#home-inquiry" },
+          { slug: "mcp-integration", name: "사내 MCP 연동", inquiry_kind: "MCP 연동", summary: "하나", href: "/services/mcp-integration" },
+          { slug: "claude-code-automation", name: "개발 자동화", inquiry_kind: "Claude Code 자동화", summary: "둘", href: "/services/claude-code-automation" },
         ],
       })}
     />,
   );
 
-  const section = screen.getByRole("region", { name: "서비스" });
+  const section = screen.getByRole("region", { name: "외주로 맡는 일" });
   expect(section).toHaveTextContent("02 — Services");
   expect(within(section).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([
+    "/?inquiry=rag-chatbot#home-inquiry",
     "/services/mcp-integration",
     "/services/claude-code-automation",
   ]);
   expect(screen.getByText(/Contact/)).toHaveTextContent("03 — Contact");
+  const row = document.querySelector(".link-row") as HTMLElement;
+  expect(within(row).getByText("서비스 →")).toHaveAttribute("href", "#home-services");
 });
 
 test("서비스가 없으면 홈 섹션째 빠진다", () => {
   render(<App path="/" data={home()} />);
-  expect(screen.queryByRole("region", { name: "서비스" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "외주로 맡는 일" })).toBeNull();
 });

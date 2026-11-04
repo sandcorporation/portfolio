@@ -56,8 +56,8 @@ test("구분은 신규 개발 · 유지보수 · 제안 · 기타 순이고 기�
 });
 
 const OFFERINGS = [
-  { slug: "mcp-integration", name: "사내 MCP", inquiry_kind: "MCP 연동", summary: "s" },
-  { slug: "claude-code-automation", name: "Claude Code", inquiry_kind: "Claude Code 자동화", summary: "s" },
+  { slug: "mcp-integration", name: "사내 MCP", inquiry_kind: "MCP 연동", summary: "s", href: "/services/mcp-integration" },
+  { slug: "claude-code-automation", name: "Claude Code", inquiry_kind: "Claude Code 자동화", summary: "s", href: "/services/claude-code-automation" },
 ];
 
 test("상품이 있으면 구분에 이름으로 끼고 질의 값의 slug로 미리 고른다", () => {

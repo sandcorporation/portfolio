@@ -238,10 +238,10 @@ test("홈의 개발 팁 섹션은 팁 행과 「팁 더 보기」 링크를 보�
     published_at: "2026-11-01T00:00:00+00:00",
   });
   const { unmount } = render(<App path="/" data={home({ tips: [tip(1), tip(2)] })} />);
-  const section = screen.getByRole("region", { name: "개발 팁" });
+  const section = screen.getByRole("region", { name: "개발 팁 — 바로 써먹을 요령" });
   expect(within(section).getAllByRole("link", { name: /^팁 \d →/ })).toHaveLength(2);
   expect(within(section).getByRole("link", { name: "팁 더 보기 →" })).toHaveAttribute("href", "/tips");
   unmount();
   render(<App path="/" data={home({ tips: [] })} />);
-  expect(screen.queryByRole("region", { name: "개발 팁" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "개발 팁 — 바로 써먹을 요령" })).toBeNull();
 });

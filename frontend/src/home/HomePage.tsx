@@ -39,7 +39,7 @@ function SectionHead({
 
 /** The hero's left sentence; kept in code with GITHUB_URL until the profile carries it. */
 const HERO_LEAD =
-  "웹·모바일 서비스를 기획부터 설계·개발·배포·운영까지 한 번에 맡는 1인 개발사. 재하청 없이 대표가 직접 합니다.";
+  "웹·AI 제품을 기획부터 운영까지 한 사람이 맡는 1인 개발사. 재하청 없이 대표가 직접 합니다.";
 
 const FORESIGHT_URL = "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medium=home";
 
@@ -106,6 +106,7 @@ export function HomePage({ data }: { data: HomeData }) {
           )}
           <p className="link-row">
             <a href="#home-company">회사 소개 →</a>
+            {hasServices && <a href="#home-services">서비스 →</a>}
             {hasPosts && <a href="#home-notes">기록 →</a>}
             {hasPortfolio && <a href="#home-portfolio">포트폴리오 →</a>}
             <a href="#home-inquiry">문의 →</a>
@@ -141,7 +142,7 @@ export function HomePage({ data }: { data: HomeData }) {
               <section className="page-section" aria-labelledby="home-services">
                 <SectionHead index={no("services")} label="Services" />
                 <h2 id="home-services" className="page-section-title">
-                  서비스
+                  외주로 맡는 일
                 </h2>
                 <ServiceRows services={services} />
               </section>
@@ -167,7 +168,7 @@ export function HomePage({ data }: { data: HomeData }) {
                   more={{ href: "/tips", text: "팁 더 보기 →" }}
                 />
                 <h2 id="home-tips" className="page-section-title">
-                  개발 팁
+                  개발 팁 — 바로 써먹을 요령
                 </h2>
                 <TipRows tips={tips} compact />
               </section>
@@ -202,7 +203,7 @@ export function HomePage({ data }: { data: HomeData }) {
                   <h2 id="home-inquiry" className="page-section-title">
                     문의·제안
                   </h2>
-                  <p className="inquiry-lead">프로젝트 문의나 제안을 남겨 주시면 영업일 1일 안에 답합니다.</p>
+                  <p className="inquiry-lead">웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동 문의를 받습니다. 남겨 주시면 영업일 1일 안에 답합니다.</p>
                   <InquiryEmail email={contact.email} />
                   <p className="inquiry-links">
                     <a href={GITHUB_URL} {...linkAttrs(GITHUB_URL)}>

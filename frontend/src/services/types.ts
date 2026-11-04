@@ -35,6 +35,8 @@ export interface OfferingCard {
   summary: string;
   /** Its value in the inquiry form's 구분 (Inquiry.Kind). */
   inquiry_kind: string;
+  /** The service page, or the inquiry form for a card without a page. */
+  href: string;
 }
 
 /** The shell's #page-data on `/services/<slug>`. */

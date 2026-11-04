@@ -497,7 +497,12 @@ def tips_index_href(category: str, page: int = 1) -> str:
 # Kept in step with the app by tests/test_public_html.py (it reads the .tsx sources).
 GITHUB_URL = "https://github.com/sandcorporation"  # brand/Masthead.tsx GITHUB_URL
 HERO_LEAD = (  # home/HomePage.tsx HERO_LEAD
-    "웹·모바일 서비스를 기획부터 설계·개발·배포·운영까지 한 번에 맡는 1인 개발사. "
+    "웹·AI 제품을 기획부터 운영까지 한 사람이 맡는 1인 개발사. 재하청 없이 대표가 직접 합니다."
+)
+# The home's meta/og/twitter description and the JSON-LD WebSite description (core/shell.py).
+HOME_DESCRIPTION = (
+    "Flow·Codemit·Daypage·Foresight와 이 사이트까지 서비스 다섯 개를 직접 만들어 운영하는 "
+    "1인 개발사. 웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동을 외주로 맡습니다. "
     "재하청 없이 대표가 직접 합니다."
 )
 

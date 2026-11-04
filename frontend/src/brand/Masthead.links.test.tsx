@@ -17,7 +17,7 @@ describe("external links (#129)", () => {
       expect(github).toHaveAttribute("target", "_blank");
       expect(github).toHaveAttribute("rel", "noopener noreferrer");
     }
-    expect(screen.getByRole("link", { name: "기록" })).not.toHaveAttribute("target");
+    expect(screen.getAllByRole("link", { name: "기록" })[0]).not.toHaveAttribute("target");
     expect(screen.getByRole("link", { name: "홈" })).not.toHaveAttribute("target");
   });
 });
