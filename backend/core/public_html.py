@@ -543,3 +543,8 @@ def blog_post_body(data: Mapping[str, object]) -> SafeString:
 def service_body(data: Mapping[str, object]) -> SafeString:
     """/services/<slug> (issue 163): the offering, the masthead's availability, the footer."""
     return _render("service", data)
+
+
+def privacy_body(data: Mapping[str, object]) -> SafeString:
+    """/privacy (issue 201): the policy, the masthead's availability, the footer."""
+    return _render("privacy", data)

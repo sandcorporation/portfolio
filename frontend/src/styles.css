@@ -2569,3 +2569,16 @@ h3.block-heading {
 .sc-prose :is(h2, h3) {
   text-wrap: balance;
 }
+
+/* issue 201: the privacy policy (/privacy) reads at the measure; the operator line is mono meta */
+.privacy-body {
+  max-width: var(--measure);
+  padding-bottom: var(--space-7);
+}
+
+.privacy-body .privacy-operator {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}

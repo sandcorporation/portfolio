@@ -28,6 +28,7 @@ urlpatterns = [
     path("", shell.home, name="home"),
     path("services", shell.services_hub, name="services_hub"),
     path("services/<slug:slug>", shell.service, name="service"),
+    path("privacy", shell.privacy, name="privacy"),
     path("work", shell.work_hub, name="work_hub"),
     path("work/<slug:slug>", shell.work, name="work"),
     path("og/<str:kind>/<slug:slug>.png", shell.og_card_image, name="og_card"),

@@ -41,7 +41,7 @@ from core.clientip import client_ip
 from core.public_html import HERO_LEAD
 from core.seo import home_jsonld, service_jsonld, work_jsonld
 from core.vite import entry_assets
-from services import blog, media, offerings, og_card, pdf, preview, proposals, publishing
+from services import blog, legal, media, offerings, og_card, pdf, preview, proposals, publishing
 from services import proposal_access as access
 from services import proposal_events as events
 from services.home import home_page, site_availability, site_business
@@ -413,6 +413,28 @@ def work_hub(request: HttpRequest) -> HttpResponse:
     return HttpResponsePermanentRedirect("/#home-portfolio")
 
 
+def privacy(request: HttpRequest) -> HttpResponse:
+    """/privacy (issue 201): the company site's privacy policy; the copy is services/legal.py."""
+    data = {
+        "policy": legal.policy(),
+        "availability": site_availability(),
+        "business": site_business(),
+    }
+    return render_shell(
+        request,
+        PageMeta(
+            title=f"{legal.TITLE} | {SITE_NAME}",
+            description=f"샌드코프 회사 사이트 개인정보처리방침 (시행 {legal.effective_on_text()})",
+            robots=INDEX,
+            image=DEFAULT_OG_IMAGE,
+            image_alt=DEFAULT_OG_IMAGE_ALT,
+        ),
+        data=data,
+        count_visit=True,
+        body=public_html.privacy_body(data),
+    )
+
+
 def services_hub(request: HttpRequest) -> HttpResponse:
     """/services has no page of its own: the two rows are the home's section (issue 163)."""
     return HttpResponsePermanentRedirect("/#home-services")
@@ -498,6 +520,7 @@ def sitemap_xml(request: HttpRequest) -> HttpResponse:
         *([("/blog", max(posts.values()))] if posts else []),
         *((f"/blog/{slug}", at) for slug, at in posts.items()),
         *((offerings.path(o["slug"]), offerings.UPDATED_ON) for o in offerings.OFFERINGS),
+        (legal.PATH, legal.EFFECTIVE_ON),
     ]
     urls = "".join(
         f"<url><loc>{escape(settings.SITE_URL + path)}</loc>"

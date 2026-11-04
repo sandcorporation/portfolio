@@ -3,6 +3,8 @@ import { BlogPostPage } from "./blog/BlogPostPage";
 import { isBlogIndexData, isBlogPostData } from "./blog/types";
 import { HomePage } from "./home/HomePage";
 import { isHomeData } from "./home/types";
+import { PrivacyPage } from "./legal/PrivacyPage";
+import { isPrivacyData } from "./legal/types";
 import { ProposalCodeScreen, ProposalExpiredScreen } from "./proposal/ProposalGate";
 import { ProposalPrintPage } from "./proposal/ProposalPrintPage";
 import { ProposalPage } from "./proposal/ProposalPage";
@@ -19,6 +21,7 @@ export function App({ path, data }: { path: string; data: unknown }) {
   if (path.startsWith("/blog/") && isBlogPostData(data)) return <BlogPostPage data={data} />;
   if (path.startsWith("/work/") && isWorkData(data)) return <WorkPage data={data} />;
   if (path.startsWith("/services/") && isServiceData(data)) return <ServicePage data={data} />;
+  if (path === "/privacy" && isPrivacyData(data)) return <PrivacyPage data={data} />;
   if (path.startsWith("/p/")) {
     if (isCodeScreen(data)) return <ProposalCodeScreen data={data} action={path} />;
     if (isExpiredScreen(data)) return <ProposalExpiredScreen data={data} />;

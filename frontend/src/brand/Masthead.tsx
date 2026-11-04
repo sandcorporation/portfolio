@@ -73,6 +73,9 @@ export function SiteMeta({
   );
 }
 
+/** The privacy policy (issue 201), linked from every footer. */
+export const PRIVACY_PATH = "/privacy";
+
 export const FORESIGHT_NAV_URL = "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medium=nav";
 
 const SITE_NAV = [
@@ -133,6 +136,7 @@ export function SiteFooter({ business }: { business?: Business | null }) {
         <a href={GITHUB_URL} {...linkAttrs(GITHUB_URL)}>
           GitHub
         </a>
+        <a href={PRIVACY_PATH}>개인정보처리방침</a>
       </p>
       <p className="site-footer-copy">© Sandcorp</p>
     </footer>
