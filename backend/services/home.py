@@ -13,11 +13,12 @@ from adapters.foresight import fetch_stats as fetch_foresight_stats
 from adapters.metrics import Stats, fetch_stats
 from content.models import SiteProfile
 from documents.validation import JSON
-from services import blog, media, offerings
+from services import blog, media, offerings, tips
 from services.portfolio import PortfolioCard, card_of, public_items
 
 RECENT_POSTS = 3
 RECENT_NEWS = 5
+TIP_POOL = 12  # newest published tips sent down; the browser picks three of them (issue 204)
 NEWS_UTM = {"utm_source": "sandcorp", "utm_medium": "home"}
 SEOUL = ZoneInfo("Asia/Seoul")
 
@@ -84,6 +85,7 @@ class HomeData(TypedDict):
     contact: Contact
     portfolio: list[PortfolioCard]
     posts: list[blog.PostCard]  # newest published blog posts; empty hides the section
+    tips: list[tips.TipCard]  # newest published tips (pool); the server HTML draws the first three
     news: list[NewsItem]  # newest Foresight articles; empty hides the section
     visits: SiteVisits | None  # None (metrics off or down) leaves the masthead's counts out
     availability: Availability | None  # None (empty profile field) leaves it out
@@ -260,6 +262,7 @@ def home_page() -> HomePage:
             ),
             portfolio=portfolio,
             posts=recent_posts(),
+            tips=tips.public_cards(limit=TIP_POOL),
             news=recent_news(),
             visits=site_visits(stats),
             availability=availability_of(profile),

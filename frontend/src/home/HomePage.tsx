@@ -1,10 +1,12 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { linkAttrs } from "../links";
 import { GITHUB_URL, Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { DocumentView } from "../blocks/DocumentView";
 import { PostRows } from "../blog/PostRows";
 import { PortfolioCards } from "../work/PortfolioCards";
 import { portfolioMeta } from "../work/types";
+import { TipRows } from "../tips/TipRows";
+import { HOME_TIP_COUNT, pickTips } from "./pickTips";
 import { ServiceRows } from "../services/ServiceRows";
 import { InquiryEmail } from "./InquiryEmail";
 import { InquiryForm } from "./InquiryForm";
@@ -45,6 +47,17 @@ export function HomePage({ data }: { data: HomeData }) {
   const hasPortfolio = data.portfolio.length > 0;
   const posts = data.posts ?? [];
   const news = data.news ?? [];
+  const tipPool = data.tips ?? [];
+  const hasTips = tipPool.length > 0;
+  // The server HTML (and so the first paint) shows the newest three; after mount the browser
+  // draws three at random from the pool, so every visit differs without touching the cache.
+  const [tips, setTips] = useState(() => tipPool.slice(0, HOME_TIP_COUNT));
+  useEffect(() => {
+    // Random on purpose after mount (not during render), so the first paint matches the server HTML.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTips(pickTips(tipPool));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
+  }, []);
   const hasPosts = posts.length > 0;
   const hasNews = news.length > 0;
   const services = data.services ?? [];
@@ -54,6 +67,7 @@ export function HomePage({ data }: { data: HomeData }) {
     "company",
     ...(hasServices ? ["services"] : []),
     ...(hasPosts ? ["notes"] : []),
+    ...(hasTips ? ["tips"] : []),
     ...(hasNews ? ["news"] : []),
     ...(hasPortfolio ? ["work"] : []),
     "contact",
@@ -139,6 +153,19 @@ export function HomePage({ data }: { data: HomeData }) {
                   만들면서 남긴 기록
                 </h2>
                 <PostRows posts={posts} />
+              </section>
+            )}
+            {hasTips && (
+              <section className="page-section" aria-labelledby="home-tips">
+                <SectionHead
+                  index={no("tips")}
+                  label="Tips"
+                  more={{ href: "/tips", text: "팁 더 보기 →" }}
+                />
+                <h2 id="home-tips" className="page-section-title">
+                  개발 팁
+                </h2>
+                <TipRows tips={tips} compact />
               </section>
             )}
             {hasNews && (

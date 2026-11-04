@@ -228,3 +228,20 @@ test("가장 오래된·새 글은 없는 쪽 이웃 링크를 두지 않는다"
   expect(screen.getByRole("link", { name: /다음 글/ })).toBeInTheDocument();
   expect(document.querySelector("img.work-cover")).toBeNull();
 });
+
+test("홈의 개발 팁 섹션은 팁 행과 「팁 더 보기」 링크를 보여 주고, 풀이 비면 빠진다", () => {
+  const tip = (n: number) => ({
+    slug: `t${n}`,
+    title: `팁 ${n}`,
+    summary: "요약",
+    categories: [{ value: "testing", label: "테스트" }],
+    published_at: "2026-11-01T00:00:00+00:00",
+  });
+  const { unmount } = render(<App path="/" data={home({ tips: [tip(1), tip(2)] })} />);
+  const section = screen.getByRole("region", { name: "개발 팁" });
+  expect(within(section).getAllByRole("link", { name: /^팁 \d →/ })).toHaveLength(2);
+  expect(within(section).getByRole("link", { name: "팁 더 보기 →" })).toHaveAttribute("href", "/tips");
+  unmount();
+  render(<App path="/" data={home({ tips: [] })} />);
+  expect(screen.queryByRole("region", { name: "개발 팁" })).toBeNull();
+});

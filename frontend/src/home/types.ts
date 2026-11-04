@@ -1,6 +1,7 @@
 import type { OfferingCard } from "../services/types";
 import type { Document } from "../blocks/types";
 import type { PostCard } from "../blog/types";
+import type { TipCard } from "../tips/types";
 import type { PortfolioCard } from "../work/types";
 
 /** The shell's #page-data on `/`. Mirrors HomeData in backend/services/home.py. */
@@ -58,6 +59,8 @@ export interface HomeData {
   portfolio: PortfolioCard[];
   /** Newest published blog posts; empty hides the section. */
   posts: PostCard[];
+  /** Newest published tips (a pool of up to 12); the browser shows three of them. Empty hides the section. */
+  tips?: TipCard[];
   /** Newest Foresight articles; empty hides the section. */
   news: NewsItem[];
   /** All sites together (sandcorp-metrics); null/absent leaves the masthead without numbers. */

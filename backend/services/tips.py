@@ -286,6 +286,13 @@ def card_of(tip: Tip) -> TipCard:
     return _card(tip, tip.published_at)
 
 
+def public_cards(limit: int | None = None) -> list[TipCard]:
+    """Newest published tips as list cards (the home page's pool, issue 204)."""
+    query = _published()
+    tips = query if limit is None else query[: max(limit, 0)]
+    return [card_of(t) for t in tips]
+
+
 def category_ref(value: str) -> CategoryRef | None:
     """The category a `?category=` value names; None for an unknown one."""
     if value not in TipCategory.values:

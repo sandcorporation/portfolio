@@ -514,6 +514,7 @@ def home_body(data: HomeData) -> SafeString:
         "company",
         *(["services"] if data["services"] else []),
         *(["notes"] if data["posts"] else []),
+        *(["tips"] if data["tips"] else []),
         *(["news"] if data["news"] else []),
         *(["work"] if data["portfolio"] else []),
         "contact",

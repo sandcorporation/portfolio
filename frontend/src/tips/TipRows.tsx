@@ -2,10 +2,10 @@ import { postDate } from "../blog/format";
 import { tipPath, type TipCard } from "./types";
 
 /** Tip list: one hairline row per tip — title → · mono date and categories · one-line summary
- * (the blog's rows, core/templates/core/public/_tip_rows.html on the server). */
-export function TipRows({ tips }: { tips: TipCard[] }) {
+ * (`compact` is the home's one-line summary; the blog's rows, core/templates/core/public/_tip_rows.html on the server). */
+export function TipRows({ tips, compact = false }: { tips: TipCard[]; compact?: boolean }) {
   return (
-    <ul className="work-list feed-list tip-list">
+    <ul className={`work-list feed-list tip-list${compact ? " home-tip-list" : ""}`}>
       {tips.map((tip) => (
         <li key={tip.slug}>
           <a className="work-row" href={tipPath(tip.slug)}>
@@ -17,7 +17,11 @@ export function TipRows({ tips }: { tips: TipCard[] }) {
                   <span key={category.value}>{category.label}</span>
                 ))}
               </span>
-              {tip.summary && <span className="work-row-summary feed-summary">{tip.summary}</span>}
+              {tip.summary && (
+                <span className={`work-row-summary feed-summary${compact ? " feed-summary-one" : ""}`}>
+                  {tip.summary}
+                </span>
+              )}
             </span>
           </a>
         </li>

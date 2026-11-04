@@ -285,3 +285,20 @@ def test_news_items_come_from_the_adapter_articles() -> None:
 
     assert item["when"] == "2시간 전"
     assert item["image_url"] == "https://img.example/1.jpg"
+
+
+def test_home_data_carries_tip_pool_and_server_html_draws_three(db: None) -> None:
+    from core.public_html import home_body
+    from services import home, tips
+
+    assert home.home_page().data["tips"] == []
+    for n in range(5):
+        tips.create_tip(
+            tips.NewTip(slug=f"tip-{n}", title=f"팁 {n}", summary="요약", categories=["testing"])
+        )
+        tips.publish_tip(f"tip-{n}")
+    data = home.home_page().data
+    assert len(data["tips"]) == 5
+    html = str(home_body(data))
+    assert html.count('href="/tips/tip-') == 3
+    assert "팁 더 보기" in html
