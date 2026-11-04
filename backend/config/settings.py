@@ -128,6 +128,9 @@ FORESIGHT_TIMEOUT_SECONDS = 3
 # YouTube oEmbed for a Short's title when it is registered (issue 207). Empty never looks titles up.
 YOUTUBE_OEMBED_URL = env("YOUTUBE_OEMBED_URL", "https://www.youtube.com/oembed")
 YOUTUBE_TIMEOUT_SECONDS = 3
+# The channel whose new uploads become home Shorts (issue 211); empty switches the sync off.
+YOUTUBE_CHANNEL_ID = env("YOUTUBE_CHANNEL_ID", "UCnaM_8rEMk751BPnEW4Jifw")
+YOUTUBE_FEED_URL = "https://www.youtube.com/feeds/videos.xml"
 
 # sandcorp-metrics (metrics.sandcorp.co.kr) visit counts (#81). METRICS_SNIPPET_URL is the counting
 # script the public pages load (empty = not loaded); METRICS_API_URL the public totals the home

@@ -572,6 +572,26 @@ class Short(models.Model):
         return self.title or self.youtube_id
 
 
+class DismissedShort(models.Model):
+    """A video the channel sync must not register again (issue 211): the owner deleted its
+    Short, or the sync found it is a regular video, not a Short. `add_short` takes it off."""
+
+    class Reason(models.TextChoices):
+        DELETED = "deleted", "지움"
+        NOT_SHORT = "not_short", "일반 영상"
+
+    youtube_id = models.CharField("영상 ID", max_length=11, unique=True)
+    reason = models.CharField("까닭", max_length=20, choices=Reason.choices)
+    dismissed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "자동 등록 제외 영상"
+        verbose_name_plural = "자동 등록 제외 영상"
+
+    def __str__(self) -> str:
+        return self.youtube_id
+
+
 CLIENT_CODE_PATTERN = r"^[A-Z]{2,6}$"
 
 

@@ -108,6 +108,25 @@ def test_every_public_page_footer_links_the_policy(client: Client) -> None:
         assert '<a href="/privacy">개인정보처리방침</a>' in footer, path
 
 
+def test_the_home_shorts_player_is_disclosed_with_the_approved_sentence(client: Client) -> None:
+    """Issue 211: the approved sentence word for word, and the cookie lines no longer absolute."""
+    text = re.sub(r"<[^>]+>", "", root(client.get("/privacy").content.decode()))
+    assert (
+        "홈의 짧은 영상 썸네일은 Google(YouTube, i.ytimg.com)에서 불러오며, 영상을 재생하면 "
+        "youtube-nocookie.com 플레이어가 열려 Google에 접속 정보(IP, 브라우저 정보, 사이트 "
+        "출처)가 전달됩니다. 재생 전에는 YouTube 플레이어를 불러오지 않습니다."
+    ) in text
+    assert (
+        "일반 방문자에게는 쿠키를 쓰지 않습니다. 다만 홈의 짧은 영상을 재생하면 열리는 "
+        "YouTube(youtube-nocookie.com) 플레이어는 재생에 필요한 정보를 브라우저에 저장할 수 "
+        "있습니다(9번)."
+    ) in text
+    summary = legal.policy()["summary"][0]
+    assert (
+        "쿠키를 쓰지 않습니다(홈의 짧은 영상을 재생하면 열리는 YouTube 플레이어는 예외" in summary
+    )
+
+
 def test_a_public_visitor_gets_no_cookie(client: Client) -> None:
     """The policy says ordinary visitors get no cookie: keep it true."""
     for path in ["/", "/blog", "/services/mcp-integration", "/privacy"]:

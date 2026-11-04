@@ -30,6 +30,13 @@ YOUTUBE_TERMS_URL = "https://www.youtube.com/t/terms"
 GOOGLE_PRIVACY_URL = "https://policies.google.com/privacy"
 KISA_URL = "https://privacy.kisa.or.kr"
 
+# The owner approved this sentence word for word (issue 211); change it only with a new approval.
+SHORTS_PLAYER_NOTICE = (
+    "홈의 짧은 영상 썸네일은 Google(YouTube, i.ytimg.com)에서 불러오며, 영상을 재생하면 "
+    "youtube-nocookie.com 플레이어가 열려 Google에 접속 정보(IP, 브라우저 정보, 사이트 출처)가 "
+    "전달됩니다. 재생 전에는 YouTube 플레이어를 불러오지 않습니다."
+)
+
 
 def _years(keep: timedelta) -> str:
     days = keep.days
@@ -256,7 +263,10 @@ SECTIONS: list[Section] = [
         "blocks": [
             _p(
                 "「쿠키」는 웹사이트가 브라우저에 남기는 작은 기록입니다. 일반 방문자에게는 쿠키를 "
-                "쓰지 않습니다. 방문 수도 쿠키 없이, 접속 IP 주소와 브라우저 정보를 저장하지 않고 "
+                "쓰지 않습니다. 다만 홈의 짧은 영상을 재생하면 열리는 "
+                "YouTube(youtube-nocookie.com) 플레이어는 재생에 필요한 정보를 브라우저에 "
+                "저장할 수 있습니다(9번). 방문 수도 쿠키 없이, 접속 IP 주소와 브라우저 정보를 "
+                "저장하지 않고 "
                 "그날만 쓰는 난수와 섞은 해시 값으로 셉니다(샌드코프가 직접 운영하는 "
                 "sandcorp-metrics). 광고·추적 쿠키는 쓰지 않습니다."
             ),
@@ -293,7 +303,7 @@ SECTIONS: list[Section] = [
     },
     {
         "id": "youtube",
-        "title": "9. YouTube API 서비스",
+        "title": "9. YouTube 영상과 API 서비스",
         "blocks": [
             _p(
                 "샌드코프는 자사 유튜브 채널에 영상을 올리기 위해 YouTube API 서비스를 사용합니다. "
@@ -301,6 +311,7 @@ SECTIONS: list[Section] = [
                 "않습니다. YouTube API 서비스를 쓰는 부분에는 YouTube 서비스 약관과 Google "
                 "개인정보처리방침이 함께 적용됩니다."
             ),
+            _p(SHORTS_PLAYER_NOTICE),
             _links(
                 ("YouTube 서비스 약관", YOUTUBE_TERMS_URL),
                 ("Google 개인정보처리방침", GOOGLE_PRIVACY_URL),
@@ -348,7 +359,8 @@ def policy() -> Policy:
         "effective_on": effective_on_text(),
         "summary": [
             "샌드코프 회사 사이트(sandcorp.co.kr)는 회원 가입이 없고, 일반 방문자에게 쿠키를 쓰지 "
-            "않습니다. 개인정보를 받는 곳은 문의 폼과, 접근 코드를 받은 고객만 여는 제안서 "
+            "않습니다(홈의 짧은 영상을 재생하면 열리는 YouTube 플레이어는 예외, 8·9번). "
+            "개인정보를 받는 곳은 문의 폼과, 접근 코드를 받은 고객만 여는 제안서 "
             "페이지뿐입니다.",
             f"문의는 답을 드리는 데만 쓰고 접수 {_years(retention.INQUIRY_KEEP)} 뒤 지웁니다. "
             "방문 수는 IP 주소를 저장하지 않고 "

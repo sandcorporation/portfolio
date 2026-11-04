@@ -9,23 +9,36 @@ still saved with an empty title and the home page says 「Sandcorp 쇼츠」.
 A new short goes first by default (position one less than the current smallest): a short is
 registered right after it is uploaded, so the newest is in front.
 
+New uploads also come in by themselves (issue 211): `sync_from_channel()` reads the channel's
+feed and registers every video it has never seen — not a Short yet and not dismissed — with the
+feed's title, visible, in front (newest first). It never changes an existing Short (hidden ones,
+order and links stay). Deleting a Short dismisses its ID (`DismissedShort`) so the sync does not
+bring it back; `add_short` (or adding it in admin) takes the dismissal off. A video the sync finds
+to be a regular video is dismissed as well, so it is checked only once. The compose `worker` loop
+calls `sync_if_due()` (at most once per `SYNC_EVERY` across processes, like retention);
+`manage.py sync_shorts` runs it by hand. The home page never calls YouTube.
+
 Public side: `public_cards()` — the visible ones by position, at most four.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TypedDict
 from urllib.parse import parse_qs, urlsplit
 
+from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.db.models import Min
 from pydantic import BaseModel, ConfigDict, Field
 
 from adapters import youtube
-from content.models import SITE_PATH_PATTERN, Short
+from content.models import SITE_PATH_PATTERN, DismissedShort, Short
 from services.errors import Conflict, NotFound, Rejected
 
 HOME_LIMIT = 4
+# The channel sync runs at most this often across every process (django_cache key).
+SYNC_EVERY = timedelta(minutes=30)
+SYNC_DUE_KEY = "shorts:channel-synced"
 FALLBACK_TITLE = "Sandcorp 쇼츠"
 CHANNEL_URL = "https://www.youtube.com/@sandcorporation"
 # The home section's fixed copy lives in home.html and ShortsSection.tsx; tests compare them.
@@ -188,6 +201,7 @@ def add_short(new: NewShort) -> ShortOut:
     try:
         with transaction.atomic():
             short.save()
+            undismiss(youtube_id)
     except IntegrityError:
         raise Conflict(f"쇼츠 {youtube_id!r}는 이미 등록되어 있습니다") from None
     return short_out(short)
@@ -210,10 +224,75 @@ def update_short(video: str, patch: ShortPatch) -> ShortOut:
 
 
 def delete_short(video: str) -> str:
-    """Removes it; returns the video ID."""
+    """Removes it and keeps the channel sync from registering it again; returns the video ID."""
     short = _short_or_404(video)
-    short.delete()
+    with transaction.atomic():
+        short.delete()
+        dismiss(short.youtube_id)
     return short.youtube_id
+
+
+# --- dismissed videos and the channel sync (issue 211) ---
+
+
+def dismiss(youtube_id: str, reason: str = DismissedShort.Reason.DELETED) -> None:
+    """The channel sync skips this video from now on (idempotent)."""
+    try:
+        with transaction.atomic():
+            DismissedShort.objects.get_or_create(youtube_id=youtube_id, defaults={"reason": reason})
+    except IntegrityError:  # another process dismissed it at the same moment
+        pass
+
+
+def undismiss(youtube_id: str) -> None:
+    DismissedShort.objects.filter(youtube_id=youtube_id).delete()
+
+
+def _register(entry: youtube.FeedEntry) -> bool:
+    """A Short for a video seen for the first time; False when another process was first."""
+    try:
+        with transaction.atomic():
+            _, created = Short.objects.get_or_create(
+                youtube_id=entry.youtube_id,
+                defaults={"title": entry.title, "position": front_position(), "is_visible": True},
+            )
+    except IntegrityError:
+        return False
+    return created
+
+
+def sync_from_channel() -> int:
+    """Register the channel's videos never seen before; returns how many Shorts were made."""
+    entries = youtube.fetch_channel_feed()
+    ids = {e.youtube_id for e in entries if _ID.match(e.youtube_id)}
+    if not ids:
+        return 0
+    seen = set(Short.objects.filter(youtube_id__in=ids).values_list("youtube_id", flat=True))
+    seen |= set(
+        DismissedShort.objects.filter(youtube_id__in=ids).values_list("youtube_id", flat=True)
+    )
+    created = 0
+    # Oldest first: each goes in front of the last, so the newest ends up first.
+    for entry in sorted(entries, key=lambda e: e.published):
+        if entry.youtube_id not in ids or entry.youtube_id in seen:
+            continue
+        seen.add(entry.youtube_id)
+        if not youtube.check_is_short(entry.youtube_id):
+            dismiss(entry.youtube_id, DismissedShort.Reason.NOT_SHORT)
+            continue
+        created += _register(entry)
+    return created
+
+
+def sync_if_due() -> int | None:
+    """`sync_from_channel()` unless some process ran it within `SYNC_EVERY`; None when skipped."""
+    if not cache.add(SYNC_DUE_KEY, True, timeout=int(SYNC_EVERY.total_seconds())):
+        return None
+    try:
+        return sync_from_channel()
+    except Exception:
+        cache.delete(SYNC_DUE_KEY)  # let the next check retry instead of waiting half an hour
+        raise
 
 
 # --- public side: visible shorts only, plain JSON for the shell ---

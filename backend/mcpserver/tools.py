@@ -101,8 +101,9 @@ class BlockSchemaInput(BaseModel):
     "insert_post_block (gallery/video take list_media ids) -> get_post (read it back) -> "
     "issue_post_preview_url (show the draft) -> publish_post. Writing a development tip: "
     "tip_guide (read it first) -> create_tip -> update_tip -> issue_tip_preview_url (show the "
-    "draft) -> publish_tip. A new YouTube Short: add_short right after it is public (it goes "
-    "in front on the home page).",
+    "draft) -> publish_tip. YouTube Shorts come in from the channel by themselves (every 30 "
+    "minutes); only hide (is_visible), reorder (position) or link them with update_short. "
+    "add_short only puts one up before the sync or brings back a deleted one.",
     NoInput,
 )
 def whoami(token: AccessToken, args: NoInput) -> ToolResult:

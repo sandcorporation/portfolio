@@ -230,6 +230,17 @@ class ShortAdmin(_ShortAdmin):
     def save_model(self, request: HttpRequest, obj: Short, form: _ShortForm, change: bool) -> None:
         short_service.fill_title(obj)  # an empty title comes from YouTube (oEmbed)
         super().save_model(request, obj, form, change)
+        short_service.undismiss(obj.youtube_id)  # added by hand: the sync may know it again
+
+    def delete_model(self, request: HttpRequest, obj: Short) -> None:
+        super().delete_model(request, obj)
+        short_service.dismiss(obj.youtube_id)  # the channel sync must not bring it back
+
+    def delete_queryset(self, request: HttpRequest, queryset: QuerySet[Short]) -> None:
+        youtube_ids = list(queryset.values_list("youtube_id", flat=True))
+        super().delete_queryset(request, queryset)
+        for youtube_id in youtube_ids:
+            short_service.dismiss(youtube_id)
 
 
 if TYPE_CHECKING:

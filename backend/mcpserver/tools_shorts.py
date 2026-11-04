@@ -44,9 +44,10 @@ def list_shorts(token: AccessToken, args: NoInput) -> ToolResult:
 @tool(
     "add_short",
     "Add a YouTube Short to the home page",
-    "Register a Short after it is public on YouTube. video takes the ID or any of its URLs. "
-    "Omit title to take it from YouTube; omit position to put it in front of all others "
-    "(newest first)." + ORDER_NOTE,
+    "Shorts come in from the channel by themselves (every 30 minutes); use this only to put one "
+    "up before the automatic sync or to bring back a deleted one (it is then synced again). "
+    "video takes the ID or any of its URLs. Omit title to take it from YouTube; omit position "
+    "to put it in front of all others (newest first)." + ORDER_NOTE,
     AddShortInput,
     read_only=False,
 )
@@ -70,8 +71,9 @@ def update_short(token: AccessToken, args: UpdateShortInput) -> ToolResult:
 @tool(
     "delete_short",
     "Remove a YouTube Short from the home page",
-    "Delete the registration (the video on YouTube stays). To hide it for now, use "
-    "update_short with is_visible false.",
+    "Delete the registration (the video on YouTube stays). A deleted short is not registered "
+    "again by the automatic channel sync; add_short brings it back. To take it down for now, "
+    "use update_short with is_visible false.",
     VideoInput,
     read_only=False,
 )

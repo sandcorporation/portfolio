@@ -30,10 +30,10 @@ INSTRUCTIONS = (
     "Before writing or rewriting a proposal, read proposal_guide first: it gives the writing "
     "rules and the recommended block order. Before writing or rewriting a blog post, read "
     "blog_guide first. Development tips (/tips) are one markdown body each; before writing or "
-    "rewriting a tip, read tip_guide first. YouTube Shorts on the home page: after a Short is "
-    "public on YouTube, register it with add_short (the ID or URL; the title comes from YouTube) "
-    "and it shows on the home page, in front by default; list_shorts/update_short change the "
-    "order (position, smaller first) and is_visible."
+    "rewriting a tip, read tip_guide first. YouTube Shorts on the home page come in from the "
+    "channel by themselves (every 30 minutes, newest in front); only hiding (is_visible), order "
+    "(position, smaller first) and link need changing, with list_shorts/update_short. add_short "
+    "is only for putting one up before the automatic sync or bringing back a deleted one."
 )
 
 PARSE_ERROR = -32700
