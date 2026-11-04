@@ -9,7 +9,12 @@
   href를 지운다: 마크다운·HTML 링크는 글자만, CTA 버튼은 항목째 뺀다(남는 항목이 없으면 블록째).
 - `embed` 블록(flow.sandcorp.co.kr)은 뺀다. 사례 카드는 주소(slug)를 비운다.
 
-본문 글은 고치지 않는다. 남은 회사명·이메일·전화는 `leaks`가 찾아 작성자에게 알린다.
+- 렌더되는 글(문서 블록 글, 사례 카드 제목·설명, 탭 제목, 제안서 제목·부제·받는 분)에서
+  회사명과 우리 도메인을 가린다 (#229, `mask_text`): 「샌드코프」→「저희」, 「Sandcorp Flow」
+  같은 앞머리 「Sandcorp 」는 지우고 홀로 쓰인 「Sandcorp」→「저희」, `sandcorp.co.kr` 주소와
+  이메일 주소는 지운다. 저장된 문서는 그대로다(그릴 때만 가린다).
+
+전화번호처럼 가리지 않는 것과 가린 뒤에도 남은 것은 `leaks`가 찾아 작성자에게 알린다.
 """
 
 import re
@@ -22,6 +27,10 @@ PAGE_TITLE = "제안서"
 
 # Values the server fills with media addresses (storage URLs): not text, never rewritten.
 _MEDIA_KEYS = frozenset({"url", "poster_url", "cover_url"})
+# Values that are identifiers, not shown as text: never masked.
+_ID_KEYS = frozenset(
+    {"type", "id", "tab_id", "block_id", "item_id", "kind", "slug", "variant", "href", "src"}
+)
 # Page-data keys that are routes of this page (not shown as text).
 _ROUTE_KEYS = frozenset({"media_endpoint", "tab_endpoint", "pdf_url", "csrf_token"})
 
@@ -44,6 +53,34 @@ LEAK_PATTERNS: tuple[re.Pattern[str], ...] = (
     ),
     re.compile(r"(?<!\d)01[016789]\d{7,8}(?!\d)"),
 )
+
+
+_MASK_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_MASK_DOMAIN = re.compile(
+    r"(?:https?:)?(?://)?(?:[a-z0-9-]+\.)*sandcorp\.co\.kr(?:/[\w\-./?=&%#~+]*)?", re.I
+)
+_MASK_KO = re.compile(r"샌드\s*코프(?:\s*\(\s*sand\s*corp\s*\))?", re.I)
+_MASK_EN_PREFIX = re.compile(r"(?<![A-Za-z])sand\s*corp(?:-|\s+(?=[A-Za-z0-9가-힣]))", re.I)
+_MASK_EN = re.compile(r"(?<![A-Za-z])sand\s*corp(?![A-Za-z])(?:\s*\(\s*샌드\s*코프\s*\))?", re.I)
+_EMPTY_PARENS = re.compile(r"[(\[]\s*[)\]]")
+_SPACES = re.compile(r"(?<=\S)[ \t]{2,}(?=\S)")
+
+
+def mask_text(text: str) -> str:
+    """Text with our name and our addresses taken out: 「샌드코프」 → 「저희」, a leading
+    「Sandcorp 」 (as in 「Sandcorp Flow」) or 「sandcorp-」 dropped, a lone 「Sandcorp」 →
+    「저희」, `sandcorp.co.kr` addresses and email addresses removed. Unchanged text is
+    returned as is."""
+    out = _MASK_EMAIL.sub("", text)
+    out = _MASK_DOMAIN.sub("", out)
+    out = _MASK_KO.sub("저희", out)
+    out = _MASK_EN_PREFIX.sub("", out)
+    out = _MASK_EN.sub("저희", out)
+    if out == text:
+        return text
+    out = _EMPTY_PARENS.sub("", out)
+    out = _SPACES.sub(" ", out)
+    return "\n".join(line.rstrip() if line.strip() else "" for line in out.split("\n")).strip()
 
 
 def is_ours(href: str) -> bool:
@@ -78,9 +115,12 @@ def strip_text(text: str) -> str:
 
 def _strip(value: JSON, key: str = "") -> JSON:
     if isinstance(value, str):
-        return value if key in _MEDIA_KEYS else strip_text(value)
+        if key in _MEDIA_KEYS:
+            return value
+        stripped = strip_text(value)
+        return stripped if key in _ID_KEYS else mask_text(stripped)
     if isinstance(value, list):
-        return [_strip(v) for v in value]
+        return [_strip(v, key if key in _MEDIA_KEYS else "") for v in value]
     if isinstance(value, dict):
         return {k: _strip(v, k) for k, v in value.items()}
     return value

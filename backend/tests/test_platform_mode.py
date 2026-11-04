@@ -248,8 +248,8 @@ def test_leaks_find_what_the_author_wrote(fake_storage: FakeObjectStorage) -> No
 
     found = svc.leaks_of(row, True)
 
-    assert any("샌드코프" in piece for piece in found)
-    assert any("dev@example.com" in piece for piece in found)
+    # The name and the email are masked before leaks are counted (#229); a phone is not masked.
+    assert not any("샌드코프" in piece or "@" in piece for piece in found)
     assert any("02-123-4567" in piece for piece in found)
     assert svc.leaks_of(Proposal.objects.get(slug=platform_draft().slug), True) == []
 
@@ -286,7 +286,7 @@ def test_export_proposal_pdf_over_mcp(
     assert isinstance(out, dict)
     assert out["platform_mode"] is True
     assert str(out["url"]).startswith("https://download.test/")
-    assert any("샌드코프" in str(piece) for piece in out["leaks"])
+    assert any("02-123-4567" in str(piece) for piece in out["leaks"])
     assert out["expires_at"]
     assert "/print/draft/" in renderer.urls[0]
     (key,) = [k for (_, k) in fake_storage.objects]
@@ -339,3 +339,80 @@ def test_the_management_command_writes_only_the_pdf(
     assert (after.platform_mode, after.updated_at) == (False, before.updated_at)
     assert fake_storage.objects == {}
     assert not ProposalRevision.objects.exists()
+
+
+# --- #229: names and our addresses are masked in every rendered text ---
+
+
+@pytest.mark.parametrize(
+    ("text", "masked"),
+    [
+        ("샌드코프는 대표 한 사람이 운영합니다.", "저희는 대표 한 사람이 운영합니다."),
+        ("샌드코프(Sandcorp)가 만듭니다", "저희가 만듭니다"),
+        (
+            "Sandcorp Flow — 흐름으로 만드는 상담 챗봇 플랫폼",
+            "Flow — 흐름으로 만드는 상담 챗봇 플랫폼",
+        ),
+        ("Sandcorp 플랫폼 — 포트폴리오·제안서", "플랫폼 — 포트폴리오·제안서"),
+        ("SANDCORP의 방식", "저희의 방식"),
+        ("만든 곳: Sandcorp.", "만든 곳: 저희."),
+        ("sandcorp-flow 저장소", "flow 저장소"),
+        ("sandcorp.co.kr 이 사이트. 포트폴리오", "이 사이트. 포트폴리오"),
+        ("직접 고쳐 보기 (https://flow.sandcorp.co.kr/try?template=home) 끝", "직접 고쳐 보기 끝"),
+        ("문의 hi@example.com 로", "문의 로"),
+        (
+            "외부 자료는 https://developer.mozilla.org 참고",
+            "외부 자료는 https://developer.mozilla.org 참고",
+        ),
+        ("  들여쓴 코드\n- 목록", "  들여쓴 코드\n- 목록"),
+    ],
+)
+def test_mask_text(text: str, masked: str) -> None:
+    assert platform_mode.mask_text(text) == masked
+
+
+def _platform_data(row: Proposal, *, platform: bool) -> svc.ProposalPageData:
+    return svc._draft_page_data(
+        row, preview=False, media_endpoint=None, platform=platform, private=False
+    )
+
+
+def test_case_cards_titles_and_company_text_are_masked(fake_storage: FakeObjectStorage) -> None:
+    case = make(
+        "flow-case-229",
+        title="Sandcorp Flow — 상담 챗봇",
+        summary="sandcorp.co.kr 에서 운영. 샌드코프가 만든 도구",
+    )
+    p = draft(platform_mode=True)
+    Proposal.objects.filter(slug=p.slug).update(title="Sandcorp 제안", subtitle="샌드코프의 제안")
+    doc: Any = document(private("video/mp4").pk, case.pk)  # Any: the test edits raw JSON
+    doc["tabs"][0]["title"] = "샌드코프 소개"
+    doc["tabs"][0]["blocks"].append(
+        {"id": "about", "type": "markdown", "body": "샌드코프는 대표 한 사람이 운영합니다."}
+    )
+    svc.replace_document(p.slug, doc)
+    row = Proposal.objects.get(slug=p.slug)
+
+    data = _platform_data(row, platform=True)
+    dumped = json.dumps(data.model_dump(mode="json"), ensure_ascii=False)
+
+    assert data.title == "제안"
+    assert data.subtitle == "저희의 제안"
+    assert "Flow — 상담 챗봇" in dumped
+    assert "저희는 대표 한 사람이 운영합니다." in dumped
+    assert "저희 소개" in dumped
+    assert_clean(dumped)
+    assert svc.leaks_of(row, True) == []
+    # Only the rendering is masked: the stored document and the portfolio item are untouched.
+    assert "샌드코프는" in json.dumps(
+        Proposal.objects.get(slug=p.slug).document, ensure_ascii=False
+    )
+    assert PortfolioItem.objects.get(pk=case.pk).title == "Sandcorp Flow — 상담 챗봇"
+
+
+def test_without_the_mode_names_are_kept(fake_storage: FakeObjectStorage) -> None:
+    p = draft(platform_mode=False)
+    Proposal.objects.filter(slug=p.slug).update(subtitle="샌드코프의 제안")
+    data = _platform_data(Proposal.objects.get(slug=p.slug), platform=False)
+    assert data.subtitle == "샌드코프의 제안"
+    assert data.supplier.name != platform_mode.SUPPLIER_NAME

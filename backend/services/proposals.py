@@ -554,6 +554,9 @@ def hide_for_platform(data: ProposalPageData) -> ProposalPageData:
     return data.model_copy(
         update={
             "supplier": supplier(platform=True),
+            "recipient": platform_mode.mask_text(data.recipient),
+            "title": platform_mode.mask_text(data.title),
+            "subtitle": platform_mode.mask_text(data.subtitle),
             "document": platform_mode.strip_document(data.document),
             "public_url": None,
             "platform_mode": True,
