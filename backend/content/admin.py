@@ -20,6 +20,8 @@ from content.models import (
     ProposalEvent,
     ProposalRevision,
     SiteProfile,
+    Tip,
+    TipCategory,
 )
 from services import inquiries as inquiry_service
 from services import media as media_service
@@ -112,6 +114,51 @@ class BlogPostAdmin(_PostAdmin):
     search_fields = ("title", "slug", "tags")
     prepopulated_fields = {"slug": ("title",)}
     fields = ("title", "slug", "summary", "cover", "tags", "status", "published_at", "body")
+
+
+if TYPE_CHECKING:
+    _TipForm = forms.ModelForm[Tip]
+    _TipAdmin = admin.ModelAdmin[Tip]
+else:
+    _TipForm = forms.ModelForm
+    _TipAdmin = admin.ModelAdmin
+
+
+class TipAdminForm(_TipForm):
+    """The categories as checkboxes of the fixed choices (stored as a JSON list)."""
+
+    categories = forms.MultipleChoiceField(
+        label="분류",
+        choices=TipCategory.choices,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = Tip
+        fields = ("title", "slug", "summary", "categories", "status", "published_at", "body")
+
+
+@admin.register(Tip)
+class TipAdmin(_TipAdmin):
+    """Tips are usually written through MCP (issue 203); here the same fields."""
+
+    form = TipAdminForm
+    list_display = ("title", "status", "published_at", "updated_at", "slug")
+    list_filter = ("status",)
+    search_fields = ("title", "slug", "summary")
+    prepopulated_fields = {"slug": ("title",)}
+    readonly_fields = ("updated_at",)
+    fields = (
+        "title",
+        "slug",
+        "summary",
+        "categories",
+        "status",
+        "published_at",
+        "updated_at",
+        "body",
+    )
 
 
 if TYPE_CHECKING:

@@ -41,7 +41,18 @@ from core.clientip import client_ip
 from core.public_html import HERO_LEAD
 from core.seo import home_jsonld, service_jsonld, work_jsonld
 from core.vite import entry_assets
-from services import blog, legal, media, offerings, og_card, pdf, preview, proposals, publishing
+from services import (
+    blog,
+    legal,
+    media,
+    offerings,
+    og_card,
+    pdf,
+    preview,
+    proposals,
+    publishing,
+    tips,
+)
 from services import proposal_access as access
 from services import proposal_events as events
 from services.home import home_page, site_availability, site_business
@@ -511,6 +522,7 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
 def sitemap_xml(request: HttpRequest) -> HttpResponse:
     works = public_modified()
     posts = blog.public_modified_by_slug()
+    tip_stamps = tips.public_modified_by_slug()
     stamps = [*works.values(), *posts.values()]
     latest = max(stamps) if stamps else None
     entries: list[tuple[str, date | None]] = [
@@ -519,6 +531,9 @@ def sitemap_xml(request: HttpRequest) -> HttpResponse:
         # an empty blog is not worth a crawl
         *([("/blog", max(posts.values()))] if posts else []),
         *((f"/blog/{slug}", at) for slug, at in posts.items()),
+        # issue 203: published tips only; an empty /tips is left out like an empty blog
+        *([("/tips", max(tip_stamps.values()))] if tip_stamps else []),
+        *((tips.tip_path(slug), at) for slug, at in tip_stamps.items()),
         *((offerings.path(o["slug"]), offerings.UPDATED_ON) for o in offerings.OFFERINGS),
         (legal.PATH, legal.EFFECTIVE_ON),
     ]
@@ -688,3 +703,117 @@ def blog_feed(request: HttpRequest) -> HttpResponse:
     response = HttpResponse(body, content_type="application/rss+xml; charset=utf-8")
     response["Cache-Control"] = "public, max-age=300"
     return response
+
+
+TIPS_TITLE = "개발 팁"
+TIPS_DESCRIPTION = "프로젝트와 상관없이 다시 쓸 수 있는 개발 요령: 문제, 원인, 해법, 짧은 코드 예시"
+
+
+def tips_index(request: HttpRequest) -> HttpResponse:
+    """/tips (issue 203): newest-first cards, `?category=` narrows them, `?page=` pages them (20
+    per page). An unknown category or a page past the end is a 404, as on /blog."""
+    category = request.GET.get("category", "").strip()
+    try:
+        page = int(request.GET.get("page", "1"))
+    except ValueError:
+        raise Http404 from None
+    listing = tips.public_listing(category, page)
+    if listing is None:
+        raise Http404
+    chosen = listing["category"]
+    narrowed = chosen is not None or page > 1  # the same tips as /tips: keep them out of the index
+    title = f"{chosen['label']} · {TIPS_TITLE}" if chosen else TIPS_TITLE
+    data = {**listing, "availability": site_availability(), "business": site_business()}
+    return render_shell(
+        request,
+        PageMeta(
+            title=f"{title} | {SITE_NAME}",
+            description=TIPS_DESCRIPTION,
+            robots="noindex, follow" if narrowed else INDEX,
+            image=DEFAULT_OG_IMAGE,
+            image_alt=DEFAULT_OG_IMAGE_ALT,
+            jsonld={
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                "name": TIPS_TITLE,
+                "description": TIPS_DESCRIPTION,
+                "url": _absolute(request, "/tips"),
+                "inLanguage": "ko",
+                "publisher": _publisher(),
+            },
+        ),
+        data=data,
+        count_visit=True,
+        body=public_html.tips_index_body(listing, data),
+    )
+
+
+def tip(request: HttpRequest, slug: str) -> HttpResponse:
+    """/tips/<slug>: a published tip; a draft or an unknown slug is a 404. No cover, so the
+    default preview image."""
+    detail = tips.public_detail(slug)
+    if detail is None:
+        raise Http404
+    card = detail["card"]
+    description = card["summary"] or TIPS_DESCRIPTION
+    modified = tips.public_modified_at(slug) or card["published_at"]
+    labels = tuple(c["label"] for c in card["categories"])
+    url = _absolute(request, tips.tip_path(slug))
+    data = {**detail, "availability": site_availability(), "business": site_business()}
+    return render_shell(
+        request,
+        PageMeta(
+            title=f"{card['title']} | {SITE_NAME}",
+            description=description,
+            robots=INDEX,
+            image=DEFAULT_OG_IMAGE,
+            image_alt=DEFAULT_OG_IMAGE_ALT,
+            og_type="article",
+            published_time=card["published_at"],
+            modified_time=modified,
+            tags=labels,
+            jsonld={
+                "@context": "https://schema.org",
+                "@type": "TechArticle",
+                "headline": card["title"],
+                "description": description,
+                "datePublished": card["published_at"],
+                "dateModified": modified,
+                "url": url,
+                "mainEntityOfPage": url,
+                "inLanguage": "ko",
+                "keywords": ", ".join(labels),
+                "articleSection": TIPS_TITLE,
+                "author": _publisher(),
+                "publisher": _publisher(),
+                "image": request.build_absolute_uri(DEFAULT_OG_IMAGE),
+            },
+        ),
+        data=data,
+        count_visit=True,
+        body=public_html.tip_body(data),
+    )
+
+
+def tip_preview(request: HttpRequest, token: str) -> HttpResponse:
+    """A signed, short-lived link to a tip (draft or not) as /tips/<slug> will show it. Like the
+    blog preview: noindex, no-store, no visit counted, no server HTML."""
+    try:
+        detail = tips.preview_detail(token)
+    except preview.ExpiredPreviewToken:
+        response = HttpResponse(
+            "미리보기 링크가 만료되었습니다. 링크를 다시 발급해 주세요.",
+            status=410,
+            content_type="text/plain; charset=utf-8",
+        )
+    except preview.BadPreviewToken:
+        raise Http404 from None
+    else:
+        data = {**detail, "availability": site_availability(), "business": site_business()}
+        meta = PageMeta(
+            title=f"미리보기 · {detail['card']['title']} | {SITE_NAME}",
+            description=TIPS_DESCRIPTION,
+            robots=NOINDEX,
+        )
+        response = render_shell(request, meta, data=data)
+    return _private(response)

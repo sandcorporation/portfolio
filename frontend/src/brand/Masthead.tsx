@@ -82,13 +82,14 @@ const SITE_NAV = [
   { key: "company", href: "/#home-company", label: "회사 소개" },
   { key: "services", href: "/#home-services", label: "서비스" },
   { key: "blog", href: "/blog", label: "기록" },
+  { key: "tips", href: "/tips", label: "팁" },
   { key: "foresight", href: FORESIGHT_NAV_URL, label: "Foresight ↗" },
   { key: "work", href: "/#home-portfolio", label: "포트폴리오" },
   { key: "inquiry", href: "/#home-inquiry", label: "문의" },
 ] as const;
 
 /** The mono row under the masthead; the current item carries the accent square. */
-export function SiteNav({ current }: { current?: "company" | "services" | "blog" | "work" | "inquiry" }) {
+export function SiteNav({ current }: { current?: "company" | "services" | "blog" | "tips" | "work" | "inquiry" }) {
   return (
     <nav className="site-nav" aria-label="사이트">
       <ul>

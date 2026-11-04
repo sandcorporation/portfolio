@@ -99,7 +99,9 @@ class BlockSchemaInput(BaseModel):
     "publish (the access code is shown once; give it to the customer separately). Writing a blog "
     "post: blog_guide (read it first) -> block_schema -> create_post -> replace_post_block/"
     "insert_post_block (gallery/video take list_media ids) -> get_post (read it back) -> "
-    "issue_post_preview_url (show the draft) -> publish_post.",
+    "issue_post_preview_url (show the draft) -> publish_post. Writing a development tip: "
+    "tip_guide (read it first) -> create_tip -> update_tip -> issue_tip_preview_url (show the "
+    "draft) -> publish_tip.",
     NoInput,
 )
 def whoami(token: AccessToken, args: NoInput) -> ToolResult:

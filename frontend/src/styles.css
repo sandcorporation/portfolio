@@ -410,8 +410,10 @@ img {
 }
 
 /* issue 197: a table written inside a prose (markdown) block widens like the table block; the
-   wrapper is a direct child of .sc-prose so tables nested in callouts or lists stay put */
-.page.post .sc-prose > .sc-prose-table-scroll {
+   wrapper is a direct child of .sc-prose so tables nested in callouts or lists stay put. A code
+   block widens the same way (issue 203: tips' examples are wider than the measure) */
+.page.post .sc-prose > .sc-prose-table-scroll,
+.page.post .sc-prose > pre {
   margin-inline: calc(-1 * var(--post-wide));
 }
 
@@ -1489,6 +1491,66 @@ h3.block-heading {
 
 .post-cta {
   margin: var(--space-7) 0 0;
+}
+
+/* issue 203: a tip's other tips of the same categories sit under the body as the list's rows,
+   headed by the mono label (an h2 for the outline, drawn like .section-head elsewhere) */
+.tip-related {
+  margin-top: var(--space-section);
+}
+
+h2.section-head {
+  font-weight: 400;
+  line-height: inherit;
+  letter-spacing: var(--tracking-label);
+}
+
+/* issue 203: highlighted code in tips (highlight.js classes, colours from tokens.css) */
+.sc-prose .hljs-keyword,
+.sc-prose .hljs-selector-tag,
+.sc-prose .hljs-meta .hljs-keyword,
+.sc-prose .hljs-doctag {
+  color: var(--color-code-keyword);
+}
+
+.sc-prose .hljs-string,
+.sc-prose .hljs-regexp,
+.sc-prose .hljs-addition,
+.sc-prose .hljs-symbol {
+  color: var(--color-code-string);
+}
+
+.sc-prose .hljs-number,
+.sc-prose .hljs-literal,
+.sc-prose .hljs-variable.language_,
+.sc-prose .hljs-attr,
+.sc-prose .hljs-attribute {
+  color: var(--color-code-number);
+}
+
+.sc-prose .hljs-comment,
+.sc-prose .hljs-quote,
+.sc-prose .hljs-meta,
+.sc-prose .hljs-deletion {
+  color: var(--color-code-comment);
+}
+
+.sc-prose .hljs-comment {
+  font-style: italic;
+}
+
+.sc-prose .hljs-title,
+.sc-prose .hljs-section,
+.sc-prose .hljs-name,
+.sc-prose .hljs-selector-class,
+.sc-prose .hljs-selector-id {
+  color: var(--color-code-title);
+}
+
+.sc-prose .hljs-type,
+.sc-prose .hljs-built_in,
+.sc-prose .hljs-tag {
+  color: var(--color-code-type);
 }
 
 @media (min-width: 768px) {

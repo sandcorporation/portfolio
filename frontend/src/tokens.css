@@ -35,6 +35,14 @@
   --space-8: 72px;
   --space-section: clamp(3rem, 8vw, 5rem);
 
+  /* issue 203: code highlighting in tips (navy, green, ochre on the code tint; >= 4.5:1, tested) */
+  --color-code-keyword: #1e3a8a;
+  --color-code-string: #1d6650;
+  --color-code-number: #8a4b0f;
+  --color-code-comment: #5b6472;
+  --color-code-title: #5b2a86;
+  --color-code-type: #2f5586;
+
   /* layout */
   --rail-width: 13rem;
   --masthead-height: 56px;
@@ -47,6 +55,12 @@
     --color-mark-bg: #f1eee6;
     --color-mark-far: #8a6214;
     --color-mark-near: #d9ad4c;
+    --color-code-keyword: #8fb3ff;
+    --color-code-string: #7fd1a6;
+    --color-code-number: #e3b562;
+    --color-code-comment: #9aa3b0;
+    --color-code-title: #d2b0f2;
+    --color-code-type: #a3c4f0;
   }
 }
 

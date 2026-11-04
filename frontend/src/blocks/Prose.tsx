@@ -16,12 +16,13 @@ const components: Components = {
   ),
 };
 
-/** Markdown (GFM) body text. Raw HTML in the source is not rendered. */
-export function Prose({ source }: { source: string }) {
+/** Markdown (GFM) body text. Raw HTML in the source is not rendered. `code` replaces how code is
+ * drawn (tips colour their fenced blocks, issue 203). */
+export function Prose({ source, code }: { source: string; code?: Components["code"] }) {
   if (!source.trim()) return null;
   return (
     <div className="prose sc-prose">
-      <Markdown remarkPlugins={[remarkGfm]} skipHtml components={components}>
+      <Markdown remarkPlugins={[remarkGfm]} skipHtml components={code ? { ...components, code } : components}>
         {source}
       </Markdown>
     </div>

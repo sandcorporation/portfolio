@@ -46,6 +46,17 @@ def blog_href(tag: str, page: int = 1) -> str:
 
 
 @register.filter
+def tips_href(category: str, page: int = 1) -> str:
+    return public_html.tips_index_href(category, page)
+
+
+@register.filter
+def prose(source: str) -> SafeString:
+    """`{{ data.body|prose }}`: a markdown string as `.prose.sc-prose` (Prose.tsx)."""
+    return public_html.prose(source)
+
+
+@register.filter
 def number(value: int) -> str:
     """1234 -> 1,234 (Intl.NumberFormat("ko-KR"))."""
     return f"{value:,}"

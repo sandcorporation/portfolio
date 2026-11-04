@@ -46,6 +46,7 @@ from documents.blocks import (
 from documents.validation import JSON, InvalidDocument, validate_document
 from services.blog import PostListing
 from services.home import HomeData
+from services.tips import TipListing
 
 SEOUL = ZoneInfo("Asia/Seoul")
 
@@ -483,6 +484,15 @@ def blog_index_href(tag: str, page: int = 1) -> str:
     return f"/blog?{urlencode(query)}" if query else "/blog"
 
 
+def tips_index_href(category: str, page: int = 1) -> str:
+    """tips/types.ts `tipsIndexHref`."""
+    query = {
+        **({"category": category} if category else {}),
+        **({"page": str(page)} if page > 1 else {}),
+    }
+    return f"/tips?{urlencode(query)}" if query else "/tips"
+
+
 # Kept in step with the app by tests/test_public_html.py (it reads the .tsx sources).
 GITHUB_URL = "https://github.com/sandcorporation"  # brand/Masthead.tsx GITHUB_URL
 HERO_LEAD = (  # home/HomePage.tsx HERO_LEAD
@@ -548,3 +558,21 @@ def service_body(data: Mapping[str, object]) -> SafeString:
 def privacy_body(data: Mapping[str, object]) -> SafeString:
     """/privacy (issue 201): the policy, the masthead's availability, the footer."""
     return _render("privacy", data)
+
+
+def tips_index_body(listing: TipListing, data: Mapping[str, object]) -> SafeString:
+    """/tips (issue 203): `data` is `listing` plus the masthead's availability and the footer."""
+    chosen = listing["category"]
+    value, page = (chosen["value"] if chosen else ""), listing["page"]
+    return _render(
+        "tips_index",
+        data,
+        prev_href=tips_index_href(value, page - 1),
+        next_href=tips_index_href(value, page + 1),
+    )
+
+
+def tip_body(data: Mapping[str, object]) -> SafeString:
+    """/tips/<slug>: TipDetail plus the masthead's availability and the footer. Code blocks stay
+    plain `<pre><code class="language-…">`; the app colours them when it renders over this."""
+    return _render("tip", data)

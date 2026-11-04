@@ -11,6 +11,9 @@ import { ProposalPage } from "./proposal/ProposalPage";
 import { isCodeScreen, isExpiredScreen, isProposalData } from "./proposal/types";
 import { ServicePage } from "./services/ServicePage";
 import { isServiceData } from "./services/types";
+import { TipPage } from "./tips/TipPage";
+import { TipsIndexPage } from "./tips/TipsIndexPage";
+import { isTipData, isTipsIndexData } from "./tips/types";
 import { WorkPage } from "./work/WorkPage";
 import { isWorkData } from "./work/types";
 
@@ -19,6 +22,8 @@ export function App({ path, data }: { path: string; data: unknown }) {
   if (path === "/" && isHomeData(data)) return <HomePage data={data} />;
   if (path === "/blog" && isBlogIndexData(data)) return <BlogIndexPage data={data} />;
   if (path.startsWith("/blog/") && isBlogPostData(data)) return <BlogPostPage data={data} />;
+  if (path === "/tips" && isTipsIndexData(data)) return <TipsIndexPage data={data} />;
+  if (path.startsWith("/tips/") && isTipData(data)) return <TipPage data={data} />;
   if (path.startsWith("/work/") && isWorkData(data)) return <WorkPage data={data} />;
   if (path.startsWith("/services/") && isServiceData(data)) return <ServicePage data={data} />;
   if (path === "/privacy" && isPrivacyData(data)) return <PrivacyPage data={data} />;
@@ -28,6 +33,7 @@ export function App({ path, data }: { path: string; data: unknown }) {
     if (isProposalData(data)) return <ProposalPage data={data} lockAction={`${path}/lock`} />;
   }
   if (path.startsWith("/preview/blog/") && isBlogPostData(data)) return <BlogPostPage data={data} />;
+  if (path.startsWith("/preview/tips/") && isTipData(data)) return <TipPage data={data} />;
   if (path.startsWith("/preview/") && isProposalData(data)) return <ProposalPage data={data} />;
   if (path.startsWith("/print/") && isProposalData(data) && data.print_mode) {
     return <ProposalPrintPage data={data} />;

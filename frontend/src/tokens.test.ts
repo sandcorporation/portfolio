@@ -104,6 +104,17 @@ describe.each(["light", "dark"] as const)("contrast (%s)", (scheme) => {
     }
   });
 
+  it.each([
+    "color-code-keyword",
+    "color-code-string",
+    "color-code-number",
+    "color-code-comment",
+    "color-code-title",
+    "color-code-type",
+  ])("%s (issue 203) is >= 4.5:1 on the code tint", (fg) => {
+    expect(contrast(get(fg), get("color-tint"))).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("text on the accent fill is >= 4.5:1", () => {
     expect(contrast(get("color-on-accent"), get("color-accent"))).toBeGreaterThanOrEqual(4.5);
   });

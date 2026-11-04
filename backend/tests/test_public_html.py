@@ -170,6 +170,7 @@ def test_fixed_text_matches_the_app_sources() -> None:
     for label in [
         "회사 소개",
         "기록",
+        "팁",
         "Foresight ↗",
         "포트폴리오",
         "문의",

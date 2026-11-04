@@ -455,6 +455,84 @@ class BlogPost(models.Model):
         return self.status == self.Status.PUBLISHED
 
 
+class TipCategory(models.TextChoices):
+    """The fixed kinds a tip is filed under (issue 203); a tip may have several. The value is
+    the `/tips?category=<value>` filter, the label what readers see."""
+
+    TESTING = "testing", "테스트"
+    PERFORMANCE = "performance", "성능"
+    REALTIME = "realtime", "웹소켓·실시간"
+    MEMORY = "memory", "메모리"
+    DEPLOY = "deploy", "배포·인프라"
+    FRONTEND = "frontend", "프론트·UI"
+    AUTH = "auth", "인증"
+    DEBUGGING = "debugging", "디버깅"
+
+
+def ordered_categories(values: object) -> list[str]:
+    """Known category values, each once, in the fixed order; anything else is a ValidationError."""
+    if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+        raise ValidationError({"categories": "분류는 문자열 목록이어야 합니다."})
+    unknown = sorted(set(values) - set(TipCategory.values))
+    if unknown:
+        raise ValidationError({"categories": f"모르는 분류: {', '.join(unknown)}"})
+    return [value for value in TipCategory.values if value in values]
+
+
+class Tip(models.Model):
+    """A short development tip (/tips/<slug>, issue 203): problem, cause, fix and a short code
+    example in one markdown body. Rules live in services/tips.py; drafts are never public. There
+    is deliberately no source field: where a tip came from stays out of the site."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "초안"
+        PUBLISHED = "published", "발행"
+
+    slug = models.SlugField("주소", max_length=80, unique=True, help_text="/tips/<주소> 로 열린다.")
+    title = models.CharField("제목", max_length=120)
+    summary = models.CharField(
+        "한 줄 요약", max_length=200, blank=True, help_text="목록과 OG 설명."
+    )
+    # A JSON list of TipCategory values in the fixed order: eight fixed choices do not earn a
+    # table, and the list filters with JSON_CONTAINS (services/tips.py).
+    categories = models.JSONField("분류", default=list, blank=True)
+    body = models.TextField("본문(마크다운)", blank=True)
+    status = models.CharField("상태", max_length=10, choices=Status, default=Status.DRAFT)
+    published_at = models.DateTimeField(
+        "발행 시각",
+        null=True,
+        blank=True,
+        help_text="첫 발행 때 채워지고 그 뒤 유지된다(목록 순서).",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField("갱신 시각", auto_now=True)
+
+    class Meta:
+        verbose_name = "개발 팁"
+        verbose_name_plural = "개발 팁"
+        ordering = ("-published_at", "-id")
+        indexes = [models.Index(fields=["status", "published_at"], name="tip_status_pub")]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def save(self, **kwargs: Any) -> None:  # Any: forwarded unchanged to Model.save
+        self.categories = ordered_categories(self.categories)
+        if self.status == self.Status.PUBLISHED and self.published_at is None:
+            self.published_at = timezone.now()  # first publication; kept from then on
+        super().save(**kwargs)
+
+    def clean(self) -> None:
+        self.categories = ordered_categories(self.categories)
+
+    def category_list(self) -> list[str]:
+        return [str(value) for value in self.categories]
+
+    @property
+    def is_published(self) -> bool:
+        return self.status == self.Status.PUBLISHED
+
+
 CLIENT_CODE_PATTERN = r"^[A-Z]{2,6}$"
 
 

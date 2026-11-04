@@ -16,6 +16,7 @@ from mcpserver import (  # noqa: F401  # register
     tools_media,
     tools_proposals,
     tools_publishing,
+    tools_tips,
 )
 from mcpserver.tools import TOOLS, ToolError
 
@@ -27,7 +28,8 @@ INSTRUCTIONS = (
     "(/blog) are block documents; call block_schema to see the block types before writing one. "
     "Before writing or rewriting a proposal, read proposal_guide first: it gives the writing "
     "rules and the recommended block order. Before writing or rewriting a blog post, read "
-    "blog_guide first."
+    "blog_guide first. Development tips (/tips) are one markdown body each; before writing or "
+    "rewriting a tip, read tip_guide first."
 )
 
 PARSE_ERROR = -32700

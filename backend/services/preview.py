@@ -1,6 +1,6 @@
-"""Signed, short-lived preview links (#147): a proposal draft (`/preview/<token>`) and a blog
-post draft (`/preview/blog/<token>`) share the signing, each with its own salt so a token of one
-never opens the other."""
+"""Signed, short-lived preview links (#147): a proposal draft (`/preview/<token>`), a blog post
+draft (`/preview/blog/<token>`) and a tip draft (`/preview/tips/<token>`, issue 203) share the
+signing, each with its own salt so a token of one never opens another."""
 
 from datetime import datetime, timedelta
 
