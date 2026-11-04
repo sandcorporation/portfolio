@@ -53,6 +53,8 @@ export interface OfferingCard {
   href: string;
   /** cropped into the card's thumbnail */
   cover?: OfferingImage | null;
+  /** false: `cover` is the card image, drawn whole; true/absent: the cover, cropped */
+  cropped?: boolean;
 }
 
 /** The shell's #page-data on `/services/<slug>`. */

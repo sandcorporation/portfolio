@@ -8,7 +8,7 @@ export function ServiceRows({ services }: { services: OfferingCard[] }) {
         <li key={card.slug}>
           <a className="work-row" href={card.href}>
             {card.cover && (
-              <span className="work-row-thumb service-thumb" aria-hidden="true">
+              <span className={`work-row-thumb service-thumb${card.cropped === false ? " service-thumb-whole" : ""}`} aria-hidden="true">
                 <img src={card.cover.url} alt="" loading="lazy" />
               </span>
             )}

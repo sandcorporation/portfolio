@@ -1,5 +1,6 @@
 import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { linkAttrs } from "../links";
+import { ZoomImage } from "./ZoomImage";
 import type { OfferingImage, ServiceData } from "./types";
 
 /** `width`/`height` keep the original ratio while loading; an upload of unknown size has none. */
@@ -49,7 +50,7 @@ export function ServicePage({ data }: { data: ServiceData }) {
             <div className="accent-rule" aria-hidden="true" />
           </header>
           {o.cover && (
-            <img className="work-cover sc-prose-cover" src={o.cover.url} alt={o.cover.alt} {...sizeAttrs(o.cover)} />
+            <ZoomImage className="work-cover sc-prose-cover" src={o.cover.url} alt={o.cover.alt} {...sizeAttrs(o.cover)} />
           )}
           <section className="page-section" aria-labelledby="service-audience">
             <Head index="01" label="For" id="service-audience" title="이런 분께 맞습니다" />
@@ -75,7 +76,7 @@ export function ServicePage({ data }: { data: ServiceData }) {
           </section>
           {o.figure && (
             <figure className="service-figure">
-              <img className="sc-prose-cover" src={o.figure.url} alt={o.figure.alt} loading="lazy" {...sizeAttrs(o.figure)} />
+              <ZoomImage className="sc-prose-cover" src={o.figure.url} alt={o.figure.alt} loading="lazy" {...sizeAttrs(o.figure)} />
               {o.figure.caption && <figcaption>{o.figure.caption}</figcaption>}
             </figure>
           )}

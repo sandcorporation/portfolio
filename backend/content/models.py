@@ -911,6 +911,16 @@ class Service(models.Model):
         limit_choices_to={"is_public": True, "uploaded_at__isnull": False},
         help_text="02 What과 03 Process 사이. 업로드가 끝난 공개 이미지, 대체 문구 필수.",
     )
+    card = models.ForeignKey(
+        Media,
+        verbose_name="카드 썸네일",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        limit_choices_to={"is_public": True, "uploaded_at__isnull": False},
+        help_text="홈 카드의 2:1 썸네일(권장 1200×600). 없으면 대표 이미지를 잘라 씁니다.",
+    )
     figure_alt = models.CharField("본문 그림 대체 문구", max_length=200, blank=True, db_default="")
     figure_caption = models.CharField("본문 그림 캡션", max_length=200, blank=True, db_default="")
     position = models.IntegerField("순서", default=0, help_text="작을수록 앞.")

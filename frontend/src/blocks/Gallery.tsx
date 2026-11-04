@@ -4,7 +4,7 @@ import { useMediaUrls } from "./media";
 import { useRenderMode } from "./mode";
 import type { GalleryBlock } from "./types";
 
-type Shown = { url: string; alt: string; caption?: string | null; onError: () => void };
+export type Shown = { url: string; alt: string; caption?: string | null; onError: () => void };
 
 export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string }) {
   // The server fills in `url`; an image without one (media gone or not public) is skipped.
@@ -59,16 +59,19 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
   );
 }
 
-function Viewer({
+export function Viewer({
   images,
   index,
   onIndex,
   onClose,
+  natural = false,
 }: {
   images: Shown[];
   index: number;
   onIndex: (index: number) => void;
   onClose: () => void;
+  /** Draw the original pixels in a scrollable frame (issue 221) instead of shrinking to the screen. */
+  natural?: boolean;
 }) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const image = images[index];
@@ -80,7 +83,7 @@ function Viewer({
 
   return (
     <div
-      className="gallery-viewer"
+      className={natural ? "gallery-viewer gallery-viewer-natural" : "gallery-viewer"}
       role="dialog"
       aria-modal="true"
       aria-label="이미지 보기"

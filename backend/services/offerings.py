@@ -93,7 +93,8 @@ class OfferingCard(TypedDict):
     summary: str
     inquiry_kind: str
     href: str  # the service page, or the inquiry form for a card without a page
-    cover: Image | None  # cropped into the card's thumbnail
+    cover: Image | None  # the card's thumbnail: `card` whole in a 2:1 box, else the cover cropped
+    cropped: bool  # True: the thumbnail is the cover, to be cropped; False: a card image, whole
 
 
 # --- the rules: lengths and counts that keep the page's shape ---
@@ -140,7 +141,7 @@ _TEXT_LIMITS = {  # field -> most characters
     "figure_caption": 200,
 }
 _LINE_MAX = 120
-IMAGE_FIELDS = (("cover", "대표 이미지"), ("figure", "본문 그림"))
+IMAGE_FIELDS = (("cover", "대표 이미지"), ("card", "카드 썸네일"), ("figure", "본문 그림"))
 
 
 def _shape_errors(field: str, adapter: ListAdapter, value: object) -> list[DocumentError]:
@@ -231,6 +232,8 @@ class ServiceOut(BaseModel):
     cover_media_id: int | None
     cover_url: str
     cover_alt: str
+    card_media_id: int | None
+    card_url: str
     figure_media_id: int | None
     figure_url: str
     figure_alt: str
@@ -271,6 +274,11 @@ class NewService(BaseModel):
     cover_alt: str = Field(
         default="", max_length=200, description="Cover alt text; empty: the service name."
     )
+    card_media_id: int | None = Field(
+        default=None,
+        description="Id of a finished, public image upload: the home card's 2:1 thumbnail "
+        "(1200x600), shown whole. Omit to crop the cover instead.",
+    )
     figure_media_id: int | None = Field(
         default=None,
         description="Id of a finished, public image upload: one figure between 02 What and "
@@ -306,6 +314,11 @@ class ServicePatch(BaseModel):
     cover_alt: str = Field(
         default="", max_length=200, description="Cover alt text; empty: the service name."
     )
+    card_media_id: int | None = Field(
+        default=None,
+        description="Id of a finished, public image upload: the home card's 2:1 thumbnail "
+        "(1200x600), shown whole. `null` removes it (the cover is cropped instead).",
+    )
     figure_media_id: int | None = Field(
         default=None,
         description="Id of a finished, public image upload: one figure between 02 What and "
@@ -340,6 +353,8 @@ def service_out(service: Service) -> ServiceOut:
             "cover_media_id": service.cover_id,
             "cover_url": _url(service.cover),
             "cover_alt": service.cover_alt,
+            "card_media_id": service.card_id,
+            "card_url": _url(service.card),
             "figure_media_id": service.figure_id,
             "figure_url": _url(service.figure),
             "figure_alt": service.figure_alt,
@@ -393,6 +408,8 @@ def _cases(values: list[CaseIn]) -> list[Case]:
 def _set_images(service: Service, given: set[str], source: NewService | ServicePatch) -> None:
     if "cover_media_id" in given:
         service.cover = cover_media(source.cover_media_id, "cover_media_id")
+    if "card_media_id" in given:
+        service.card = cover_media(source.card_media_id, "card_media_id")
     if "figure_media_id" in given:
         service.figure = cover_media(source.figure_media_id, "figure_media_id")
     for field in ("cover_alt", "figure_alt", "figure_caption"):
@@ -507,21 +524,23 @@ def get(slug: str) -> Offering | None:
     return _offering(service)
 
 
+def _card(s: Service) -> OfferingCard:
+    own = _image(s.card, "")  # a card image is drawn whole; without one the cover is cropped
+    return OfferingCard(
+        slug=s.slug,
+        name=s.name,
+        summary=s.summary,
+        inquiry_kind=s.inquiry_kind,
+        href=_href(s),
+        cover=own or _image(s.cover, ""),
+        cropped=own is None,
+    )
+
+
 def cards() -> list[OfferingCard]:
     """The home's rows: visible services in `position` order."""
-    return [
-        OfferingCard(
-            slug=s.slug,
-            name=s.name,
-            summary=s.summary,
-            inquiry_kind=s.inquiry_kind,
-            href=_href(s),
-            cover=_image(s.cover, ""),
-        )
-        for s in Service.objects.filter(is_visible=True)
-        .select_related("cover")
-        .order_by("position", "id")
-    ]
+    rows = Service.objects.filter(is_visible=True).select_related("cover", "card")
+    return [_card(s) for s in rows.order_by("position", "id")]
 
 
 def page_stamps() -> list[tuple[str, date]]:

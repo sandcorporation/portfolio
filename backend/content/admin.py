@@ -809,6 +809,7 @@ class ServiceAdmin(_ServiceAdmin):
         "contact",
         "cover",
         "cover_alt",
+        "card",
         "figure",
         "figure_alt",
         "figure_caption",

@@ -1254,6 +1254,37 @@ h3.block-heading {
   object-position: right center;
 }
 
+/* A card image (issue 221) is 2:1 itself: shown whole, never cropped. */
+.service-thumb-whole img {
+  object-fit: contain;
+  object-position: center;
+}
+
+/* The detail page's pictures open at the original size (issue 221): a link to the original
+   without JavaScript, a button with the app's viewer. Neither adds a frame of its own. */
+.page.service .service-zoom {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: zoom-in;
+  width: 100%;
+  text-align: inherit;
+}
+
+/* original pixels, scrolled inside the frame; a phone can pinch too */
+.gallery-viewer-natural .gallery-figure {
+  max-width: 100%;
+  overflow: auto;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.gallery-viewer-natural .gallery-figure img {
+  max-width: none;
+  max-height: none;
+}
+
 @media (min-width: 768px) {
   .work-row:has(.service-thumb) {
     grid-template-columns: 16rem minmax(0, 1fr);

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { App } from "../App";
 import { exampleDocument } from "../blocks/testing";
 import type { HomeData } from "../home/types";
@@ -176,4 +176,46 @@ test("홈 카드는 대표 이미지가 있을 때만 썸네일을 두고 alt는
   expect(thumbs[0]).toHaveAttribute("src", "https://img.example/a.png");
   expect(thumbs[0]).toHaveAttribute("alt", "");
   expect(thumbs[0]).toHaveAttribute("loading", "lazy");
+});
+
+test("card 이미지는 통째로(service-thumb-whole), 없으면 잘라 쓰던 그대로", () => {
+  const base = { inquiry_kind: "MCP 연동", summary: "요", href: "/services/a" };
+  render(
+    <App
+      path="/"
+      data={home({
+        services: [
+          { ...base, slug: "a", name: "A", cover: image("https://img.example/card.png"), cropped: false },
+          { ...base, slug: "b", name: "B", cover: image("https://img.example/cover.png"), cropped: true },
+          { ...base, slug: "c", name: "C", cover: image("https://img.example/old.png") },
+        ],
+      })}
+    />,
+  );
+
+  const thumbs = Array.from(document.querySelectorAll(".service-thumb"));
+  expect(thumbs.map((t) => t.classList.contains("service-thumb-whole"))).toEqual([true, false, false]);
+});
+
+test("상세 그림을 누르면 원본 크기로 열고 Esc로 닫으며 포커스가 돌아온다", () => {
+  const data: ServiceData = {
+    offering: offering({ figure: image("https://img.example/fig.png", { alt: "호출 순서" }) }),
+  };
+  render(<App path="/services/mcp-integration" data={data} />);
+
+  const opener = screen.getByRole("button", { name: "호출 순서 크게 보기" });
+  fireEvent.click(opener);
+  const viewer = screen.getByRole("dialog");
+  expect(viewer).toHaveClass("gallery-viewer-natural");
+  expect(within(viewer).getByAltText("호출 순서")).toHaveAttribute("src", "https://img.example/fig.png");
+  expect(within(viewer).getByAltText("호출 순서")).not.toHaveAttribute("width");
+
+  fireEvent.keyDown(viewer, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(opener).toHaveFocus();
+});
+
+test("그림이 없으면 크게 보기 단추도 없다", () => {
+  render(<App path="/services/mcp-integration" data={page()} />);
+  expect(screen.queryByRole("button", { name: /크게 보기/ })).toBeNull();
 });

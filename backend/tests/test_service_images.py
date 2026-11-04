@@ -99,14 +99,17 @@ def test_images_draw_in_the_server_html_and_the_app_data(client: Client) -> None
     body = _root(html)
 
     cover_tag = (
+        f'<a class="service-zoom" href="{cover_url}" target="_blank" rel="noopener noreferrer">'
         f'<img class="work-cover sc-prose-cover" src="{cover_url}" alt="구조도" '
-        'width="2400" height="950">'
+        'width="2400" height="950"></a>'
     )
     assert cover_tag in body  # not lazy: it is the first screen
     assert body.index("accent-rule") < body.index(cover_tag) < body.index("service-audience")
     figure = (
-        f'<figure class="service-figure"><img class="sc-prose-cover" src="{figure_url}" '
-        'alt="호출 순서" width="2400" height="1000" loading="lazy">'
+        f'<figure class="service-figure"><a class="service-zoom" href="{figure_url}" '
+        'target="_blank" rel="noopener noreferrer">'
+        f'<img class="sc-prose-cover" src="{figure_url}" '
+        'alt="호출 순서" width="2400" height="1000" loading="lazy"></a>'
         "<figcaption>도구 호출 한 번의 순서</figcaption></figure>"
     )
     assert figure in body
@@ -229,3 +232,37 @@ def test_create_service_takes_images_too() -> None:
         )
     )
     assert (out.cover_media_id, out.cover_alt) == (901, "대표")
+
+
+def test_a_card_image_is_drawn_whole_and_without_one_the_cover_is_cropped(client: Client) -> None:
+    cover_url, _ = _with_images()
+    card = _media(903, size=(1200, 600))
+    card_url = cast(str, media.public_url(card))
+    assert next(c for c in offerings.cards() if c["slug"] == SLUG)["cropped"] is True
+
+    out = offerings.update_service(SLUG, _patch(card_media_id=card.pk))
+    assert (out.card_media_id, out.card_url) == (903, card_url)
+    assert offerings.get_service(SLUG).cover_url == cover_url  # the page keeps its cover
+    body = _root(client.get("/").content.decode())
+    assert (
+        '<span class="work-row-thumb service-thumb service-thumb-whole" aria-hidden="true">'
+        f'<img src="{card_url}" alt="" loading="lazy"></span>'
+    ) in body
+    assert cover_url not in body
+    assert body.count("service-thumb-whole") == 1
+    page = client.get(f"/services/{SLUG}").content.decode()
+    assert card_url not in page  # the detail page never draws the card image
+
+    out = offerings.update_service(SLUG, _patch(card_media_id=None))
+    assert out.card_media_id is None and out.card_url == ""
+    assert "service-thumb-whole" not in _root(client.get("/").content.decode())
+
+
+def test_a_card_media_that_is_unfinished_or_private_is_refused() -> None:
+    for bad in (_media(903, done=False), _media(904, public=False)):
+        with pytest.raises(Rejected) as caught:
+            offerings.update_service(SLUG, _patch(card_media_id=bad.pk))
+        assert [e.path for e in caught.value.errors] == ["card_media_id"]
+    service = Service.objects.get(slug=SLUG)
+    service.card = _media(905, content_type="video/mp4")
+    assert [e.path for e in offerings.problems(service)] == ["card"]
