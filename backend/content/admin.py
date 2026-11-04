@@ -19,6 +19,7 @@ from content.models import (
     Proposal,
     ProposalEvent,
     ProposalRevision,
+    Short,
     SiteProfile,
     Tip,
     TipCategory,
@@ -28,6 +29,7 @@ from services import media as media_service
 from services import pdf as pdf_service
 from services import proposals as proposal_service
 from services import publishing
+from services import shorts as short_service
 from services.errors import ServiceError
 
 # ModelAdmin is generic only in django-stubs; at runtime it is not subscriptable.
@@ -159,6 +161,75 @@ class TipAdmin(_TipAdmin):
         "updated_at",
         "body",
     )
+
+
+if TYPE_CHECKING:
+    _ShortForm = forms.ModelForm[Short]
+    _ShortAdmin = admin.ModelAdmin[Short]
+else:
+    _ShortForm = forms.ModelForm
+    _ShortAdmin = admin.ModelAdmin
+
+
+class ShortAdminForm(_ShortForm):
+    """The video as an ID or any YouTube URL (services/shorts.py turns it into the ID)."""
+
+    youtube_id = forms.CharField(
+        label="영상 ID",
+        max_length=200,
+        help_text="11자 ID나 쇼츠 주소(youtube.com/shorts/…, youtu.be/…, watch?v=…).",
+    )
+
+    class Meta:
+        model = Short
+        fields = ("youtube_id", "title", "position", "is_visible", "link")
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # Any: Django's form signature
+        super().__init__(*args, **kwargs)
+        if self.instance.pk is None:
+            self.initial.setdefault("position", short_service.front_position())
+
+    def clean_youtube_id(self) -> str:
+        found = short_service.parse_video(self.cleaned_data["youtube_id"])
+        if found is None:
+            raise forms.ValidationError("YouTube 영상 ID(11자)나 영상 주소가 아닙니다.")
+        return found
+
+
+@admin.register(Short)
+class ShortAdmin(_ShortAdmin):
+    """Shorts on the home page (issue 207): order and visibility right in the list."""
+
+    form = ShortAdminForm
+    list_display = ("thumbnail", "__str__", "youtube_id", "position", "is_visible", "link")
+    list_display_links = ("__str__",)
+    list_editable = ("position", "is_visible")
+    list_filter = ("is_visible",)
+    search_fields = ("title", "youtube_id")
+    readonly_fields = ("preview", "updated_at")
+    fields = ("youtube_id", "title", "position", "is_visible", "link", "preview", "updated_at")
+
+    @admin.display(description="썸네일")
+    def thumbnail(self, obj: Short) -> str:
+        return format_html(
+            '<img src="{}" alt="" width="60" height="45" loading="lazy" style="object-fit:cover">',
+            short_service.thumbnail_url(obj.youtube_id),
+        )
+
+    @admin.display(description="미리보기")
+    def preview(self, obj: Short) -> str:
+        if not obj.pk:
+            return "-"
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener noreferrer">'
+            '<img src="{}" alt="" width="240" height="180" style="object-fit:cover"></a>',
+            short_service.card_of(obj)["url"],
+            short_service.thumbnail_url(obj.youtube_id),
+        )
+
+    def save_model(self, request: HttpRequest, obj: Short, form: _ShortForm, change: bool) -> None:
+        short_service.fill_title(obj)  # an empty title comes from YouTube (oEmbed)
+        super().save_model(request, obj, form, change)
 
 
 if TYPE_CHECKING:

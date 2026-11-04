@@ -23,11 +23,13 @@ from sandcorp_authkit.testing import FakeJwks, FakeTokenEndpoint, FixedClock
 
 from adapters import foresight as foresight_adapter
 from adapters import metrics as metrics_adapter
+from adapters import youtube as youtube_adapter
 from adapters.fake_foresight import FakeForesight
 from adapters.fake_metrics import FakeMetrics
 from adapters.fake_notify import FakeNotifier
 from adapters.fake_renderer import FakeRenderer
 from adapters.fake_storage import FakeObjectStorage
+from adapters.fake_youtube import FakeYoutube
 from content.models import Media, PortfolioItem
 from core.vite import _read_manifest
 from documents.validation import JSON
@@ -150,6 +152,16 @@ def foresight() -> Iterator[FakeForesight]:
     foresight_adapter.set_gateway(fake)
     yield fake
     foresight_adapter.set_gateway(None)
+
+
+@pytest.fixture(autouse=True)
+def youtube() -> Iterator[FakeYoutube]:
+    """No test reaches youtube.com: the oEmbed gateway is always this fake.
+    Set `youtube.titles` or `youtube.failing`, assert on `youtube.calls`."""
+    fake = FakeYoutube()
+    youtube_adapter.set_gateway(fake)
+    yield fake
+    youtube_adapter.set_gateway(None)
 
 
 @pytest.fixture(autouse=True)

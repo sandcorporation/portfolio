@@ -8,6 +8,7 @@ import { portfolioMeta } from "../work/types";
 import { TipRows } from "../tips/TipRows";
 import { HOME_TIP_COUNT, pickTips } from "./pickTips";
 import { ServiceRows } from "../services/ServiceRows";
+import { ShortsSection } from "./ShortsSection";
 import { InquiryEmail } from "./InquiryEmail";
 import { InquiryForm } from "./InquiryForm";
 import { NewsRows } from "./NewsRows";
@@ -59,6 +60,8 @@ export function HomePage({ data }: { data: HomeData }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
   }, []);
   const hasPosts = posts.length > 0;
+  const shorts = data.shorts ?? [];
+  const hasShorts = shorts.length > 0;
   const hasNews = news.length > 0;
   const services = data.services ?? [];
   const hasServices = services.length > 0;
@@ -68,6 +71,7 @@ export function HomePage({ data }: { data: HomeData }) {
     ...(hasServices ? ["services"] : []),
     ...(hasPosts ? ["notes"] : []),
     ...(hasTips ? ["tips"] : []),
+    ...(hasShorts ? ["shorts"] : []),
     ...(hasNews ? ["news"] : []),
     ...(hasPortfolio ? ["work"] : []),
     "contact",
@@ -168,6 +172,7 @@ export function HomePage({ data }: { data: HomeData }) {
                 <TipRows tips={tips} compact />
               </section>
             )}
+            {hasShorts && <ShortsSection index={no("shorts")} shorts={shorts} />}
             {hasNews && (
               <section className="page-section" aria-labelledby="home-news">
                 <SectionHead

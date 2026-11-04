@@ -44,6 +44,7 @@ from documents.blocks import (
     VideoBlock,
 )
 from documents.validation import JSON, InvalidDocument, validate_document
+from services import shorts
 from services.blog import PostListing
 from services.home import HomeData
 from services.tips import TipListing
@@ -515,6 +516,7 @@ def home_body(data: HomeData) -> SafeString:
         *(["services"] if data["services"] else []),
         *(["notes"] if data["posts"] else []),
         *(["tips"] if data["tips"] else []),
+        *(["shorts"] if data["shorts"] else []),
         *(["news"] if data["news"] else []),
         *(["work"] if data["portfolio"] else []),
         "contact",
@@ -527,6 +529,7 @@ def home_body(data: HomeData) -> SafeString:
         sections={key: f"{n:02d}" for n, key in enumerate(shown, 1)},
         portfolio_meta=meta,
         news_thumbs=any(item["image_url"] for item in data["news"]),
+        shorts_channel=shorts.CHANNEL_URL,
     )
 
 

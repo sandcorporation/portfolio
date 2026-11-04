@@ -17,6 +17,9 @@
   --color-qr-bg: #ffffff;
   --color-qr-fg: #000000;
   --color-scrim: rgb(11 13 18 / 0.92);
+  /* home shorts (issue 207): the play badge over a video thumbnail, the same in every scheme */
+  --color-play-bg: rgb(11 13 18 / 0.72);
+  --color-play-fg: #ffffff;
   /* brand mark: ochre dunes on a blue-black square */
   --color-mark-bg: #1b1d24;
   --color-mark-far: #8a6214;

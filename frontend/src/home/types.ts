@@ -4,6 +4,19 @@ import type { PostCard } from "../blog/types";
 import type { TipCard } from "../tips/types";
 import type { PortfolioCard } from "../work/types";
 
+/** One Short on the home page. Mirrors ShortCard in backend/services/shorts.py. */
+export interface ShortCard {
+  youtube_id: string;
+  /** Never empty: 「Sandcorp 쇼츠」 stands in for a missing title. */
+  title: string;
+  /** The Short on YouTube. */
+  url: string;
+  thumbnail_url: string;
+  /** A path on this site ("" when none) and its label (「관련 팁 →」). */
+  link: string;
+  link_label: string;
+}
+
 /** The shell's #page-data on `/`. Mirrors HomeData in backend/services/home.py. */
 export interface NewsItem {
   title: string;
@@ -61,6 +74,8 @@ export interface HomeData {
   posts: PostCard[];
   /** Newest published tips (a pool of up to 12); the browser shows three of them. Empty hides the section. */
   tips?: TipCard[];
+  /** Visible YouTube Shorts in home order, at most four; empty hides the section (issue 207). */
+  shorts?: ShortCard[];
   /** Newest Foresight articles; empty hides the section. */
   news: NewsItem[];
   /** All sites together (sandcorp-metrics); null/absent leaves the masthead without numbers. */

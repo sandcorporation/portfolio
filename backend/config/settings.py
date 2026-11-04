@@ -125,6 +125,10 @@ FORESIGHT_API_URL = env("FORESIGHT_API_URL", "https://news.sandcorp.co.kr/api/pu
 FORESIGHT_STATS_URL = env("FORESIGHT_STATS_URL", "https://news.sandcorp.co.kr/api/public/stats")
 FORESIGHT_TIMEOUT_SECONDS = 3
 
+# YouTube oEmbed for a Short's title when it is registered (issue 207). Empty never looks titles up.
+YOUTUBE_OEMBED_URL = env("YOUTUBE_OEMBED_URL", "https://www.youtube.com/oembed")
+YOUTUBE_TIMEOUT_SECONDS = 3
+
 # sandcorp-metrics (metrics.sandcorp.co.kr) visit counts (#81). METRICS_SNIPPET_URL is the counting
 # script the public pages load (empty = not loaded); METRICS_API_URL the public totals the home
 # page shows (empty = no numbers). The adapter caches 60 seconds in django_cache.

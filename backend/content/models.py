@@ -533,6 +533,45 @@ class Tip(models.Model):
         return self.status == self.Status.PUBLISHED
 
 
+YOUTUBE_ID_PATTERN = r"^[A-Za-z0-9_-]{11}$"
+SITE_PATH_PATTERN = r"^/(?![/\\])[^\s]*$"  # a path on this site: "/tips/x", never "//host"
+
+
+class Short(models.Model):
+    """A YouTube Short picked for the home page (issue 207). Rules live in services/shorts.py;
+    the home shows the visible ones by `position` (smaller first), at most four."""
+
+    youtube_id = models.CharField(
+        "영상 ID",
+        max_length=11,
+        unique=True,
+        validators=[RegexValidator(YOUTUBE_ID_PATTERN, "YouTube 영상 ID는 11자입니다.")],
+        help_text="11자 ID. admin에서는 쇼츠 주소를 넣어도 된다.",
+    )
+    title = models.CharField(
+        "제목", max_length=200, blank=True, help_text="비워 두면 저장할 때 YouTube에서 가져온다."
+    )
+    position = models.IntegerField("순서", default=0, help_text="작을수록 앞.")
+    is_visible = models.BooleanField("노출", default=True)
+    link = models.CharField(
+        "관련 링크",
+        max_length=200,
+        blank=True,
+        validators=[RegexValidator(SITE_PATH_PATTERN, "사이트 안 경로여야 합니다. 예: /tips/x")],
+        help_text="선택. 카드 아래 작은 링크. 예: /tips/x",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField("갱신 시각", auto_now=True)
+
+    class Meta:
+        verbose_name = "쇼츠"
+        verbose_name_plural = "쇼츠"
+        ordering = ("position", "-id")
+
+    def __str__(self) -> str:
+        return self.title or self.youtube_id
+
+
 CLIENT_CODE_PATTERN = r"^[A-Z]{2,6}$"
 
 
