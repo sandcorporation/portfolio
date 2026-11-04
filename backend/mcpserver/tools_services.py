@@ -62,7 +62,8 @@ def list_services(token: AccessToken, args: NoInput) -> ToolResult:
 @tool(
     "get_service",
     "Get a service",
-    "One service with all its page fields.",
+    "One service with all its page fields, including the cover and figure (media id, alt, "
+    "caption and the url they are drawn from).",
     ServiceSlugInput,
 )
 def get_service(token: AccessToken, args: ServiceSlugInput) -> ToolResult:
@@ -73,7 +74,8 @@ def get_service(token: AccessToken, args: ServiceSlugInput) -> ToolResult:
     "create_service",
     "Create a service",
     "Add a service, hidden (no home card) and unpublished (no page). Show its card with "
-    "update_service is_visible, open its page with publish_service." + READ_GUIDE,
+    "update_service is_visible, open its page with publish_service. cover_media_id and "
+    "figure_media_id (finished public images) may be given at once." + READ_GUIDE,
     CreateServiceInput,
     read_only=False,
 )
@@ -86,7 +88,10 @@ def create_service(token: AccessToken, args: CreateServiceInput) -> ToolResult:
     "Update a service",
     "Change a service by slug. Only the fields you send change; a list replaces the whole list. "
     "is_visible shows or hides the home card, position orders the cards (smaller first). A "
-    "published page changes live." + READ_GUIDE,
+    "published page changes live. Images: cover_media_id (under the title, cropped into the "
+    "home card, the link preview) and figure_media_id (between 02 What and 03 Process, needs "
+    "figure_alt) take a finished public image from start_upload/complete_upload; null removes."
+    + READ_GUIDE,
     UpdateServiceInput,
     read_only=False,
 )

@@ -884,6 +884,35 @@ class Service(models.Model):
         help_text='[{"title": …, "href": "/blog/…", "kind": "기록", "note": …}, …]',
     )
     contact = models.TextField("05 Contact", blank=True)
+    cover = models.ForeignKey(
+        Media,
+        verbose_name="대표 이미지",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        limit_choices_to={"is_public": True, "uploaded_at__isnull": False},
+        help_text="상세 제목 아래, 홈 카드(잘려서), 공유 미리보기(og:image). 공개 이미지.",
+    )
+    cover_alt = models.CharField(
+        "대표 이미지 대체 문구",
+        max_length=200,
+        blank=True,
+        db_default="",
+        help_text="비우면 서비스 이름.",
+    )
+    figure = models.ForeignKey(
+        Media,
+        verbose_name="본문 그림",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        limit_choices_to={"is_public": True, "uploaded_at__isnull": False},
+        help_text="02 What과 03 Process 사이. 업로드가 끝난 공개 이미지, 대체 문구 필수.",
+    )
+    figure_alt = models.CharField("본문 그림 대체 문구", max_length=200, blank=True, db_default="")
+    figure_caption = models.CharField("본문 그림 캡션", max_length=200, blank=True, db_default="")
     position = models.IntegerField("순서", default=0, help_text="작을수록 앞.")
     is_visible = models.BooleanField("카드 노출", default=False)
     is_published = models.BooleanField(

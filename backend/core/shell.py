@@ -457,14 +457,19 @@ def service(request: HttpRequest, slug: str) -> HttpResponse:
     if offering is None:
         raise Http404
     data = {"offering": offering, "availability": site_availability(), "business": site_business()}
+    cover = offering["cover"]  # its own image in the link preview, else the site's default
+    size = (
+        (cover["width"], cover["height"]) if cover and cover["width"] and cover["height"] else None
+    )
     return render_shell(
         request,
         PageMeta(
             title=f"{offering['name']} | {SITE_NAME}",
             description=offering["summary"],
             robots=INDEX,
-            image=DEFAULT_OG_IMAGE,
-            image_alt=DEFAULT_OG_IMAGE_ALT,
+            image=cover["url"] if cover else DEFAULT_OG_IMAGE,
+            image_alt=cover["alt"] if cover else DEFAULT_OG_IMAGE_ALT,
+            image_size=size,
             jsonld=service_jsonld(
                 site_url=settings.SITE_URL,
                 url=_absolute(request, offerings.path(slug)),

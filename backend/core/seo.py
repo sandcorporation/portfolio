@@ -91,7 +91,7 @@ def work_jsonld(
 def service_jsonld(*, site_url: str, url: str, offering: Offering) -> dict[str, object]:
     """A service page (issue 163) as a Service offered by the home's Organization. No price:
     the pages quote none."""
-    return {
+    data: dict[str, object] = {
         "@context": CONTEXT,
         "@type": "Service",
         "name": offering["name"],
@@ -102,3 +102,6 @@ def service_jsonld(*, site_url: str, url: str, offering: Offering) -> dict[str, 
         "provider": {"@id": f"{site_url}/#organization"},
         "areaServed": {"@type": "Country", "name": "KR"},
     }
+    if offering["cover"]:
+        data["image"] = offering["cover"]["url"]
+    return data

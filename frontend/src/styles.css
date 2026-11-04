@@ -1243,6 +1243,42 @@ h3.block-heading {
   }
 }
 
+/* Services (issue 219): the cover is 2400x950 (about 2.5:1); the card keeps 2:1 and crops the
+   left, where the title already is, so the diagram on the right stays in view. Stacked on a
+   phone (full width), a 16rem column from 768px. */
+.work-row-thumb.service-thumb {
+  aspect-ratio: 2 / 1;
+}
+
+.service-thumb img {
+  object-position: right center;
+}
+
+@media (min-width: 768px) {
+  .work-row:has(.service-thumb) {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* the body figure: the cover's frame (hairline, 2px) at the column width; the caption in the muted
+   caption voice */
+.page.service .service-figure {
+  margin: var(--space-7) 0;
+}
+
+.page.service .service-figure img {
+  margin-bottom: 0;
+}
+
+.page.service .service-figure figcaption {
+  margin-top: var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  max-width: var(--measure);
+}
+
 /* Home portfolio rows: [thumb 40px] · period / status · title / result · visits / tags.
    Below 1024px one stack in the same order; the empty side columns drop out. */
 .work-list .work-row.portfolio-row {

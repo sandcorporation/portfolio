@@ -294,18 +294,18 @@ def clean_tags(tags: list[str]) -> list[str]:
     return cleaned
 
 
-def cover_media(media_id: int | None) -> Media | None:
+def cover_media(media_id: int | None, field: str = "cover_media_id") -> Media | None:
     if media_id is None:
         return None
     found = Media.objects.filter(pk=media_id).first()
     if found is None:
-        raise Rejected.at("cover_media_id", f"미디어 {media_id}가 없습니다")
+        raise Rejected.at(field, f"미디어 {media_id}가 없습니다")
     if not found.is_complete:
-        raise Rejected.at("cover_media_id", f"미디어 {media_id}는 업로드가 끝나지 않았습니다")
+        raise Rejected.at(field, f"미디어 {media_id}는 업로드가 끝나지 않았습니다")
     if not found.is_public:
-        raise Rejected.at("cover_media_id", f"미디어 {media_id}는 공개 미디어가 아닙니다")
+        raise Rejected.at(field, f"미디어 {media_id}는 공개 미디어가 아닙니다")
     if media_kind(found.content_type) != "image":
-        raise Rejected.at("cover_media_id", f"미디어 {media_id}는 이미지가 아닙니다")
+        raise Rejected.at(field, f"미디어 {media_id}는 이미지가 아닙니다")
     return found
 
 

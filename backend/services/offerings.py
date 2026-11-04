@@ -24,10 +24,11 @@ from django.db.models import Max
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
-from content.models import Inquiry, Service
+from content.models import Inquiry, Media, Service, media_kind
 from documents.validation import DocumentError
-from services import preview
+from services import media, preview
 from services.errors import Conflict, NotFound, Rejected
+from services.portfolio import cover_media
 
 SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 SITE_OR_HTTPS = r"^(/[^\s]*|https://[^\s/]+[^\s]*)$"
@@ -56,6 +57,16 @@ class Case(TypedDict):
     note: str
 
 
+class Image(TypedDict):
+    """A public image of a page. Mirrored by frontend/src/services/types.ts."""
+
+    url: str
+    width: int | None  # None: the size is not known (an old upload); the tag then has no size
+    height: int | None
+    alt: str  # the cover's falls back to the service name; the home card draws it with alt=""
+    caption: str  # the figure's only; "" for the cover
+
+
 class Offering(TypedDict):
     """#page-data["offering"] of the shell. Mirrored by frontend/src/services/types.ts."""
 
@@ -70,6 +81,8 @@ class Offering(TypedDict):
     steps: list[Item]
     cases: list[Case]
     contact: str
+    cover: Image | None  # under the title and lead; the og:image of the page
+    figure: Image | None  # between 02 What and 03 Process
 
 
 class OfferingCard(TypedDict):
@@ -80,6 +93,7 @@ class OfferingCard(TypedDict):
     summary: str
     inquiry_kind: str
     href: str  # the service page, or the inquiry form for a card without a page
+    cover: Image | None  # cropped into the card's thumbnail
 
 
 # --- the rules: lengths and counts that keep the page's shape ---
@@ -121,8 +135,12 @@ _TEXT_LIMITS = {  # field -> most characters
     "lead": 600,
     "service_type": 60,
     "contact": 400,
+    "cover_alt": 200,
+    "figure_alt": 200,
+    "figure_caption": 200,
 }
 _LINE_MAX = 120
+IMAGE_FIELDS = (("cover", "대표 이미지"), ("figure", "본문 그림"))
 
 
 def _shape_errors(field: str, adapter: ListAdapter, value: object) -> list[DocumentError]:
@@ -168,11 +186,25 @@ def problems(service: Service) -> list[DocumentError]:
     for i, line in enumerate(service.audience if isinstance(service.audience, list) else []):
         if isinstance(line, str) and not (len(line.strip()) > 0 and len(line) <= _LINE_MAX):
             found.append(DocumentError(f"audience[{i}]", f"1~{_LINE_MAX}자여야 합니다"))
+    for field, label in IMAGE_FIELDS:
+        found.extend(_image_problems(service, field, label))
+    if service.figure_id is not None and not service.figure_alt.strip():
+        found.append(DocumentError("figure_alt", "본문 그림에는 대체 문구가 필요합니다"))
     if service.is_published:
         for field in PAGE_FIELDS:
             if not getattr(service, field):
                 found.append(DocumentError(field, "상세 페이지를 공개하려면 채워야 합니다"))
     return found
+
+
+def _image_problems(service: Service, field: str, label: str) -> list[DocumentError]:
+    """The image must be a finished, public image (what `cover_media` checks for MCP)."""
+    image: Media | None = getattr(service, field)
+    if image is None:
+        return []
+    if not (image.is_public and image.is_complete and media_kind(image.content_type) == "image"):
+        return [DocumentError(field, f"{label}는 업로드가 끝난 공개 이미지여야 합니다")]
+    return []
 
 
 def _check(service: Service) -> None:
@@ -196,6 +228,13 @@ class ServiceOut(BaseModel):
     steps: list[ItemIn]
     cases: list[CaseIn]
     contact: str
+    cover_media_id: int | None
+    cover_url: str
+    cover_alt: str
+    figure_media_id: int | None
+    figure_url: str
+    figure_alt: str
+    figure_caption: str
     position: int
     is_visible: bool
     is_published: bool
@@ -224,6 +263,21 @@ class NewService(BaseModel):
     steps: list[ItemIn] = Field(default_factory=list, max_length=ITEMS_MAX)
     cases: list[CaseIn] = Field(default_factory=list, max_length=CASES_MAX)
     contact: str = Field(default="", max_length=400, description="05 Contact paragraph.")
+    cover_media_id: int | None = Field(
+        default=None,
+        description="Id of a finished, public image upload (start_upload, complete_upload): the "
+        "cover under the title, cropped into the home card, and the link preview. Omit for none.",
+    )
+    cover_alt: str = Field(
+        default="", max_length=200, description="Cover alt text; empty: the service name."
+    )
+    figure_media_id: int | None = Field(
+        default=None,
+        description="Id of a finished, public image upload: one figure between 02 What and "
+        "03 Process. Needs figure_alt.",
+    )
+    figure_alt: str = Field(default="", max_length=200, description="Required with a figure.")
+    figure_caption: str = Field(default="", max_length=200, description="Optional caption.")
     position: int | None = Field(
         default=None, description="Card order, smaller first. Omit to put it last."
     )
@@ -244,6 +298,21 @@ class ServicePatch(BaseModel):
     steps: list[ItemIn] = Field(default_factory=list, max_length=ITEMS_MAX)
     cases: list[CaseIn] = Field(default_factory=list, max_length=CASES_MAX)
     contact: str = Field(default="", max_length=400)
+    cover_media_id: int | None = Field(
+        default=None,
+        description="Id of a finished, public image upload (start_upload, complete_upload): the "
+        "cover under the title, cropped into the home card, and the link preview. null removes.",
+    )
+    cover_alt: str = Field(
+        default="", max_length=200, description="Cover alt text; empty: the service name."
+    )
+    figure_media_id: int | None = Field(
+        default=None,
+        description="Id of a finished, public image upload: one figure between 02 What and "
+        "03 Process. `null` removes it; needs figure_alt.",
+    )
+    figure_alt: str = Field(default="", max_length=200, description="Required with a figure.")
+    figure_caption: str = Field(default="", max_length=200, description="Optional caption.")
     position: int = Field(default=0, description="Card order, smaller first.")
     is_visible: bool = Field(default=False, description="Show the card on the home page.")
 
@@ -268,6 +337,13 @@ def service_out(service: Service) -> ServiceOut:
     return ServiceOut.model_validate(
         {
             **_offering(service),
+            "cover_media_id": service.cover_id,
+            "cover_url": _url(service.cover),
+            "cover_alt": service.cover_alt,
+            "figure_media_id": service.figure_id,
+            "figure_url": _url(service.figure),
+            "figure_alt": service.figure_alt,
+            "figure_caption": service.figure_caption,
             "position": service.position,
             "is_visible": service.is_visible,
             "is_published": service.is_published,
@@ -276,6 +352,18 @@ def service_out(service: Service) -> ServiceOut:
             "updated_at": service.updated_at,
         }
     )
+
+
+def _url(image: Media | None) -> str:
+    return (media.public_url(image) or "") if image else ""
+
+
+def _image(image: Media | None, alt: str, caption: str = "") -> Image | None:
+    """The page's view of an image; None without one or without a public URL."""
+    url = _url(image)
+    if image is None or not url:
+        return None
+    return Image(url=url, width=image.width, height=image.height, alt=alt, caption=caption)
 
 
 def _service_or_404(slug: str) -> Service:
@@ -302,6 +390,16 @@ def _cases(values: list[CaseIn]) -> list[Case]:
     return [Case(title=v.title, href=v.href, kind=v.kind, note=v.note) for v in values]
 
 
+def _set_images(service: Service, given: set[str], source: NewService | ServicePatch) -> None:
+    if "cover_media_id" in given:
+        service.cover = cover_media(source.cover_media_id, "cover_media_id")
+    if "figure_media_id" in given:
+        service.figure = cover_media(source.figure_media_id, "figure_media_id")
+    for field in ("cover_alt", "figure_alt", "figure_caption"):
+        if field in given:
+            setattr(service, field, getattr(source, field))
+
+
 def create_service(new: NewService) -> ServiceOut:
     """A new hidden, unpublished service. A taken slug is a Conflict."""
     if Service.objects.filter(slug=new.slug).exists():
@@ -325,6 +423,7 @@ def create_service(new: NewService) -> ServiceOut:
         contact=new.contact,
         position=position,
     )
+    _set_images(service, new.model_fields_set, new)
     _check(service)
     try:
         with transaction.atomic():
@@ -349,6 +448,7 @@ def update_service(slug: str, patch: ServicePatch) -> ServiceOut:
         service.steps = _items(patch.steps)
     if "cases" in given:
         service.cases = _cases(patch.cases)
+    _set_images(service, given, patch)
     if "position" in given:
         service.position = patch.position
     if "is_visible" in given:
@@ -394,6 +494,8 @@ def _offering(service: Service) -> Offering:
             for c in service.cases
         ],
         contact=service.contact,
+        cover=_image(service.cover, service.cover_alt.strip() or service.name),
+        figure=_image(service.figure, service.figure_alt, service.figure_caption),
     )
 
 
@@ -414,8 +516,11 @@ def cards() -> list[OfferingCard]:
             summary=s.summary,
             inquiry_kind=s.inquiry_kind,
             href=_href(s),
+            cover=_image(s.cover, ""),
         )
-        for s in Service.objects.filter(is_visible=True).order_by("position", "id")
+        for s in Service.objects.filter(is_visible=True)
+        .select_related("cover")
+        .order_by("position", "id")
     ]
 
 

@@ -7,6 +7,11 @@ export function ServiceRows({ services }: { services: OfferingCard[] }) {
       {services.map((card) => (
         <li key={card.slug}>
           <a className="work-row" href={card.href}>
+            {card.cover && (
+              <span className="work-row-thumb service-thumb" aria-hidden="true">
+                <img src={card.cover.url} alt="" loading="lazy" />
+              </span>
+            )}
             <span className="work-row-body">
               <span className="work-row-title">{card.name} →</span>
               <span className="work-row-summary">{card.summary}</span>

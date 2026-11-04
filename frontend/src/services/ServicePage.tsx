@@ -1,6 +1,11 @@
 import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { linkAttrs } from "../links";
-import type { ServiceData } from "./types";
+import type { OfferingImage, ServiceData } from "./types";
+
+/** `width`/`height` keep the original ratio while loading; an upload of unknown size has none. */
+function sizeAttrs(image: OfferingImage) {
+  return image.width && image.height ? { width: image.width, height: image.height } : {};
+}
 
 /** A mono label over a section title, as on the home (01 — For, …). */
 function Head({ index, label, id, title }: { index: string; label: string; id: string; title: string }) {
@@ -43,6 +48,9 @@ export function ServicePage({ data }: { data: ServiceData }) {
             <p className="work-summary">{o.lead}</p>
             <div className="accent-rule" aria-hidden="true" />
           </header>
+          {o.cover && (
+            <img className="work-cover sc-prose-cover" src={o.cover.url} alt={o.cover.alt} {...sizeAttrs(o.cover)} />
+          )}
           <section className="page-section" aria-labelledby="service-audience">
             <Head index="01" label="For" id="service-audience" title="이런 분께 맞습니다" />
             <div className="prose sc-prose">
@@ -65,6 +73,12 @@ export function ServicePage({ data }: { data: ServiceData }) {
               </ul>
             </div>
           </section>
+          {o.figure && (
+            <figure className="service-figure">
+              <img className="sc-prose-cover" src={o.figure.url} alt={o.figure.alt} loading="lazy" {...sizeAttrs(o.figure)} />
+              {o.figure.caption && <figcaption>{o.figure.caption}</figcaption>}
+            </figure>
+          )}
           <section className="page-section" aria-labelledby="service-process">
             <Head index="03" label="Process" id="service-process" title="진행 방식" />
             <div className="prose sc-prose">

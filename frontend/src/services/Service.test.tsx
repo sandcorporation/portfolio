@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { App } from "../App";
 import { exampleDocument } from "../blocks/testing";
 import type { HomeData } from "../home/types";
-import type { Offering, ServiceData } from "./types";
+import type { Offering, OfferingImage, ServiceData } from "./types";
 
 const offering = (extra: Partial<Offering> = {}): Offering => ({
   slug: "mcp-integration",
@@ -100,4 +100,80 @@ test("홈의 서비스 섹션은 회사 소개 바로 뒤에 두 페이지로 �
 test("서비스가 없으면 홈 섹션째 빠진다", () => {
   render(<App path="/" data={home()} />);
   expect(screen.queryByRole("region", { name: "외주로 맡는 일" })).toBeNull();
+});
+
+const image = (url: string, extra: Partial<OfferingImage> = {}): OfferingImage => ({
+  url,
+  width: 2400,
+  height: 950,
+  alt: "",
+  caption: "",
+  ...extra,
+});
+
+test("이미지가 없으면 대표 이미지·본문 그림 자리가 없다", () => {
+  render(<App path="/services/mcp-integration" data={page()} />);
+
+  expect(document.querySelector("img")).toBeNull();
+  expect(document.querySelector("figure")).toBeNull();
+});
+
+test("대표 이미지는 리드 아래·01 위에, 본문 그림은 02와 03 사이에 그린다", () => {
+  const data: ServiceData = {
+    offering: offering({
+      cover: image("https://img.example/cover.png", { alt: "구조도" }),
+      figure: image("https://img.example/fig.png", { alt: "호출 순서", caption: "한 번의 순서", height: 1000 }),
+    }),
+  };
+  render(<App path="/services/mcp-integration" data={data} />);
+
+  const cover = screen.getByAltText("구조도");
+  expect(cover).toHaveAttribute("src", "https://img.example/cover.png");
+  expect(cover).toHaveAttribute("width", "2400");
+  expect(cover).toHaveAttribute("height", "950");
+  expect(cover).not.toHaveAttribute("loading"); // first screen
+  const before = (a: Node, b: Node) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+  expect(before(screen.getByText("리드 문장"), cover)).toBeTruthy();
+  expect(before(cover, screen.getByRole("region", { name: "이런 분께 맞습니다" }))).toBeTruthy();
+
+  const figure = screen.getByAltText("호출 순서").closest("figure") as HTMLElement;
+  expect(screen.getByAltText("호출 순서")).toHaveAttribute("loading", "lazy");
+  expect(within(figure).getByText("한 번의 순서").tagName).toBe("FIGCAPTION");
+  expect(before(screen.getByRole("region", { name: "해 드리는 일" }), figure)).toBeTruthy();
+  expect(before(figure, screen.getByRole("region", { name: "진행 방식" }))).toBeTruthy();
+});
+
+test("캡션이 없으면 figcaption이 없고, 크기를 모르는 이미지는 width·height 없이 그린다", () => {
+  const data: ServiceData = {
+    offering: offering({
+      cover: image("https://img.example/c.png", { alt: "c", width: null, height: null }),
+      figure: image("https://img.example/f.png", { alt: "f" }),
+    }),
+  };
+  render(<App path="/services/mcp-integration" data={data} />);
+
+  expect(document.querySelector("figcaption")).toBeNull();
+  expect(screen.getByAltText("c")).not.toHaveAttribute("width");
+});
+
+test("홈 카드는 대표 이미지가 있을 때만 썸네일을 두고 alt는 비운다", () => {
+  const card = { inquiry_kind: "MCP 연동", summary: "요", href: "/services/a" };
+  render(
+    <App
+      path="/"
+      data={home({
+        services: [
+          { ...card, slug: "a", name: "A", cover: image("https://img.example/a.png", { alt: "무시" }) },
+          { ...card, slug: "b", name: "B" },
+        ],
+      })}
+    />,
+  );
+
+  const section = screen.getByRole("region", { name: "외주로 맡는 일" });
+  const thumbs = section.querySelectorAll(".service-thumb img");
+  expect(thumbs).toHaveLength(1);
+  expect(thumbs[0]).toHaveAttribute("src", "https://img.example/a.png");
+  expect(thumbs[0]).toHaveAttribute("alt", "");
+  expect(thumbs[0]).toHaveAttribute("loading", "lazy");
 });

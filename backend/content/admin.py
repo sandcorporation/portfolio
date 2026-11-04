@@ -807,5 +807,10 @@ class ServiceAdmin(_ServiceAdmin):
         "steps",
         "cases",
         "contact",
+        "cover",
+        "cover_alt",
+        "figure",
+        "figure_alt",
+        "figure_caption",
         "updated_at",
     )
