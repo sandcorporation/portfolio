@@ -450,6 +450,7 @@ class ProposalAdmin(_ProposalAdmin):
         "subtitle",
         "quote_date",
         "valid_until",
+        "platform_mode",
         "status",
         "slug",
         "preview_link",
@@ -464,6 +465,7 @@ class ProposalAdmin(_ProposalAdmin):
         "reissue_with_code",
         "revoke",
         "duplicate",
+        "export_pdf",
     )
 
     def get_readonly_fields(
@@ -631,6 +633,27 @@ class ProposalAdmin(_ProposalAdmin):
                 self.message_user(request, str(exc), messages.ERROR)
                 return
         self.message_user(request, f"{queryset.count()}건을 초안으로 복제했습니다.")
+
+    @admin.action(description="PDF 내보내기 (지금 문서, 하나만)")
+    def export_pdf(self, request: HttpRequest, queryset: QuerySet[Proposal]) -> HttpResponse | None:
+        """The current document as a PDF, now (#225): redirects to its 10-minute download link.
+        외주 플랫폼 제출용 proposals come out with that mode; leftovers are listed as a warning."""
+        if queryset.count() != 1:
+            self.message_user(request, "PDF는 하나씩 내보냅니다.", messages.ERROR)
+            return None
+        p = queryset.get()
+        try:
+            exported = pdf_service.export_draft(p.slug)
+        except ServiceError as exc:
+            self.message_user(request, str(exc), messages.ERROR)
+            return None
+        if exported.leaks:
+            self.message_user(
+                request,
+                "본문에 회사명·연락처가 남았습니다: " + " / ".join(exported.leaks),
+                messages.WARNING,
+            )
+        return HttpResponseRedirect(exported.url)
 
 
 @admin.register(ProposalRevision)

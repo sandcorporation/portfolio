@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sandcorp_authkit.tokens import AccessToken
 
 from mcpserver.tools import SEE_SCHEMA, NoInput, SlugInput, ToolResult, many, one, tool
-from services import proposals
+from services import pdf, proposals
 
 
 class ClientCodeInput(BaseModel):
@@ -232,8 +232,9 @@ def duplicate_proposal(token: AccessToken, args: DuplicateInput) -> ToolResult:
 @tool(
     "update_proposal",
     "Update proposal details",
-    "Change title, subtitle, quote_date or valid_until (null clears it) by slug; the document "
-    "has its own tools. Only the fields you send change.",
+    "Change title, subtitle, quote_date, valid_until (null clears it) or platform_mode (외주 "
+    "플랫폼 제출용: hides our company name, contacts and sandcorp addresses) by slug; the "
+    "document has its own tools. Only the fields you send change.",
     UpdateProposalInput,
     read_only=False,
 )
@@ -339,3 +340,26 @@ def reorder_tabs(token: AccessToken, args: ReorderTabsInput) -> ToolResult:
 )
 def issue_preview_url(token: AccessToken, args: SlugInput) -> ToolResult:
     return one(lambda: proposals.issue_preview_url(args.slug))
+
+
+class ExportPdfInput(SlugInput):
+    platform_mode: bool | None = Field(
+        default=None,
+        description="Override the proposal's platform_mode for this PDF only (the setting is not "
+        "changed); omit to use the proposal's own.",
+    )
+
+
+@tool(
+    "export_proposal_pdf",
+    "Export a proposal as PDF",
+    "Render the proposal's current working document (draft or published) as an A4 PDF now and "
+    "return a 10-minute download url with expires_at. With platform_mode (외주 플랫폼 제출용, "
+    "위시켓·크몽) the PDF has no company name, contacts or sandcorp addresses from the server; "
+    "`leaks` lists text in the document that still names us or carries an email / phone number "
+    "— fix those blocks until it is empty. Takes up to about a minute.",
+    ExportPdfInput,
+    read_only=False,
+)
+def export_proposal_pdf(token: AccessToken, args: ExportPdfInput) -> ToolResult:
+    return one(lambda: pdf.export_draft(args.slug, args.platform_mode))

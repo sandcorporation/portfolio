@@ -7,11 +7,12 @@ import type { VideoBlock } from "./types";
 
 export function Video({ block, anchor }: { block: VideoBlock; anchor: string }) {
   const { print, shareUrl } = useRenderMode();
-  if (print && shareUrl) return <VideoOnPaper block={block} anchor={anchor} shareUrl={shareUrl} />;
+  if (print) return <VideoOnPaper block={block} anchor={anchor} shareUrl={shareUrl} />;
   return <VideoPlayer block={block} anchor={anchor} />;
 }
 
-/** Print mode: the file cannot play on paper (and its URL expires), so a QR code and a link. */
+/** Print mode: the file cannot play on paper (and its URL expires), so a QR code and a link to
+ * the online document — or, with no online address (a draft, 외주 플랫폼 제출용), a note. */
 function VideoOnPaper({
   block,
   anchor,
@@ -19,7 +20,7 @@ function VideoOnPaper({
 }: {
   block: VideoBlock;
   anchor: string;
-  shareUrl: string;
+  shareUrl: string | null;
 }) {
   return (
     <section className="block-video" aria-labelledby={block.title ? anchor : undefined}>
@@ -28,7 +29,11 @@ function VideoOnPaper({
           {block.title}
         </Heading>
       )}
-      <QrLink href={blockLink(shareUrl, block.id)} kind="영상" />
+      {shareUrl ? (
+        <QrLink href={blockLink(shareUrl, block.id)} kind="영상" />
+      ) : (
+        <p className="media-missing">영상 자료입니다. 종이·PDF에서는 재생되지 않습니다.</p>
+      )}
       {block.caption && <p className="media-description">{block.caption}</p>}
     </section>
   );

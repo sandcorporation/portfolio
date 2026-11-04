@@ -239,6 +239,7 @@ def publish(slug: str, access_code: str | None = None) -> Published:
             quote_date=p.quote_date,
             valid_until=p.valid_until,
             document=snapshot_document(p.document),
+            platform_mode=p.platform_mode,
         )
         pdf.enqueue(revision)  # same transaction: the worker sees it once this commits
         code = None if p.access_code_hash else _issue_code(p, access_code)

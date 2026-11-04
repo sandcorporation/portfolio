@@ -55,6 +55,12 @@ urlpatterns = [
         shell.proposal_preview_media,
         name="proposal_preview_media",
     ),
+    path("print/draft/<str:token>", shell.proposal_draft_print, name="proposal_draft_print"),
+    path(
+        "print/draft/<str:token>/media/<int:media_id>",
+        shell.proposal_draft_print_media,
+        name="proposal_draft_print_media",
+    ),
     path("print/<str:token>", shell.proposal_print, name="proposal_print"),
     path(
         "print/<str:token>/media/<int:media_id>",

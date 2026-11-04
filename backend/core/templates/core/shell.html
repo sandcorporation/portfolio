@@ -6,7 +6,7 @@
   <title>{{ meta.title }}</title>
   <meta name="description" content="{{ meta.description }}">
   <meta name="robots" content="{{ meta.robots }}">
-  <link rel="canonical" href="{{ canonical }}">
+  {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
   {% if verify_google %}<meta name="google-site-verification" content="{{ verify_google }}">{% endif %}
   {% if verify_naver %}<meta name="naver-site-verification" content="{{ verify_naver }}">{% endif %}
   <meta property="og:title" content="{{ meta.title }}">
@@ -16,8 +16,8 @@
   {% if meta.image_alt %}<meta property="og:image:alt" content="{{ meta.image_alt }}">{% endif %}
   {% if og_image_size %}<meta property="og:image:width" content="{{ og_image_size.0 }}">
   <meta property="og:image:height" content="{{ og_image_size.1 }}">{% endif %}{% endif %}
-  <meta property="og:url" content="{{ canonical }}">
-  <meta property="og:site_name" content="{{ site_name }}">
+  {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+  {% if site_name %}<meta property="og:site_name" content="{{ site_name }}">{% endif %}
   <meta property="og:locale" content="ko_KR">
   {% if meta.published_time %}<meta property="article:published_time" content="{{ meta.published_time }}">{% endif %}
   {% if meta.modified_time %}<meta property="article:modified_time" content="{{ meta.modified_time }}">{% endif %}

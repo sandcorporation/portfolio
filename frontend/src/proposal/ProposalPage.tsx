@@ -7,7 +7,7 @@ import type { ProposalData } from "./types";
 export function ProposalPage({ data, lockAction }: { data: ProposalData; lockAction?: string }) {
   return (
     <>
-      <Masthead>
+      <Masthead plain={data.platform_mode === true}>
           {lockAction && data.csrf_token && (
             <form className="lock-form" method="post" action={lockAction}>
               <input type="hidden" name="csrfmiddlewaretoken" value={data.csrf_token} />

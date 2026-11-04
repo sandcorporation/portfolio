@@ -13,7 +13,7 @@ import type { AudioCompareBlock, AudioTrack } from "./types";
  */
 export function AudioCompare({ block, anchor }: { block: AudioCompareBlock; anchor: string }) {
   const { print, shareUrl } = useRenderMode();
-  if (print && shareUrl) {
+  if (print) {
     return <AudioCompareOnPaper block={block} anchor={anchor} shareUrl={shareUrl} />;
   }
   return <AudioComparePlayer block={block} anchor={anchor} />;
@@ -27,7 +27,7 @@ function AudioCompareOnPaper({
 }: {
   block: AudioCompareBlock;
   anchor: string;
-  shareUrl: string;
+  shareUrl: string | null;
 }) {
   const tracks: AudioTrack[] = [block.original, ...block.tracks];
   return (
@@ -38,7 +38,11 @@ function AudioCompareOnPaper({
         </Heading>
       )}
       {block.description && <p className="media-description">{block.description}</p>}
-      <QrLink href={blockLink(shareUrl, block.id)} kind="오디오" />
+      {shareUrl ? (
+        <QrLink href={blockLink(shareUrl, block.id)} kind="오디오" />
+      ) : (
+        <p className="media-missing">오디오 자료입니다. 종이·PDF에서는 재생되지 않습니다.</p>
+      )}
       <p className="audio-track-names">트랙: {tracks.map((t) => t.label).join(" · ")}</p>
       {tracks.map((t, index) => (
         <div key={`${index}-${t.media_id}`} className="audio-track-print">

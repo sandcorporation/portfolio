@@ -269,6 +269,7 @@ def test_proposal_guide_names_only_real_tools_block_types_and_fields(mcp: McpCli
     known |= {"contact_title"}  # a client field (list_clients)
     known |= {"estimate", "company"}  # the default tab ids (create_proposal)
     known |= {"skeleton"}  # this tool's own answer
+    known |= {"platform_mode", "leaks"}  # create_proposal input, export_proposal_pdf answer (#225)
     named = set(re.findall(r"`([A-Za-z][\w-]*)`", guide))
     assert named - known == set()
     assert {"list_clients", "list_media", "issue_preview_url", "publish", "case-ref"} <= named

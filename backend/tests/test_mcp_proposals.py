@@ -33,7 +33,8 @@ EXPECTED_TOOLS = {
     "replace_document", "replace_block", "insert_block", "delete_block",
     "add_tab", "delete_tab", "rename_tab", "reorder_tabs", "issue_preview_url",
     "publish", "reissue_access_code", "revoke", "list_revisions", "get_revision",
-    "pdf_status", "retry_pdf", "list_inquiries", "mark_inquiry_handled", "list_proposal_events",
+    "pdf_status", "retry_pdf", "export_proposal_pdf",
+    "list_inquiries", "mark_inquiry_handled", "list_proposal_events",
 }  # fmt: skip
 READ_ONLY = {
     "list_media", "list_clients", "list_proposals", "get_proposal", "issue_preview_url",

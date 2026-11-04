@@ -48,6 +48,7 @@ from services import (
     offerings,
     og_card,
     pdf,
+    platform_mode,
     preview,
     proposals,
     publishing,
@@ -85,12 +86,29 @@ class PageMeta:
     tags: tuple[str, ...] = ()
     # schema.org JSON-LD for search engines; None for pages without one
     jsonld: Mapping[str, object] | None = None
+    # og:site_name; "" leaves the tag out (외주 플랫폼 제출용 proposals, #225)
+    site_name: str = SITE_NAME
+    # canonical / og:url (this page's absolute address); False leaves both out (#225)
+    canonical: bool = True
 
 
 # Proposal pages never leak customer names or amounts into meta or link previews.
 _PROPOSAL_META = PageMeta(
     title=f"제안서 | {SITE_NAME}", description="샌드코프 제안서", robots=NOINDEX
 )
+# 외주 플랫폼 제출용 (#225): no company name and no address of ours in the head either (the
+# PDF's title metadata comes from <title>).
+_PLATFORM_META = PageMeta(
+    title=platform_mode.PAGE_TITLE,
+    description=platform_mode.PAGE_TITLE,
+    robots=NOINDEX,
+    site_name="",
+    canonical=False,
+)
+
+
+def _proposal_meta(platform: bool) -> PageMeta:
+    return _PLATFORM_META if platform else _PROPOSAL_META
 
 
 def render_shell(
@@ -110,14 +128,14 @@ def render_shell(
     `body` is the public page's server HTML for #root, drawn from the same `data` (#109,
     core/public_html.py); React renders over it. Proposal, preview and print pages leave it out."""
     context = {
-        "site_name": SITE_NAME,
+        "site_name": meta.site_name,
         "data": data,
         "meta": meta,
         "og_image": request.build_absolute_uri(meta.image) if meta.image else "",
         "og_image_size": meta.image_size
         or (OG_IMAGE_SIZE if meta.image == DEFAULT_OG_IMAGE else None),
         "jsonld": _jsonld(meta.jsonld),
-        "canonical": request.build_absolute_uri(request.path),
+        "canonical": request.build_absolute_uri(request.path) if meta.canonical else "",
         "verify_google": settings.GOOGLE_SITE_VERIFICATION if meta.robots == INDEX else "",
         "verify_naver": settings.NAVER_SITE_VERIFICATION if meta.robots == INDEX else "",
         "assets": entry_assets(),
@@ -161,8 +179,9 @@ def home(request: HttpRequest) -> HttpResponse:
 
 
 def _customer_page(request: HttpRequest, data: BaseModel, status: int = 200) -> HttpResponse:
+    platform = bool(getattr(data, "platform_mode", False))
     response = render_shell(
-        request, _PROPOSAL_META, status=status, data=data.model_dump(mode="json")
+        request, _proposal_meta(platform), status=status, data=data.model_dump(mode="json")
     )
     return _private(response)
 
@@ -180,7 +199,9 @@ def _user_agent(request: HttpRequest) -> str:
 def _expired_screen(revision: ProposalRevision) -> proposals.ExpiredScreenData:
     assert revision.valid_until is not None
     return proposals.ExpiredScreenData(
-        valid_until=revision.valid_until, supplier=proposals.supplier()
+        valid_until=revision.valid_until,
+        supplier=proposals.supplier(platform=revision.platform_mode),
+        platform_mode=revision.platform_mode,
     )
 
 
@@ -209,7 +230,11 @@ def proposal(request: HttpRequest, slug: str) -> HttpResponse:
             response = _private(HttpResponseRedirect(request.path))
             access.start_customer_session(response, found)
             return response
-        form = proposals.CodeScreenData(error=attempt.value, csrf_token=get_token(request))
+        form = proposals.CodeScreenData(
+            error=attempt.value,
+            csrf_token=get_token(request),
+            platform_mode=revision.platform_mode,
+        )
         return _customer_page(request, form, 429 if attempt is access.Attempt.BLOCKED else 400)
     if not publishing.is_expired(revision) and access.has_customer_session(request, found):
         events.record_view(found, revision, ip=client_ip(request), user_agent=_user_agent(request))
@@ -220,7 +245,9 @@ def proposal(request: HttpRequest, slug: str) -> HttpResponse:
         return _customer_page(request, data)
     blocked = access.is_blocked(found, client_ip(request))
     form = proposals.CodeScreenData(
-        error="blocked" if blocked else None, csrf_token=get_token(request)
+        error="blocked" if blocked else None,
+        csrf_token=get_token(request),
+        platform_mode=revision.platform_mode,
     )
     return _customer_page(request, form)
 
@@ -341,7 +368,9 @@ def proposal_preview(request: HttpRequest, token: str) -> HttpResponse:
         raise Http404 from None
     else:
         data = proposals.page_data(found, preview=True, media_endpoint=f"/preview/{token}/media")
-        response = render_shell(request, _PROPOSAL_META, data=data.model_dump(mode="json"))
+        response = render_shell(
+            request, _proposal_meta(data.platform_mode), data=data.model_dump(mode="json")
+        )
     return _private(response)
 
 
@@ -371,7 +400,40 @@ def proposal_print(request: HttpRequest, token: str) -> HttpResponse:
         raise Http404 from None
     else:
         data = proposals.print_page_data(revision, token=token)
-        response = render_shell(request, _PROPOSAL_META, data=data.model_dump(mode="json"))
+        response = render_shell(
+            request, _proposal_meta(data.platform_mode), data=data.model_dump(mode="json")
+        )
+    return _private(response)
+
+
+@require_http_methods(["GET"])
+def proposal_draft_print_media(request: HttpRequest, token: str, media_id: int) -> HttpResponse:
+    """`proposal_print_media` for the draft print link (#225): the draft's own document."""
+    try:
+        found, _platform = proposals.draft_for_print(token)
+    except proposals.ExpiredPrintToken:
+        return _private(JsonResponse({"error": "expired"}, status=410))
+    except proposals.BadPrintToken:
+        raise Http404 from None
+    return _media_answer(media.document_media_url(found.document, media_id))
+
+
+def proposal_draft_print(request: HttpRequest, token: str) -> HttpResponse:
+    """The proposal's current draft as the print layout, for an on-the-spot PDF (#225,
+    services/pdf.py::export_draft). Same rules as `proposal_print`."""
+    try:
+        found, platform = proposals.draft_for_print(token)
+    except proposals.ExpiredPrintToken:
+        response = HttpResponse(
+            "인쇄 링크가 만료되었습니다.", status=410, content_type="text/plain; charset=utf-8"
+        )
+    except proposals.BadPrintToken:
+        raise Http404 from None
+    else:
+        data = proposals.draft_print_page_data(found, token=token, platform=platform)
+        response = render_shell(
+            request, _proposal_meta(platform), data=data.model_dump(mode="json")
+        )
     return _private(response)
 
 

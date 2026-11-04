@@ -654,6 +654,13 @@ class Proposal(models.Model):
     quote_date = models.DateField("견적 기준일")
     valid_until = models.DateField("유효기간", null=True, blank=True, help_text="이 날까지 유효.")
     status = models.CharField("상태", max_length=12, choices=Status, default=Status.DRAFT)
+    # 외주 플랫폼(위시켓·크몽) 제출용: 회사명·연락처·우리 도메인을 화면·인쇄·PDF에서 뺀다 (#225).
+    platform_mode = models.BooleanField(
+        "외주 플랫폼 제출용",
+        default=False,
+        db_default=False,
+        help_text="회사명·연락처·sandcorp 주소를 화면·PDF에서 숨깁니다.",
+    )
     # The customer's access code, as a Django password hash; the plain code is shown once.
     # Sessions carry `access_code_issued_at`, so a reissue invalidates every one of them.
     access_code_hash = models.CharField(max_length=256, blank=True, editable=False)
@@ -705,6 +712,7 @@ class ProposalRevision(models.Model):
     quote_date = models.DateField("견적 기준일")
     valid_until = models.DateField("유효기간", null=True, blank=True)
     document = models.JSONField("제안서 문서")
+    platform_mode = models.BooleanField("외주 플랫폼 제출용", default=False, db_default=False)
 
     class Meta:
         verbose_name = "리비전"

@@ -41,6 +41,9 @@ export interface ProposalData {
   pdf_url?: string | null;
   /** Customer page only: POST {"tab": id} here (with the CSRF header) when a tab is opened. */
   tab_endpoint?: string | null;
+  /** 외주 플랫폼 제출용 (issue 225): the server already took out our name, contacts and links; the
+   * page leaves out the wordmark too. */
+  platform_mode?: boolean;
 }
 
 /** /p/<slug> before the code. Mirrors CodeScreenData. */
@@ -49,6 +52,7 @@ export interface CodeScreenData {
   /** Why the last try failed: a wrong code, or too many of them (blocked for a while). */
   error: "wrong" | "blocked" | null;
   csrf_token: string;
+  platform_mode?: boolean;
 }
 
 /** /p/<slug> past its validity date. Mirrors ExpiredScreenData. */
@@ -56,6 +60,7 @@ export interface ExpiredScreenData {
   screen: "expired";
   valid_until: string;
   supplier: Supplier;
+  platform_mode?: boolean;
 }
 
 function hasScreen(value: unknown, screen: string): boolean {

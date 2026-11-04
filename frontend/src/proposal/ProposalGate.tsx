@@ -3,10 +3,10 @@ import { Masthead } from "../brand/Masthead";
 import { formatDate } from "./ProposalDocument";
 import type { CodeScreenData, ExpiredScreenData, Supplier } from "./types";
 
-function GateShell({ children }: { children: ReactNode }) {
+function GateShell({ children, plain }: { children: ReactNode; plain?: boolean }) {
   return (
     <>
-      <Masthead />
+      <Masthead plain={plain === true} />
       <main className="page gate-page">
         <section className="gate">{children}</section>
       </main>
@@ -22,7 +22,7 @@ const ERRORS: Record<NonNullable<CodeScreenData["error"]>, string> = {
 /** The code form. It posts to this same address; the server answers with the document. */
 export function ProposalCodeScreen({ data, action }: { data: CodeScreenData; action: string }) {
   return (
-    <GateShell>
+    <GateShell plain={data.platform_mode}>
       <p className="section-head" aria-hidden="true">
         <span>Proposal</span>
       </p>
@@ -87,7 +87,7 @@ function Contact({ supplier }: { supplier: Supplier }) {
 /** Past the validity date: no document, only whom to ask for a new one. */
 export function ProposalExpiredScreen({ data }: { data: ExpiredScreenData }) {
   return (
-    <GateShell>
+    <GateShell plain={data.platform_mode}>
       <h1>제안서 유효기간이 지났습니다</h1>
       <p className="gate-lead">
         이 제안서는 {formatDate(data.valid_until)}까지 유효했습니다. 새 견적이 필요하시면 아래로

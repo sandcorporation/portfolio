@@ -9,14 +9,19 @@ export const GITHUB_URL = "https://github.com/sandcorporation";
  * The band on top of every public page: wordmark and a mono line on the left, mono meta (or the
  * proposal's lock form) on the right.
  */
-export function Masthead({ children }: { children?: ReactNode }) {
+export function Masthead({ children, plain = false }: { children?: ReactNode; plain?: boolean }) {
   return (
     <header className="masthead">
       <div className="masthead-inner">
-        <div className="masthead-brand">
-          <Wordmark />
-          <span className="masthead-desc">샌드코프 · 웹·AI 제품 개발</span>
-        </div>
+        {plain ? (
+          // 외주 플랫폼 제출용 proposals (issue 225): no wordmark, no company line.
+          <div className="masthead-brand" />
+        ) : (
+          <div className="masthead-brand">
+            <Wordmark />
+            <span className="masthead-desc">샌드코프 · 웹·AI 제품 개발</span>
+          </div>
+        )}
         {children}
       </div>
     </header>

@@ -28,7 +28,7 @@ from content.models import (
     stored_document,
 )
 from documents.validation import JSON, DocumentError, InvalidDocument
-from services import case_refs, document_edit, media, preview
+from services import case_refs, document_edit, media, platform_mode, preview
 from services.errors import Conflict, NotFound, Rejected
 from services.preview import BadPreviewToken as BadPreviewToken
 from services.preview import ExpiredPreviewToken as ExpiredPreviewToken
@@ -38,6 +38,8 @@ from services.profile import get_profile
 PREVIEW_SALT = "proposal-preview"
 # A different salt than the preview: a preview link can never open a print page, nor the reverse.
 PRINT_SALT = "proposal-print"
+# The draft (not a revision) as the print layout, for an on-the-spot PDF (#225).
+DRAFT_PRINT_SALT = "draft-print"
 
 
 # --- clients ---
@@ -117,6 +119,7 @@ class ProposalSummary(BaseModel):
 
 
 class ProposalOut(ProposalSummary):
+    platform_mode: bool
     document: dict[str, JSON]
     updated_at: datetime
 
@@ -129,6 +132,10 @@ class NewProposal(BaseModel):
     subtitle: str = Field(default="", max_length=200)
     quote_date: date = Field(default_factory=date.today, description="견적 기준일")
     valid_until: date | None = None
+    platform_mode: bool = Field(
+        default=False,
+        description="외주 플랫폼(위시켓·크몽) 제출용: 회사명·연락처·sandcorp 주소를 숨긴다",
+    )
     document: dict[str, object] | None = Field(
         default=None, description="Omit to start with the tabs 견적 제안 and 회사소개·수행사례."
     )
@@ -143,6 +150,10 @@ class ProposalPatch(BaseModel):
     subtitle: str = Field(default="", max_length=200)
     quote_date: date = Field(default_factory=date.today)
     valid_until: date | None = None
+    platform_mode: bool = Field(
+        default=False,
+        description="외주 플랫폼(위시켓·크몽) 제출용: 회사명·연락처·sandcorp 주소를 숨긴다",
+    )
 
 
 def _summary_fields(p: Proposal) -> dict[str, object]:
@@ -163,7 +174,12 @@ def proposal_summary(p: Proposal) -> ProposalSummary:
 
 def proposal_out(p: Proposal) -> ProposalOut:
     return ProposalOut.model_validate(
-        {**_summary_fields(p), "document": p.document, "updated_at": p.updated_at}
+        {
+            **_summary_fields(p),
+            "platform_mode": p.platform_mode,
+            "document": p.document,
+            "updated_at": p.updated_at,
+        }
     )
 
 
@@ -193,6 +209,10 @@ def list_proposals(client_code: str | None = None) -> list[ProposalSummary]:
     if client_code is not None:
         rows = rows.filter(client__code=client_code)
     return [proposal_summary(p) for p in rows]
+
+
+def get_proposal_row(slug: str) -> Proposal:
+    return _proposal_or_404(slug)
 
 
 def get_proposal(slug: str) -> ProposalOut:
@@ -229,6 +249,7 @@ def create_proposal(new: NewProposal) -> ProposalOut:
         subtitle=new.subtitle,
         quote_date=new.quote_date,
         valid_until=new.valid_until,
+        platform_mode=new.platform_mode,
     )
     p.document = _document(new.document) if new.document is not None else _starting_document()
     p.save()
@@ -245,6 +266,7 @@ def duplicate_proposal(slug: str, client_code: str | None = None) -> ProposalOut
         subtitle=source.subtitle,
         quote_date=source.quote_date,
         valid_until=source.valid_until,
+        platform_mode=source.platform_mode,
         document=copy.deepcopy(source.document),
     )
     copy_.save()
@@ -401,6 +423,9 @@ class ProposalPageData(BaseModel):
     pdf_url: str | None = None
     # Customer page only: where tab switches are reported (POST {"tab": id}, CSRF header).
     tab_endpoint: str | None = None
+    # 외주 플랫폼 제출용 (#225): the data is already stripped (services/platform_mode.py); the
+    # page leaves out our masthead too.
+    platform_mode: bool = False
 
 
 class CodeScreenData(BaseModel):
@@ -409,6 +434,7 @@ class CodeScreenData(BaseModel):
     screen: Literal["code"] = "code"
     error: Literal["wrong", "blocked"] | None = None
     csrf_token: str
+    platform_mode: bool = False
 
 
 class ExpiredScreenData(BaseModel):
@@ -417,6 +443,7 @@ class ExpiredScreenData(BaseModel):
     screen: Literal["expired"] = "expired"
     valid_until: date
     supplier: Supplier
+    platform_mode: bool = False
 
 
 # --- print: a signed, very short-lived link to one revision, for the PDF renderer ---
@@ -465,12 +492,78 @@ def print_page_data(r: ProposalRevision, *, token: str) -> ProposalPageData:
             "csrf_token": None,
             "media_endpoint": f"/print/{token}/media",
             "print_mode": True,
-            "public_url": f"{settings.SITE_URL}/p/{r.proposal.slug}",
+            "public_url": None if r.platform_mode else f"{settings.SITE_URL}/p/{r.proposal.slug}",
         }
     )
 
 
-def supplier() -> Supplier:
+def issue_draft_print_url(p: Proposal, *, platform: bool | None = None) -> str:
+    """`/print/draft/<token>`: the proposal's current draft document as the print layout, for an
+    on-the-spot PDF (#225). `platform` overrides the proposal's `platform_mode` for this link only
+    (None = the proposal's own setting). Same lifetime as the revision print link."""
+    mode = p.platform_mode if platform is None else platform
+    value = f"{p.pk}:{int(mode)}"
+    return f"/print/draft/{signing.TimestampSigner(salt=DRAFT_PRINT_SALT).sign(value)}"
+
+
+def draft_for_print(token: str) -> tuple[Proposal, bool]:
+    """The proposal and the platform mode a draft print link names."""
+    try:
+        raw = signing.TimestampSigner(salt=DRAFT_PRINT_SALT).unsign(
+            token, max_age=settings.PROPOSAL_PRINT_MAX_AGE
+        )
+    except signing.SignatureExpired:
+        raise ExpiredPrintToken from None
+    except signing.BadSignature:
+        raise BadPrintToken from None
+    pk, _, mode = raw.partition(":")
+    found = (
+        Proposal.objects.select_related("client").filter(pk=pk).first() if pk.isdigit() else None
+    )
+    if found is None or mode not in ("0", "1"):
+        raise BadPrintToken
+    return found, mode == "1"
+
+
+def draft_print_page_data(p: Proposal, *, token: str, platform: bool) -> ProposalPageData:
+    """The draft as the print layout. Private media goes through the draft print link."""
+    data = _draft_page_data(
+        p,
+        preview=False,
+        media_endpoint=f"/print/draft/{token}/media",
+        platform=platform,
+        private=True,
+    )
+    published = p.status == Proposal.Status.PUBLISHED
+    return data.model_copy(
+        update={
+            "print_mode": True,
+            "public_url": f"{settings.SITE_URL}/p/{p.slug}" if published and not platform else None,
+        }
+    )
+
+
+def leaks_of(p: Proposal, platform: bool) -> list[str]:
+    """What the draft's print layout still says about us (services/platform_mode.py::leaks)."""
+    data = _draft_page_data(p, preview=False, media_endpoint=None, platform=platform, private=False)
+    return platform_mode.leaks(data.model_dump(mode="json"))
+
+
+def hide_for_platform(data: ProposalPageData) -> ProposalPageData:
+    """The page data with us taken out (외주 플랫폼 제출용, services/platform_mode.py)."""
+    return data.model_copy(
+        update={
+            "supplier": supplier(platform=True),
+            "document": platform_mode.strip_document(data.document),
+            "public_url": None,
+            "platform_mode": True,
+        }
+    )
+
+
+def supplier(*, platform: bool = False) -> Supplier:
+    if platform:
+        return Supplier(name=platform_mode.SUPPLIER_NAME, email="", phone="", address="")
     profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
     return Supplier(
         name=settings.SUPPLIER_NAME,
@@ -485,7 +578,7 @@ def revision_page_data(
 ) -> ProposalPageData:
     """The customer page: a revision's frozen fields, with media resolved now (private media as
     short-lived URLs: the caller has checked the customer session)."""
-    return ProposalPageData(
+    data = ProposalPageData(
         preview=False,
         recipient=r.recipient,
         title=r.title,
@@ -502,13 +595,22 @@ def revision_page_data(
         pdf_url=pdf_url,
         tab_endpoint=f"/p/{r.proposal.slug}/tab",
     )
+    return hide_for_platform(data) if r.platform_mode else data
 
 
 def page_data(p: Proposal, *, preview: bool, media_endpoint: str | None = None) -> ProposalPageData:
     """The draft as the customer will see it. Private media is resolved only on the preview
     (the caller has checked the signed link)."""
+    return _draft_page_data(
+        p, preview=preview, media_endpoint=media_endpoint, platform=p.platform_mode, private=preview
+    )
+
+
+def _draft_page_data(
+    p: Proposal, *, preview: bool, media_endpoint: str | None, platform: bool, private: bool
+) -> ProposalPageData:
     title = p.client.contact_title
-    return ProposalPageData(
+    data = ProposalPageData(
         preview=preview,
         recipient=f"{title}께" if title else p.client.name,
         title=p.title,
@@ -516,6 +618,7 @@ def page_data(p: Proposal, *, preview: bool, media_endpoint: str | None = None) 
         quote_date=p.quote_date,
         valid_until=p.valid_until,
         supplier=supplier(),
-        document=case_refs.expand(media.resolve_document(p.document, private=preview)),
+        document=case_refs.expand(media.resolve_document(p.document, private=private)),
         media_endpoint=media_endpoint,
     )
+    return hide_for_platform(data) if platform else data

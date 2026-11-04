@@ -92,3 +92,36 @@ test("/print/ 경로는 마스트헤드 없이 인쇄 페이지를 그리고 준
   expect(container.querySelector(".print-page")).not.toBeNull();
   await vi.waitFor(() => expect(document.body.dataset.printReady).toBe("true"));
 });
+
+// 외주 플랫폼 제출용 (issue 225): the server sends a neutral supplier and no public_url.
+const platform: ProposalData = {
+  ...data,
+  supplier: { name: "제안사", email: "", phone: "", address: "" },
+  public_url: null,
+  platform_mode: true,
+};
+
+test("플랫폼 제출용 인쇄는 공급자 「제안사」만 두고 영상·오디오를 QR 없이 안내문으로 둔다", () => {
+  const { container } = render(<ProposalDocument data={platform} />);
+
+  expect(screen.getByText("제안사")).toBeInTheDocument();
+  expect(container.querySelector(".proposal-cover")?.textContent).not.toMatch(/샌드코프|sandcorp|·\s*$/i);
+  expect(container.querySelectorAll(".qr-link")).toHaveLength(0);
+  expect(container.querySelectorAll("audio, video")).toHaveLength(0);
+  expect(screen.getAllByText(/종이·PDF에서는 재생되지 않습니다/).length).toBeGreaterThan(0);
+});
+
+test("/print/draft/ 경로도 인쇄 페이지를 그린다", () => {
+  const { container } = render(<App path="/print/draft/token" data={platform} />);
+
+  expect(container.querySelector(".print-page")).not.toBeNull();
+  expect(container.querySelector(".proposal-cover")?.textContent).not.toMatch(/샌드코프|sandcorp/i);
+});
+
+test("플랫폼 제출용 미리보기는 마스트헤드에 로고·회사명을 싣지 않는다", () => {
+  const { container } = render(<App path="/preview/token" data={{ ...platform, print_mode: false }} />);
+
+  expect(container.querySelector(".masthead")).not.toBeNull();
+  expect(container.querySelector(".wordmark")).toBeNull();
+  expect(container.querySelector(".masthead")?.textContent).not.toMatch(/샌드코프|sandcorp/i);
+});

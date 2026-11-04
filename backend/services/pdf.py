@@ -14,6 +14,7 @@ job running for longer than `PDF_JOB_STALE_SECONDS` is taken back by the next cl
 counts). Finishing only writes when the job is still the one this worker claimed (`locked_at`).
 """
 
+import hashlib
 import logging
 from datetime import datetime, timedelta
 
@@ -23,7 +24,7 @@ from django.db.models import Q
 from django.utils import timezone
 from pydantic import BaseModel
 
-from adapters.renderer import PdfRenderer, get_renderer
+from adapters.renderer import PdfRenderer, RenderFailed, get_renderer
 from adapters.storage import Bucket, ObjectStorage, get_storage
 from content.models import PdfJob, Proposal, ProposalRevision
 from services import proposals
@@ -239,4 +240,55 @@ def download_url(job: PdfJob, *, storage: ObjectStorage | None = None) -> str:
         job.object_key,
         DOWNLOAD_URL_TTL,
         download_name=download_name(job.revision),
+    )
+
+
+# --- on-the-spot PDF of the draft (#225): admin action, MCP export_proposal_pdf ---
+
+
+class PdfExport(BaseModel):
+    url: str
+    expires_at: datetime
+    platform_mode: bool
+    # Text left in the document that still names us or carries an email / a phone number
+    # (services/platform_mode.py::leaks). Empty is what a platform submission needs.
+    leaks: list[str]
+
+
+def render_draft(
+    slug: str, platform: bool | None = None, *, renderer: PdfRenderer | None = None
+) -> tuple[Proposal, bool, bytes]:
+    """The PDF of the proposal's current draft document (a published one too), through the draft
+    print link. `platform` overrides the proposal's `platform_mode` for this PDF only (None = the
+    proposal's own). Writes nothing (`manage.py proposal_pdf` relies on that)."""
+    p = proposals.get_proposal_row(slug)
+    mode = p.platform_mode if platform is None else platform
+    url = settings.PDF_PRINT_BASE_URL.rstrip("/") + proposals.issue_draft_print_url(
+        p, platform=mode
+    )
+    try:
+        data = (renderer or get_renderer()).render(url)
+    except RenderFailed as e:
+        raise Conflict(f"PDF를 만들지 못했습니다: {e}") from None
+    return p, mode, data
+
+
+def export_draft(
+    slug: str,
+    platform: bool | None = None,
+    *,
+    renderer: PdfRenderer | None = None,
+    storage: ObjectStorage | None = None,
+) -> PdfExport:
+    """`render_draft`, stored in the private bucket under `pdf/drafts/`, with a 10-minute link."""
+    p, mode, data = render_draft(slug, platform, renderer=renderer)
+    key = f"pdf/drafts/{p.slug}-{hashlib.sha256(data).hexdigest()[:10]}.pdf"
+    store = storage or get_storage()
+    store.put(Bucket.PRIVATE, key, data, "application/pdf")
+    expires_at = timezone.now() + DOWNLOAD_URL_TTL
+    url = store.presign_get(
+        Bucket.PRIVATE, key, DOWNLOAD_URL_TTL, download_name=f"proposal-{p.slug}.pdf"
+    )
+    return PdfExport(
+        url=url, expires_at=expires_at, platform_mode=mode, leaks=proposals.leaks_of(p, mode)
     )
