@@ -33,6 +33,7 @@ export function App({ path, data }: { path: string; data: unknown }) {
     if (isProposalData(data)) return <ProposalPage data={data} lockAction={`${path}/lock`} />;
   }
   if (path.startsWith("/preview/blog/") && isBlogPostData(data)) return <BlogPostPage data={data} />;
+  if (path.startsWith("/preview/services/") && isServiceData(data)) return <ServicePage data={data} />;
   if (path.startsWith("/preview/tips/") && isTipData(data)) return <TipPage data={data} />;
   if (path.startsWith("/preview/") && isProposalData(data)) return <ProposalPage data={data} />;
   if (path.startsWith("/print/") && isProposalData(data) && data.print_mode) {

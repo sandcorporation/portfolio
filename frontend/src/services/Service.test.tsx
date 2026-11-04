@@ -24,6 +24,13 @@ const offering = (extra: Partial<Offering> = {}): Offering => ({
 
 const page = (): ServiceData => ({ offering: offering() });
 
+test("미리보기 주소(/preview/services/…)도 서비스 화면을 그린다", () => {
+  render(<App path="/preview/services/token" data={page()} />);
+
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("사내 MCP 연동");
+  expect(screen.queryByText("사이트를 준비하고 있습니다")).toBeNull();
+});
+
 test("서비스 화면은 제목·리드 → 대상 → 할 일 → 진행 방식 → 사례 → 견적 문의 순으로 보여 준다", () => {
   render(<App path="/services/mcp-integration" data={page()} />);
 
