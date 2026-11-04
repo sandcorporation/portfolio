@@ -1,4 +1,5 @@
 import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
+import { linkAttrs } from "../links";
 import type { ServiceData } from "./types";
 
 /** A mono label over a section title, as on the home (01 — For, …). */
@@ -81,7 +82,7 @@ export function ServicePage({ data }: { data: ServiceData }) {
             <ul className="work-list feed-list">
               {o.cases.map((item) => (
                 <li key={item.href}>
-                  <a className="work-row" href={item.href}>
+                  <a className="work-row" href={item.href} {...linkAttrs(item.href)}>
                     <span className="work-row-body">
                       <span className="work-row-title">{item.title} →</span>
                       <span className="work-row-meta feed-meta">

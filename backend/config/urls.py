@@ -48,6 +48,7 @@ urlpatterns = [
     path("p/<slug:slug>/pdf", shell.proposal_pdf, name="proposal_pdf"),
     path("preview/blog/<str:token>", shell.blog_preview, name="blog_preview"),
     path("preview/tips/<str:token>", shell.tip_preview, name="tip_preview"),
+    path("preview/services/<str:token>", shell.service_preview, name="service_preview"),
     path("preview/<str:token>", shell.proposal_preview, name="proposal_preview"),
     path(
         "preview/<str:token>/media/<int:media_id>",

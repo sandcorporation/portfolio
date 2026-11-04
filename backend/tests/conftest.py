@@ -4,6 +4,7 @@ Static fixture files live in tests/fixtures/.
 Fake adapters are fixtures here (fake_storage, auth_server, notifier).
 """
 
+import importlib
 import json
 import os
 import resource
@@ -214,3 +215,13 @@ def pytest_runtest_makereport(
                 " (PORTFOLIO_TEST_CPU_LIMIT). 원인을 찾아 줄인다; 한도를 늘리지 않는다."
             )
     return report
+
+
+@pytest.fixture
+def services(db: None) -> None:
+    """The service rows the data migration put in (content 0025, issue 215). A transactional
+    test elsewhere flushes the tables, so this puts them back the migration's own way."""
+    from django.apps import apps
+
+    seed = importlib.import_module("content.migrations.0025_service").seed
+    seed(apps, None)

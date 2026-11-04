@@ -447,12 +447,12 @@ def privacy(request: HttpRequest) -> HttpResponse:
 
 
 def services_hub(request: HttpRequest) -> HttpResponse:
-    """/services has no page of its own: the two rows are the home's section (issue 163)."""
+    """/services has no page of its own: the rows are the home's section (issue 163)."""
     return HttpResponsePermanentRedirect("/#home-services")
 
 
 def service(request: HttpRequest, slug: str) -> HttpResponse:
-    """/services/<slug>: one of the two service pages; the copy is services/offerings.py."""
+    """/services/<slug>: a published service with its copy (content.Service, issue 215)."""
     offering = offerings.get(slug)
     if offering is None:
         raise Http404
@@ -534,7 +534,7 @@ def sitemap_xml(request: HttpRequest) -> HttpResponse:
         # issue 203: published tips only; an empty /tips is left out like an empty blog
         *([("/tips", max(tip_stamps.values()))] if tip_stamps else []),
         *((tips.tip_path(slug), at) for slug, at in tip_stamps.items()),
-        *((offerings.path(o["slug"]), offerings.UPDATED_ON) for o in offerings.OFFERINGS),
+        *offerings.page_stamps(),
         (legal.PATH, legal.EFFECTIVE_ON),
     ]
     urls = "".join(
@@ -813,6 +813,35 @@ def tip_preview(request: HttpRequest, token: str) -> HttpResponse:
         meta = PageMeta(
             title=f"미리보기 · {detail['card']['title']} | {SITE_NAME}",
             description=TIPS_DESCRIPTION,
+            robots=NOINDEX,
+        )
+        response = render_shell(request, meta, data=data)
+    return _private(response)
+
+
+def service_preview(request: HttpRequest, token: str) -> HttpResponse:
+    """A signed, short-lived link to a service page (published or not) as /services/<slug> will
+    show it (issue 215). Like the tip preview: noindex, no-store, no visit counted, no server
+    HTML."""
+    try:
+        offering = offerings.preview_offering(token)
+    except preview.ExpiredPreviewToken:
+        response = HttpResponse(
+            "미리보기 링크가 만료되었습니다. 링크를 다시 발급해 주세요.",
+            status=410,
+            content_type="text/plain; charset=utf-8",
+        )
+    except preview.BadPreviewToken:
+        raise Http404 from None
+    else:
+        data = {
+            "offering": offering,
+            "availability": site_availability(),
+            "business": site_business(),
+        }
+        meta = PageMeta(
+            title=f"미리보기 · {offering['name']} | {SITE_NAME}",
+            description=offering["summary"],
             robots=NOINDEX,
         )
         response = render_shell(request, meta, data=data)

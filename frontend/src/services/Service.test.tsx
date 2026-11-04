@@ -16,6 +16,7 @@ const offering = (extra: Partial<Offering> = {}): Offering => ({
   cases: [
     { title: "인가 서버 글", href: "/blog/auth", kind: "기록", note: "일주일 동안 만들었습니다." },
     { title: "Flow", href: "/work/flow", kind: "포트폴리오", note: "흐름을 고칩니다." },
+    { title: "체험", href: "https://flow.sandcorp.co.kr/", kind: "포트폴리오", note: "다른 사이트입니다." },
   ],
   contact: "적어 보내 주세요.",
   ...extra,
@@ -39,8 +40,10 @@ test("서비스 화면은 제목·리드 → 대상 → 할 일 → 진행 방�
     "운영 지원",
   ]);
   const cases = within(screen.getByRole("region", { name: "실제 사례" })).getAllByRole("link");
-  expect(cases.map((a) => a.getAttribute("href"))).toEqual(["/blog/auth", "/work/flow"]);
+  expect(cases.map((a) => a.getAttribute("href"))).toEqual(["/blog/auth", "/work/flow", "https://flow.sandcorp.co.kr/"]);
   expect(cases[0]).not.toHaveAttribute("target");
+  expect(cases[2]).toHaveAttribute("target", "_blank"); // another site: a new tab
+  expect(cases[2]).toHaveAttribute("rel", "noopener noreferrer");
   const quote = screen.getByRole("link", { name: "견적 문의 →" });
   expect(quote).toHaveAttribute("href", `/?inquiry=${offering().slug}#home-inquiry`);
   expect(quote).toHaveAttribute("data-style", "primary");

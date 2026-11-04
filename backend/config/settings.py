@@ -205,6 +205,8 @@ PROPOSAL_PREVIEW_MAX_AGE = 30 * 60
 BLOG_PREVIEW_MAX_AGE = PROPOSAL_PREVIEW_MAX_AGE
 # A tip draft's preview link (/preview/tips/<token>, issue 203) too.
 TIP_PREVIEW_MAX_AGE = BLOG_PREVIEW_MAX_AGE
+# A service page's preview link (/preview/services/<token>, issue 215) too.
+SERVICE_PREVIEW_MAX_AGE = BLOG_PREVIEW_MAX_AGE
 # The PDF renderer opens a print page within seconds of being handed the link.
 PROPOSAL_PRINT_MAX_AGE = 10 * 60
 # The customer page (/p/<slug>): a right code opens a seven-day session for that proposal; five

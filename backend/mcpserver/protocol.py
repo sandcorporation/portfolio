@@ -16,6 +16,7 @@ from mcpserver import (  # noqa: F401  # register
     tools_media,
     tools_proposals,
     tools_publishing,
+    tools_services,
     tools_shorts,
     tools_tips,
 )
@@ -33,7 +34,9 @@ INSTRUCTIONS = (
     "rewriting a tip, read tip_guide first. YouTube Shorts on the home page come in from the "
     "channel by themselves (every 30 minutes, newest in front); only hiding (is_visible), order "
     "(position, smaller first) and link need changing, with list_shorts/update_short. add_short "
-    "is only for putting one up before the automatic sync or bringing back a deleted one."
+    "is only for putting one up before the automatic sync or bringing back a deleted one. The "
+    "outsourced-work services (home 「외주로 맡는 일」 cards and /services/<slug> pages) are rows "
+    "of fixed sections; before writing or rewriting one, read service_guide first."
 )
 
 PARSE_ERROR = -32700

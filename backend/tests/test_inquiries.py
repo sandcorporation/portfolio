@@ -11,8 +11,7 @@ from pytest_django.fixtures import Settings
 
 from adapters.fake_notify import ExplodingNotifier, FakeNotifier
 from adapters.notify import Notification, discord_payload
-from content.models import Inquiry
-from services import offerings
+from content.models import Inquiry, Service
 
 URL = "/api/inquiries"
 FORM = {
@@ -245,18 +244,18 @@ def test_admin_lists_and_filters_the_new_kinds(owner_client: Client) -> None:
     assert "가나" in filtered and "다라" not in filtered
 
 
-@pytest.mark.parametrize(
-    "offering", [*offerings.OFFERINGS, *offerings.CARD_ONLY], ids=lambda o: o["slug"]
-)
-def test_each_offering_is_an_inquiry_kind_by_its_name(
-    client: Client, notifier: FakeNotifier, offering: offerings.Offering | offerings.OfferingCard
+@pytest.mark.usefixtures("services")
+@pytest.mark.parametrize("slug", ["rag-chatbot", "mcp-integration", "claude-code-automation"])
+def test_each_service_is_an_inquiry_kind_by_its_name(
+    client: Client, notifier: FakeNotifier, slug: str
 ) -> None:
-    assert offering["inquiry_kind"] in Inquiry.Kind.values
-    assert post(client, {**FORM, "kind": offering["inquiry_kind"]}) == 201
+    kind = Service.objects.get(slug=slug).inquiry_kind
+    assert kind in Inquiry.Kind.values
+    assert post(client, {**FORM, "kind": kind}) == 201
     saved = Inquiry.objects.get()
-    assert saved.kind == offering["inquiry_kind"]
-    assert offering["inquiry_kind"] in notifier.sent[0].title
-    assert len(saved.kind) == len(offering["inquiry_kind"])  # not cut by the column
+    assert saved.kind == kind
+    assert kind in notifier.sent[0].title
+    assert len(saved.kind) == len(kind)  # not cut by the column
 
 
 def test_admin_shows_an_offering_kind(owner_client: Client) -> None:

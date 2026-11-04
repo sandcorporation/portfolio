@@ -784,8 +784,9 @@ class Inquiry(models.Model):
         NEW = "신규 개발", "신규 개발"
         MAINTENANCE = "유지보수", "유지보수"
         OTHER = "기타", "기타"
-        # The offerings (cards): the value is the offering's `inquiry_kind` in services/offerings.py
-        # (tests/test_inquiries.py keeps them equal).
+        # The service cards (content.Service, issue 215): a service's `inquiry_kind` must be one
+        # of these values (services/offerings.py checks it). A new kind is a PR: a value here and
+        # a migration.
         MCP_INTEGRATION = "MCP 연동", "MCP 연동"
         CLAUDE_CODE_AUTOMATION = "Claude Code 자동화", "Claude Code 자동화"
         RAG_CHATBOT = "RAG 상담 챗봇", "RAG 상담 챗봇"
@@ -847,3 +848,61 @@ class PdfJob(models.Model):
 
     def __str__(self) -> str:
         return f"{self.revision.doc_number} PDF ({self.get_status_display()})"
+
+
+class Service(models.Model):
+    """A service sold as outsourced work (issue 215): a home 「외주로 맡는 일」 card and, once
+    published with its copy, the page /services/<slug>. Field names are those of the shell's
+    `offering` (services/offerings.py, frontend/src/services/types.ts). Rules (counts, lengths,
+    what a published page needs) live in services/offerings.py; `clean` runs them for admin."""
+
+    slug = models.CharField(
+        "주소",
+        max_length=80,
+        unique=True,
+        validators=[RegexValidator(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", "소문자·숫자·하이픈만 씁니다.")],
+        help_text="/services/<주소>. 문의 폼 미리 고르기(?inquiry=<주소>)에도 쓴다.",
+    )
+    name = models.CharField("이름", max_length=80)
+    summary = models.CharField("요약", max_length=200, help_text="홈 카드와 meta description.")
+    inquiry_kind = models.CharField(
+        "문의 구분", max_length=20, choices=Inquiry.Kind, help_text="문의 폼 「구분」에서 고를 값."
+    )
+    lead = models.TextField("리드", blank=True, help_text="제목 아래 문단. 비면 상세 페이지 없음.")
+    service_type = models.CharField("serviceType", max_length=60, blank=True)
+    audience = models.JSONField("01 For", default=list, blank=True, help_text='["한 줄", …]')
+    deliverables = models.JSONField(
+        "02 What", default=list, blank=True, help_text='[{"title": …, "text": …}, …]'
+    )
+    steps = models.JSONField(
+        "03 Process", default=list, blank=True, help_text='[{"title": …, "text": …}, …]'
+    )
+    cases = models.JSONField(
+        "04 Cases",
+        default=list,
+        blank=True,
+        help_text='[{"title": …, "href": "/blog/…", "kind": "기록", "note": …}, …]',
+    )
+    contact = models.TextField("05 Contact", blank=True)
+    position = models.IntegerField("순서", default=0, help_text="작을수록 앞.")
+    is_visible = models.BooleanField("카드 노출", default=False)
+    is_published = models.BooleanField(
+        "상세 페이지 공개", default=False, help_text="켜고 리드가 있어야 /services/<주소>가 열린다."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField("갱신 시각", auto_now=True)
+
+    class Meta:
+        verbose_name = "외주 서비스"
+        verbose_name_plural = "외주 서비스"
+        ordering = ("position", "id")
+
+    def __str__(self) -> str:
+        return self.name
+
+    def clean(self) -> None:
+        from services.offerings import problems  # the rules module reads this model
+
+        found = problems(self)
+        if found:
+            raise ValidationError([f"{e.path}: {e.reason}" for e in found])

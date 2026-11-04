@@ -103,7 +103,10 @@ class BlockSchemaInput(BaseModel):
     "tip_guide (read it first) -> create_tip -> update_tip -> issue_tip_preview_url (show the "
     "draft) -> publish_tip. YouTube Shorts come in from the channel by themselves (every 30 "
     "minutes); only hide (is_visible), reorder (position) or link them with update_short. "
-    "add_short only puts one up before the sync or brings back a deleted one.",
+    "add_short only puts one up before the sync or brings back a deleted one. Writing a service "
+    "page: service_guide (read it first) -> list_services -> create_service/update_service -> "
+    "issue_service_preview_url (show it) -> publish_service; cards: update_service is_visible/"
+    "position.",
     NoInput,
 )
 def whoami(token: AccessToken, args: NoInput) -> ToolResult:

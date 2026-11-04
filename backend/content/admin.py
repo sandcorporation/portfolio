@@ -19,6 +19,7 @@ from content.models import (
     Proposal,
     ProposalEvent,
     ProposalRevision,
+    Service,
     Short,
     SiteProfile,
     Tip,
@@ -773,3 +774,38 @@ class ProposalEventAdmin(_EventAdmin):
 
     def has_delete_permission(self, request: HttpRequest, obj: ProposalEvent | None = None) -> bool:
         return False
+
+
+if TYPE_CHECKING:
+    _ServiceAdmin = admin.ModelAdmin[Service]
+else:
+    _ServiceAdmin = admin.ModelAdmin
+
+
+@admin.register(Service)
+class ServiceAdmin(_ServiceAdmin):
+    """Outsourced-work services (issue 215), usually written through MCP: card order, card and
+    page switches right in the list. Saving runs services/offerings.py's rules (Service.clean)."""
+
+    list_display = ("name", "slug", "inquiry_kind", "position", "is_visible", "is_published")
+    list_editable = ("position", "is_visible", "is_published")
+    list_filter = ("is_visible", "is_published")
+    search_fields = ("name", "slug", "summary")
+    readonly_fields = ("updated_at",)
+    fields = (
+        "name",
+        "slug",
+        "summary",
+        "inquiry_kind",
+        "position",
+        "is_visible",
+        "is_published",
+        "lead",
+        "service_type",
+        "audience",
+        "deliverables",
+        "steps",
+        "cases",
+        "contact",
+        "updated_at",
+    )

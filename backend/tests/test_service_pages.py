@@ -1,23 +1,33 @@
-"""The two service pages (issue 163): /services/<slug> shells, their meta and Service JSON-LD,
-the sitemap, the home's 「서비스」 section and nav, and the server HTML against the app source."""
+"""The service pages (issue 163, in the database since issue 215): /services/<slug> shells,
+their meta and Service JSON-LD, the sitemap, the home's 「서비스」 section and nav, the server
+HTML against the app source, and the rows' rules, preview link, admin and MCP tools."""
 
 import json
 import re
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import Client
 from pytest_django.fixtures import Settings
 
+from content.models import Inquiry, Service
 from core import public_html
+from mcpserver.tools import TOOLS
 from services import offerings
+from services.errors import Conflict, Rejected
+from tests.site_auth import SiteAuth
+from tests.test_mcp import McpClient
+from tests.test_mcp_proposals import ok, refused
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("services")]
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
 TEMPLATES = Path(public_html.__file__).parent / "templates" / "core" / "public"
 SLUGS = ["mcp-integration", "claude-code-automation"]
+
+type Data = dict[str, Any]  # Any: tool results are arbitrary JSON
 
 
 def page_data(html: str) -> dict[str, object]:
@@ -94,7 +104,7 @@ def test_the_sitemap_lists_both_pages_with_the_copy_date(
     for slug in SLUGS:
         assert (
             f"<url><loc>{settings.SITE_URL}/services/{slug}</loc>"
-            f"<lastmod>{offerings.UPDATED_ON.isoformat()}</lastmod></url>"
+            "<lastmod>2026-10-30</lastmod></url>"  # the copy date, kept by the migration
         ) in body
 
 
@@ -130,8 +140,8 @@ def test_the_server_html_draws_every_section_cases_and_one_quote_button(
 
 
 def test_every_case_links_to_a_page_of_this_site() -> None:
-    for offering in offerings.OFFERINGS:
-        for case in offering["cases"]:
+    for service in Service.objects.all():
+        for case in service.cases:
             assert re.fullmatch(r"/(blog|work)/[a-z0-9-]+", case["href"]), case["href"]
 
 
@@ -185,6 +195,10 @@ def test_the_rag_card_comes_first_and_has_no_page_of_its_own(client: Client) -> 
     cards = offerings.cards()
     assert [c["slug"] for c in cards] == ["rag-chatbot", *SLUGS]
     assert cards[0]["name"] == "RAG 상담 챗봇 구축"
+    assert cards[0]["summary"] == (  # issue 215: the one line changed in the move to the database
+        "가진 문서·FAQ로 답하는 상담 챗봇을 만들어 홈페이지에 붙입니다. "
+        "직접 운영하는 챗봇 빌더(Flow)에서 쌓은 방식 그대로입니다."
+    )
     assert cards[0]["href"] == "/?inquiry=rag-chatbot#home-inquiry"
     assert [c["href"] for c in cards[1:]] == [f"/services/{s}" for s in SLUGS]
 
@@ -193,3 +207,261 @@ def test_the_rag_card_comes_first_and_has_no_page_of_its_own(client: Client) -> 
     body = root(client.get("/").content.decode())
     assert 'href="/?inquiry=rag-chatbot#home-inquiry"' in body
     assert body.index("RAG 상담 챗봇 구축") < body.index("사내 MCP 서버")
+    assert "메신저에 붙입니다" not in body
+
+
+# --- issue 215: the rows live in the database ---
+
+
+RAG_PAGE = {
+    "lead": "가진 문서로 답하는 챗봇을 만듭니다.",
+    "service_type": "RAG 챗봇 구축",
+    "audience": ["문의가 많은 팀"],
+    "deliverables": [{"title": "문서 정리", "text": "답할 문서를 고릅니다."}],
+    "steps": [{"title": "상담", "text": "듣습니다."}],
+    "cases": [
+        {
+            "title": "Sandcorp Flow",
+            "href": "https://flow.sandcorp.co.kr/",
+            "kind": "포트폴리오",
+            "note": "챗봇 빌더입니다.",
+        }
+    ],
+    "contact": "가격은 범위에 따라 정합니다.",
+}
+
+
+def _card(slug: str) -> offerings.OfferingCard:
+    return next(c for c in offerings.cards() if c["slug"] == slug)
+
+
+def test_unpublishing_closes_the_page_and_the_card_goes_to_the_form(client: Client) -> None:
+    offerings.unpublish_service("mcp-integration")
+
+    assert client.get("/services/mcp-integration").status_code == 404
+    assert "/services/mcp-integration" not in client.get("/sitemap.xml").content.decode()
+    assert _card("mcp-integration")["href"] == "/?inquiry=mcp-integration#home-inquiry"
+    assert 'href="/?inquiry=mcp-integration#home-inquiry"' in root(client.get("/").content.decode())
+
+
+def test_filling_and_publishing_opens_the_page_and_points_the_card_at_it(client: Client) -> None:
+    with pytest.raises(Rejected) as refused_publish:
+        offerings.publish_service("rag-chatbot")  # nothing to show yet
+    assert {e.path for e in refused_publish.value.errors} == set(offerings.PAGE_FIELDS)
+
+    offerings.update_service("rag-chatbot", offerings.ServicePatch.model_validate(RAG_PAGE))
+    offerings.publish_service("rag-chatbot")
+
+    html = client.get("/services/rag-chatbot").content.decode()
+    assert "가진 문서로 답하는 챗봇을 만듭니다." in root(html)
+    assert json_ld(html)["serviceType"] == "RAG 챗봇 구축"
+    # another site's case opens in a new tab; our own pages stay in the same tab
+    assert (
+        '<a class="work-row" href="https://flow.sandcorp.co.kr/" target="_blank" '
+        'rel="noopener noreferrer">'
+    ) in root(html)
+    assert _card("rag-chatbot")["href"] == "/services/rag-chatbot"
+    assert "/services/rag-chatbot</loc>" in client.get("/sitemap.xml").content.decode()
+
+
+def test_hidden_cards_are_left_out_and_position_orders_them() -> None:
+    patch = offerings.ServicePatch.model_validate
+    offerings.update_service("rag-chatbot", patch({"is_visible": False}))
+    offerings.update_service("claude-code-automation", patch({"position": -1}))
+
+    assert [c["slug"] for c in offerings.cards()] == ["claude-code-automation", "mcp-integration"]
+
+
+def test_the_rules_refuse_what_would_break_the_page() -> None:
+    patch = offerings.ServicePatch.model_validate
+    with pytest.raises(Rejected, match="inquiry_kind"):
+        offerings.update_service("rag-chatbot", patch({"inquiry_kind": "새 구분"}))
+    with pytest.raises(Rejected, match="lead"):  # a published page cannot lose its copy
+        offerings.update_service("mcp-integration", patch({"lead": ""}))
+    with pytest.raises(ValueError):  # Pydantic: too many lines, a host-less or http address
+        patch({"audience": ["x"] * 7})
+    with pytest.raises(ValueError):
+        patch({"cases": [{**RAG_PAGE["cases"][0], "href": "http://example.com/"}]})  # type: ignore[dict-item]
+    service = Service.objects.get(slug="mcp-integration")
+    service.deliverables = [{"title": "x"}] * 9
+    assert {e.path for e in offerings.problems(service)} >= {"deliverables[0].text"}
+    service.deliverables = [{"title": "x", "text": "y"}] * 9
+    assert [e.path for e in offerings.problems(service)] == ["deliverables"]
+    with pytest.raises(Conflict):
+        offerings.create_service(
+            offerings.NewService(
+                slug="rag-chatbot", name="x", summary="y", inquiry_kind="RAG 상담 챗봇"
+            )
+        )
+    assert Service.objects.get(slug="mcp-integration").lead  # nothing was saved
+
+
+def test_an_unpublished_page_opens_through_its_preview_link_only(
+    client: Client, settings: Settings
+) -> None:
+    settings.METRICS_SNIPPET_URL = "https://metrics.example/s.js"
+    with pytest.raises(Rejected, match="lead"):
+        offerings.issue_preview_url("rag-chatbot")  # no copy to draw
+    offerings.update_service("rag-chatbot", offerings.ServicePatch.model_validate(RAG_PAGE))
+    link = offerings.issue_preview_url("rag-chatbot")
+    assert link.url.startswith("/preview/services/")
+
+    response = client.get(link.url)
+
+    assert response.status_code == 200
+    assert "no-store" in response["Cache-Control"]
+    html = response.content.decode()
+    assert meta(html, "robots") == "noindex, nofollow"
+    assert "metrics.example" not in html
+    assert root(html).strip() == ""  # no server HTML, like the other previews
+    assert page_data(html)["offering"] == offerings.preview_offering(link.url.rsplit("/", 1)[1])
+    assert client.get("/services/rag-chatbot").status_code == 404
+    assert client.get("/preview/services/nope").status_code == 404
+    tip_link = tips_preview_token()
+    assert client.get(f"/preview/services/{tip_link}").status_code == 404  # salts differ
+
+
+def tips_preview_token() -> str:
+    from django.core import signing
+
+    return signing.TimestampSigner(salt="tip-preview").sign("rag-chatbot")
+
+
+# --- admin ---
+
+
+@pytest.fixture
+def owner_client(client: Client) -> Client:
+    User.objects.create_superuser("owner", "o@example.com", "correct-horse-battery")
+    client.login(username="owner", password="correct-horse-battery")
+    return client
+
+
+def _changelist_form(services: list[Service], **changed: object) -> dict[str, object]:
+    form: dict[str, object] = {
+        "form-TOTAL_FORMS": str(len(services)),
+        "form-INITIAL_FORMS": str(len(services)),
+        "_save": "저장",
+    }
+    for i, s in enumerate(services):
+        form[f"form-{i}-id"] = str(s.pk)
+        form[f"form-{i}-position"] = str(s.position)
+        if s.is_visible:
+            form[f"form-{i}-is_visible"] = "on"
+        if s.is_published or (s.slug == changed.get("slug") and changed.get("is_published")):
+            form[f"form-{i}-is_published"] = "on"
+    return form
+
+
+def test_admin_lists_services_and_its_saves_run_the_same_rules(owner_client: Client) -> None:
+    page = owner_client.get("/admin/content/service/").content.decode()
+    assert "RAG 상담 챗봇 구축" in page and "외주 서비스" in page
+
+    rows = list(Service.objects.order_by("position", "id"))
+    form = _changelist_form(rows, slug="rag-chatbot", is_published=True)
+    response = owner_client.post("/admin/content/service/", form)
+    assert response.status_code == 200  # the list again, with the error
+    assert "상세 페이지를 공개하려면 채워야 합니다" in response.content.decode()
+    assert not Service.objects.get(slug="rag-chatbot").is_published
+
+    rag = Service.objects.get(slug="rag-chatbot")
+    change = {
+        "name": rag.name,
+        "slug": rag.slug,
+        "summary": "고친 요약입니다.",
+        "inquiry_kind": rag.inquiry_kind,
+        "position": "5",
+        "is_visible": "on",
+        "lead": "",
+        "service_type": "",
+        "audience": "[]",
+        "deliverables": "[]",
+        "steps": "[]",
+        "cases": "[]",
+        "contact": "",
+    }
+    response = owner_client.post(f"/admin/content/service/{rag.pk}/change/", change)
+    assert response.status_code == 302
+    assert Service.objects.get(slug="rag-chatbot").summary == "고친 요약입니다."
+    bad = {**change, "audience": '["x", "x", "x", "x", "x", "x", "x"]'}
+    response = owner_client.post(f"/admin/content/service/{rag.pk}/change/", bad)
+    assert response.status_code == 200 and "6개 이하여야 합니다" in response.content.decode()
+
+
+# --- MCP ---
+
+
+SERVICE_TOOLS = {
+    "service_guide", "list_services", "get_service", "create_service", "update_service",
+    "issue_service_preview_url", "publish_service", "unpublish_service",
+}  # fmt: skip
+READ_ONLY = {"service_guide", "list_services", "get_service", "issue_service_preview_url"}
+
+
+@pytest.fixture
+def mcp(client: Client, auth_server: SiteAuth) -> McpClient:
+    return McpClient(client, auth_server)
+
+
+def test_service_tools_are_listed_and_writers_point_to_the_guide(mcp: McpClient) -> None:
+    init = cast(Data, mcp.request("initialize", {"protocolVersion": "2025-06-18"})["result"])
+    assert "service_guide" in init["instructions"]
+    by_name = {t["name"]: t for t in cast(Data, mcp.request("tools/list")["result"])["tools"]}
+    assert not any(name.startswith("delete_service") for name in by_name)
+    for name in SERVICE_TOOLS:
+        assert by_name[name]["annotations"]["readOnlyHint"] is (name in READ_ONLY), name
+    for writer in ("whoami", "create_service", "update_service"):
+        assert "service_guide" in by_name[writer]["description"], writer
+    whoami = by_name["whoami"]["description"]
+    part = whoami[whoami.index("service_guide") :]
+    assert part.index("issue_service_preview_url") < part.index("publish_service")
+
+
+def test_service_guide_names_only_real_tools_and_fields(mcp: McpClient) -> None:
+    found = ok(mcp, "service_guide", {})
+    guide = found["guide"]
+    assert guide.startswith("# 외주 서비스 페이지 작성 지침")
+    assert found["inquiry_kinds"] == list(Inquiry.Kind.values)
+    named = set(re.findall(r"`([A-Za-z][\w-]*)`", guide))
+    known = (
+        set(TOOLS)
+        | set(offerings.NewService.model_fields)
+        | set(offerings.ServicePatch.model_fields)
+        | set(offerings.ItemIn.model_fields)
+        | set(offerings.CaseIn.model_fields)
+    )
+    assert named - known == set()
+    assert {"inquiry_kind", "publish_service", "cases", "is_visible", "position"} <= named
+    assert "범위에 따라 정합니다" in guide
+    assert re.search(r"\b\d{1,3}(\.\d{1,3}){3}\b", guide) is None
+
+
+def test_write_preview_publish_and_hide_a_service(mcp: McpClient, client: Client) -> None:
+    made = ok(
+        mcp,
+        "create_service",
+        {"slug": "web-app", "name": "웹 앱", "summary": "만듭니다.", "inquiry_kind": "신규 개발"},
+    )
+    assert made["is_visible"] is False and made["is_published"] is False
+    assert made["position"] == 3 and made["url"] == "/?inquiry=web-app#home-inquiry"
+    assert "web-app" not in [c["slug"] for c in offerings.cards()]
+    assert "lead" in refused(mcp, "publish_service", {"slug": "web-app"})
+
+    ok(mcp, "update_service", {"slug": "web-app", **RAG_PAGE, "is_visible": True})
+    link = ok(mcp, "issue_service_preview_url", {"slug": "web-app"})
+    assert client.get(link["url"]).status_code == 200
+    published = ok(mcp, "publish_service", {"slug": "web-app"})
+    assert published["has_page"] is True and published["url"] == "/services/web-app"
+    assert client.get("/services/web-app").status_code == 200
+    listed = [s["slug"] for s in ok(mcp, "list_services", {})["items"]]
+    assert listed == ["rag-chatbot", "mcp-integration", "claude-code-automation", "web-app"]
+    assert ok(mcp, "get_service", {"slug": "web-app"})["lead"] == RAG_PAGE["lead"]
+
+    ok(mcp, "unpublish_service", {"slug": "web-app"})
+    assert client.get("/services/web-app").status_code == 404
+    ok(mcp, "update_service", {"slug": "web-app", "is_visible": False})
+    assert "web-app" not in [c["slug"] for c in offerings.cards()]
+    assert "없습니다" in refused(mcp, "get_service", {"slug": "nope"})
+    assert "inquiry_kind" in refused(
+        mcp, "update_service", {"slug": "web-app", "inquiry_kind": "없는 구분"}
+    )

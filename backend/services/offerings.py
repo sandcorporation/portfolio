@@ -1,15 +1,47 @@
-"""The two service pages (/services/<slug>, issue 163) and the home's 「서비스」 rows.
+"""Services sold as outsourced work (issue 163, moved to the database in issue 215): the home's
+「외주로 맡는 일」 cards and the pages /services/<slug>.
 
-The copy lives here and only here: the shell sends it as #page-data, the server HTML and React
-both draw it from there. No database row, admin form or MCP tool edits it; a change is a PR.
-Every fact quoted in `cases` comes from the linked post or portfolio item; keep it that way.
+Rows are `content.Service`, written through MCP (mcpserver/tools_services.py) or admin. A card
+shows when `is_visible`, in `position` order. A page exists when `is_published` and its `lead`
+is filled (`has_page`); every other slug is 404, out of the sitemap and without JSON-LD, and its
+card opens the inquiry form with its 「구분」 preselected.
+
+Owner side: `list_services`, `get_service`, `create_service`, `update_service`,
+`publish_service`, `unpublish_service`, `issue_preview_url`. Writes take Pydantic inputs (only
+the given fields change) and refuse with `services.errors`; `problems` is the one set of rules,
+also run by admin (`Service.clean`). There is no delete: hide the card instead.
+
+Public side (the shell): `get` (a page's copy), `cards`, `page_stamps` (sitemap `lastmod`),
+`preview_offering`. Every fact quoted in `cases` comes from the linked post or portfolio item.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import TypedDict
 
-# sitemap.xml's <lastmod> for both pages: bump it when the copy below changes.
-UPDATED_ON = date(2026, 10, 30)
+from django.conf import settings
+from django.db import IntegrityError, transaction
+from django.db.models import Max
+from django.utils import timezone
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+
+from content.models import Inquiry, Service
+from documents.validation import DocumentError
+from services import preview
+from services.errors import Conflict, NotFound, Rejected
+
+SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+SITE_OR_HTTPS = r"^(/[^\s]*|https://[^\s/]+[^\s]*)$"
+
+AUDIENCE_MAX = 6
+ITEMS_MAX = 8  # deliverables, steps
+CASES_MAX = 8
+# A published page needs these (the cards need only name, summary and inquiry_kind).
+PAGE_FIELDS = ("lead", "audience", "deliverables", "steps", "contact")
+
+KIND_HELP = "One of the inquiry form's 「구분」 values: " + ", ".join(Inquiry.Kind.values)
+
+
+# --- the shapes: the shell's JSON (TypedDict) ---
 
 
 class Item(TypedDict):
@@ -19,7 +51,7 @@ class Item(TypedDict):
 
 class Case(TypedDict):
     title: str
-    href: str  # a page of this site
+    href: str  # a page of this site (/…) or another site's https address (opens in a new tab)
     kind: str  # the mono label of the row: 「기록」 or 「포트폴리오」
     note: str
 
@@ -30,9 +62,7 @@ class Offering(TypedDict):
     slug: str
     name: str
     summary: str  # the home row and the meta description
-    inquiry_kind: (
-        str  # its value in the inquiry form's 「구분」 (content.Inquiry.Kind), the short name
-    )
+    inquiry_kind: str  # its value in the inquiry form's 「구분」 (content.Inquiry.Kind)
     lead: str  # under the page title
     service_type: str  # JSON-LD serviceType
     audience: list[str]
@@ -52,268 +82,372 @@ class OfferingCard(TypedDict):
     href: str  # the service page, or the inquiry form for a card without a page
 
 
-OFFERINGS: tuple[Offering, ...] = (
-    Offering(
-        slug="mcp-integration",
-        name="사내 MCP 서버·AI 에이전트 연동 구축",
-        inquiry_kind="MCP 연동",
-        summary=(
-            "회사 안의 DB·사내 API·메신저를 Claude 같은 AI가 쓸 수 있게 MCP 서버로 만들고, "
-            "로그인·권한·감사 로그까지 붙입니다."
-        ),
-        lead=(
-            "AI가 회사 시스템을 직접 읽고 쓰려면 그 사이에 MCP 서버가 있어야 합니다. "
-            "연결만 하지 않고, 누가 로그인해서 무엇을 할 수 있고 무엇을 했는지 남는 데까지 "
-            "운영할 수 있게 만들어 드립니다."
-        ),
-        service_type="MCP 서버 구축",
-        audience=[
-            "사내 DB나 관리 화면에서 하던 일을 AI에게 맡기고 싶은 팀",
-            "직원이 쓰는 Claude에 회사 시스템을 연결하되, 누가 무엇을 했는지 남아야 하는 회사",
-            "공개 API가 없는 프로그램(메신저 등)을 AI가 다루게 하고 싶은 경우",
-            "MCP 서버는 있지만 로그인과 권한이 비어 있는 경우",
-        ],
-        deliverables=[
-            Item(
-                title="MCP 서버 설계·구현",
-                text=(
-                    "사내 DB·API·관리 기능을 AI가 부를 수 있는 도구로 나눕니다. "
-                    "읽기 도구와 바꾸는 도구를 구분합니다."
-                ),
-            ),
-            Item(
-                title="로그인과 권한",
-                text=(
-                    "OAuth 2.1 인가 서버를 세우거나 기존 로그인에 붙여, claude.ai 커넥터 같은 "
-                    "공개 클라이언트도 로그인하게 합니다. "
-                    "도구마다 쓸 수 있는 범위(스코프)를 나눕니다."
-                ),
-            ),
-            Item(
-                title="감사 로그",
-                text=(
-                    "어떤 도구를 누가 언제 불렀는지 남깁니다. "
-                    "메시지 본문처럼 남기면 안 되는 값은 뺍니다."
-                ),
-            ),
-            Item(
-                title="남용 막기",
-                text="로그인 시도, 클라이언트 등록, 토큰 발급에 횟수 제한을 둡니다.",
-            ),
-            Item(
-                title="배포와 운영",
-                text="배포, 백업, 실패 알림까지 맡거나 사내 팀이 이어받을 수 있게 문서로 넘깁니다.",
-            ),
-        ],
-        steps=[
-            Item(title="상담", text="연결할 시스템과 AI에게 맡길 일을 듣습니다."),
-            Item(
-                title="범위 정의",
-                text="도구 목록, 권한, 남길 기록을 문서로 정하고 견적을 드립니다.",
-            ),
-            Item(
-                title="주 단위 시연",
-                text="매주 실제 AI 클라이언트에서 도구를 불러 보며 진행 상황을 보여 드립니다.",
-            ),
-            Item(title="납품", text="코드, 배포 설정, 운영 문서를 넘깁니다."),
-            Item(title="운영 지원", text="운영 중 생기는 문제를 고치고 도구 추가를 돕습니다."),
-        ],
-        cases=[
-            Case(
-                title="claude.ai 커넥터가 내 사이트에 로그인하기",
-                href="/blog/sandcorp-auth-mcp-oauth",
-                kind="기록",
-                note=(
-                    "OAuth 2.1 인가 서버를 Django와 authlib로 일주일 동안 만들었습니다. "
-                    "10분짜리 액세스 토큰과 90일짜리 리프레시 토큰, PKCE, 등록·토큰 발급 횟수 "
-                    "제한을 다룹니다."
-                ),
-            ),
-            Case(
-                title="카카오톡을 Claude가 직접 다루게 만들기",
-                href="/blog/kakaotalk-mcp-hyperv",
-                kind="기록",
-                note=(
-                    "개인 계정용 공개 API가 없는 카카오톡을 Hyper-V 가상 컴퓨터에 격리하고 MCP "
-                    "서버를 붙였습니다. 도구마다 스코프를 나누고 호출을 감사 로그에 남깁니다"
-                    "(메시지 본문은 남기지 않음). 공개 오픈소스(MIT)를 바탕으로 기능을 늘렸습니다."
-                ),
-            ),
-            Case(
-                title="Sandcorp Flow",
-                href="/work/sandcorp-flow",
-                kind="포트폴리오",
-                note="MCP 서버를 두어 Claude 같은 AI 도구에서 상담 챗봇의 흐름을 읽고 고칩니다.",
-            ),
-            Case(
-                title="Sandcorp 플랫폼",
-                href="/work/sandcorp-platform",
-                kind="포트폴리오",
-                note=(
-                    "지금 보고 계신 이 사이트입니다. 원격 MCP 서버를 통해 Claude에서 제안서와 "
-                    "포트폴리오를 작성·미리보기·발행합니다."
-                ),
-            ),
-            Case(
-                title="Foresight",
-                href="/work/ai-trend-news",
-                kind="포트폴리오",
-                note=(
-                    "서버에 LLM 호출 코드가 없습니다. 편집 판단은 외부의 Claude 에이전트가 "
-                    "MCP 도구로 하고, 서버는 수집·저장·서빙만 맡습니다."
-                ),
-            ),
-        ],
-        contact=(
-            "가격은 범위에 따라 정합니다. 연결하고 싶은 시스템과 맡기고 싶은 일을 적어 보내 "
-            "주시면 영업일 1일 안에 답합니다."
-        ),
-    ),
-    Offering(
-        slug="claude-code-automation",
-        name="Claude Code 기반 개발 자동화 도입",
-        inquiry_kind="Claude Code 자동화",
-        summary=(
-            "팀 저장소에 Claude Code 작업 흐름(이슈 → 워크트리 → 시험 → PR)과 훅·스킬, "
-            "시험 속도 예산, 토큰 관리를 들여 정착시킵니다."
-        ),
-        lead=(
-            "Claude Code에게 이슈 하나를 맡기고 시험을 통과한 PR로 돌려받는 흐름을 팀 저장소에 "
-            "도입합니다. 샌드코프가 실제로 쓰는 방식을 저장소에 맞춰 옮기고, 팀이 직접 돌릴 수 "
-            "있을 때까지 함께합니다."
-        ),
-        service_type="개발 자동화 도입",
-        audience=[
-            "Claude Code를 쓰기 시작했지만 사람마다 쓰는 방식이 다른 팀",
-            "에이전트에게 맡긴 작업의 토큰 비용이 예상보다 큰 팀",
-            "시험이 느려 에이전트가 기다리는 시간이 긴 저장소",
-            "에이전트가 같은 실수를 되풀이해 사람이 매번 고쳐 주는 경우",
-        ],
-        deliverables=[
-            Item(
-                title="작업 흐름",
-                text=(
-                    "이슈 하나를 워크트리 하나에서 구현·시험·PR까지 진행하는 흐름과, 여러 이슈를 "
-                    "차례로 맡기는 조율 방식을 저장소에 맞춰 만듭니다."
-                ),
-            ),
-            Item(
-                title="저장소 지침",
-                text="매 세션 읽히는 CLAUDE.md를 짧게 나누고, 필요한 문서만 찾아 읽게 합니다.",
-            ),
-            Item(
-                title="훅과 스킬",
-                text=(
-                    "큰 파일 통째로 읽기처럼 되풀이되는 실수를 모델보다 먼저 막는 훅과, 팀의 "
-                    "절차를 담은 스킬을 만듭니다."
-                ),
-            ),
-            Item(
-                title="시험 속도 예산",
-                text=(
-                    "시험 하나마다 시간 한도를 걸고, "
-                    "넘으면 한도를 올리지 않고 원인을 줄이는 규칙을 들입니다."
-                ),
-            ),
-            Item(
-                title="토큰·비용 관리",
-                text=(
-                    "티켓마다 턴 수와 토큰을 재고, 작업 지시서를 고쳐 다음 티켓의 비용을 줄입니다."
-                ),
-            ),
-        ],
-        steps=[
-            Item(
-                title="상담",
-                text="지금 Claude Code를 어떻게 쓰고 있는지, 어디서 막히는지 듣습니다.",
-            ),
-            Item(
-                title="범위 정의",
-                text="저장소를 읽고, 들일 흐름·훅·시험 규칙을 정해 견적을 드립니다.",
-            ),
-            Item(
-                title="주 단위 시연",
-                text="매주 팀 저장소의 실제 이슈를 이 흐름으로 처리해 PR로 보여 드립니다.",
-            ),
-            Item(title="납품", text="훅, 스킬, 지침 문서와 쓰는 법을 넘깁니다."),
-            Item(title="운영 지원", text="팀이 직접 돌리면서 생기는 문제를 함께 고칩니다."),
-        ],
-        cases=[
-            Case(
-                title="작업자 한 명이 45M 토큰을 쓰지 않게 — dev-kit 연재 ① 토큰과 조율",
-                href="/blog/devkit-1-tokens-orchestration",
-                kind="기록",
-                note=(
-                    "한 티켓이 196턴을 돌며 45M 토큰을 썼습니다. 지시서를 고친 뒤 같은 유형의 "
-                    "두 번째 티켓이 87턴·13M에서 60턴·9.5M으로 줄었고, 매 세션 실리는 "
-                    "CLAUDE.md는 1,800줄에서 87줄로 나눴습니다."
-                ),
-            ),
-            Case(
-                title="E2E 6분을 1.3분으로 — dev-kit 연재 ② 시험 속도",
-                href="/blog/devkit-2-test-speed",
-                kind="기록",
-                note=(
-                    "시험 하나마다 0.5·1·3초 한도를 걸었습니다. 전체 E2E가 로컬 1.3분, CI 45초가 "
-                    "되었습니다."
-                ),
-            ),
-            Case(
-                title="모델이 실수하기 전에 훅이 먼저 막는다 — dev-kit 연재 ③ 작업 환경",
-                href="/blog/devkit-3-hooks-panel",
-                kind="기록",
-                note=(
-                    "heredoc 1,224건 중 깨진 12건이 모두 7,600자 이상이었다는 기록에서 훅의 경계를 "
-                    "정했고, 1,000줄·80KB를 넘는 파일을 통째로 읽으려 하면 "
-                    "거부하는 훅을 만들었습니다."
-                ),
-            ),
-        ],
-        contact=(
-            "가격은 저장소와 팀 규모에 따라 정합니다. 지금 쓰는 방식과 막히는 곳을 적어 보내 "
-            "주시면 영업일 1일 안에 답합니다."
-        ),
-    ),
-)
-
-# Cards without a page of their own (no /services/<slug>: 404, not in the sitemap, no JSON-LD):
-# the link opens the inquiry form with its 「구분」 preselected. A page comes with settled copy.
-CARD_ONLY: tuple[OfferingCard, ...] = (
-    OfferingCard(
-        slug="rag-chatbot",
-        name="RAG 상담 챗봇 구축",
-        summary=(
-            "가진 문서·FAQ로 답하는 상담 챗봇을 만들어 홈페이지·메신저에 붙입니다. "
-            "직접 운영하는 챗봇 빌더(Flow)에서 쌓은 방식 그대로입니다."
-        ),
-        inquiry_kind="RAG 상담 챗봇",
-        href="/?inquiry=rag-chatbot#home-inquiry",
-    ),
-)
-
-_BY_SLUG = {offering["slug"]: offering for offering in OFFERINGS}
+# --- the rules: lengths and counts that keep the page's shape ---
 
 
-def get(slug: str) -> Offering | None:
-    return _BY_SLUG.get(slug)
+class ItemIn(BaseModel):
+    """One line of 02 What / 03 Process: 「title — text」."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=40)
+    text: str = Field(min_length=1, max_length=300)
 
 
-def cards() -> list[OfferingCard]:
-    """The home's rows, in page order."""
-    return [
-        *CARD_ONLY,
-        *(
-            OfferingCard(
-                slug=o["slug"],
-                name=o["name"],
-                summary=o["summary"],
-                inquiry_kind=o["inquiry_kind"],
-                href=path(o["slug"]),
+class CaseIn(BaseModel):
+    """One row of 04 Cases. Only facts the linked page states."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=120)
+    href: str = Field(
+        max_length=300,
+        pattern=SITE_OR_HTTPS,
+        description="A page of this site (/blog/…, /work/…) or an https address of another site "
+        "(opens in a new tab).",
+    )
+    kind: str = Field(min_length=1, max_length=20, description="Row label: 기록 or 포트폴리오.")
+    note: str = Field(min_length=1, max_length=400)
+
+
+type ListAdapter = TypeAdapter[list[str]] | TypeAdapter[list[ItemIn]] | TypeAdapter[list[CaseIn]]
+_AUDIENCE = TypeAdapter(list[str])
+_ITEMS = TypeAdapter(list[ItemIn])
+_CASES = TypeAdapter(list[CaseIn])
+
+_TEXT_LIMITS = {  # field -> most characters
+    "name": 80,
+    "summary": 200,
+    "lead": 600,
+    "service_type": 60,
+    "contact": 400,
+}
+_LINE_MAX = 120
+
+
+def _shape_errors(field: str, adapter: ListAdapter, value: object) -> list[DocumentError]:
+    try:
+        adapter.validate_python(value)
+    except ValidationError as exc:
+        return [
+            DocumentError(
+                field + "".join(f"[{p}]" if isinstance(p, int) else f".{p}" for p in e["loc"]),
+                e["msg"],
             )
-            for o in OFFERINGS
-        ),
+            for e in exc.errors()
+        ]
+    return []
+
+
+def problems(service: Service) -> list[DocumentError]:
+    """Everything wrong with a row as it stands (empty: fine to save). The same rules for MCP
+    and admin."""
+    found: list[DocumentError] = []
+    if service.inquiry_kind not in Inquiry.Kind.values:
+        found.append(DocumentError("inquiry_kind", KIND_HELP))
+    for field in ("name", "summary"):
+        if not str(getattr(service, field)).strip():
+            found.append(DocumentError(field, "비어 있으면 안 됩니다"))
+    for field, limit in _TEXT_LIMITS.items():
+        if len(str(getattr(service, field))) > limit:
+            found.append(DocumentError(field, f"{limit}자 이하여야 합니다"))
+    shapes: list[tuple[str, ListAdapter, int]] = [
+        ("audience", _AUDIENCE, AUDIENCE_MAX),
+        ("deliverables", _ITEMS, ITEMS_MAX),
+        ("steps", _ITEMS, ITEMS_MAX),
+        ("cases", _CASES, CASES_MAX),
     ]
+    for field, adapter, most in shapes:
+        value = getattr(service, field)
+        errors = _shape_errors(field, adapter, value)
+        found.extend(errors)
+        if errors:
+            continue
+        if len(value) > most:
+            found.append(DocumentError(field, f"{most}개 이하여야 합니다"))
+    for i, line in enumerate(service.audience if isinstance(service.audience, list) else []):
+        if isinstance(line, str) and not (len(line.strip()) > 0 and len(line) <= _LINE_MAX):
+            found.append(DocumentError(f"audience[{i}]", f"1~{_LINE_MAX}자여야 합니다"))
+    if service.is_published:
+        for field in PAGE_FIELDS:
+            if not getattr(service, field):
+                found.append(DocumentError(field, "상세 페이지를 공개하려면 채워야 합니다"))
+    return found
+
+
+def _check(service: Service) -> None:
+    found = problems(service)
+    if found:
+        raise Rejected(found)
+
+
+# --- owner side: Pydantic in, Pydantic out ---
+
+
+class ServiceOut(BaseModel):
+    slug: str
+    name: str
+    summary: str
+    inquiry_kind: str
+    lead: str
+    service_type: str
+    audience: list[str]
+    deliverables: list[ItemIn]
+    steps: list[ItemIn]
+    cases: list[CaseIn]
+    contact: str
+    position: int
+    is_visible: bool
+    is_published: bool
+    has_page: bool  # /services/<slug> answers (published and the lead filled)
+    url: str  # where the home card links: the page, or the inquiry form
+    updated_at: datetime
+
+
+class NewService(BaseModel):
+    """A new service starts hidden and unpublished; the page fields may come later."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str = Field(
+        max_length=80, pattern=SLUG_PATTERN, description="URL part: /services/<slug>."
+    )
+    name: str = Field(min_length=1, max_length=80, description="The page title and card name.")
+    summary: str = Field(
+        min_length=1, max_length=200, description="One or two sentences: the card and meta."
+    )
+    inquiry_kind: str = Field(max_length=20, description=KIND_HELP)
+    lead: str = Field(default="", max_length=600, description="The paragraph under the title.")
+    service_type: str = Field(default="", max_length=60, description="JSON-LD serviceType.")
+    audience: list[str] = Field(default_factory=list, max_length=AUDIENCE_MAX)
+    deliverables: list[ItemIn] = Field(default_factory=list, max_length=ITEMS_MAX)
+    steps: list[ItemIn] = Field(default_factory=list, max_length=ITEMS_MAX)
+    cases: list[CaseIn] = Field(default_factory=list, max_length=CASES_MAX)
+    contact: str = Field(default="", max_length=400, description="05 Contact paragraph.")
+    position: int | None = Field(
+        default=None, description="Card order, smaller first. Omit to put it last."
+    )
+
+
+class ServicePatch(BaseModel):
+    """Fields left out stay as they are. Lists replace the whole list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(default="", min_length=1, max_length=80)
+    summary: str = Field(default="", min_length=1, max_length=200)
+    inquiry_kind: str = Field(default="", max_length=20, description=KIND_HELP)
+    lead: str = Field(default="", max_length=600)
+    service_type: str = Field(default="", max_length=60)
+    audience: list[str] = Field(default_factory=list, max_length=AUDIENCE_MAX)
+    deliverables: list[ItemIn] = Field(default_factory=list, max_length=ITEMS_MAX)
+    steps: list[ItemIn] = Field(default_factory=list, max_length=ITEMS_MAX)
+    cases: list[CaseIn] = Field(default_factory=list, max_length=CASES_MAX)
+    contact: str = Field(default="", max_length=400)
+    position: int = Field(default=0, description="Card order, smaller first.")
+    is_visible: bool = Field(default=False, description="Show the card on the home page.")
 
 
 def path(slug: str) -> str:
     return f"/services/{slug}"
+
+
+def inquiry_href(slug: str) -> str:
+    return f"/?inquiry={slug}#home-inquiry"
+
+
+def has_page(service: Service) -> bool:
+    return service.is_published and bool(service.lead.strip())
+
+
+def _href(service: Service) -> str:
+    return path(service.slug) if has_page(service) else inquiry_href(service.slug)
+
+
+def service_out(service: Service) -> ServiceOut:
+    return ServiceOut.model_validate(
+        {
+            **_offering(service),
+            "position": service.position,
+            "is_visible": service.is_visible,
+            "is_published": service.is_published,
+            "has_page": has_page(service),
+            "url": _href(service),
+            "updated_at": service.updated_at,
+        }
+    )
+
+
+def _service_or_404(slug: str) -> Service:
+    service = Service.objects.filter(slug=slug).first()
+    if service is None:
+        raise NotFound(f"서비스 {slug!r}이(가) 없습니다")
+    return service
+
+
+def list_services() -> list[ServiceOut]:
+    """Every service in card order, hidden and unpublished ones included."""
+    return [service_out(s) for s in Service.objects.order_by("position", "id")]
+
+
+def get_service(slug: str) -> ServiceOut:
+    return service_out(_service_or_404(slug))
+
+
+def _items(values: list[ItemIn]) -> list[Item]:
+    return [Item(title=v.title, text=v.text) for v in values]
+
+
+def _cases(values: list[CaseIn]) -> list[Case]:
+    return [Case(title=v.title, href=v.href, kind=v.kind, note=v.note) for v in values]
+
+
+def create_service(new: NewService) -> ServiceOut:
+    """A new hidden, unpublished service. A taken slug is a Conflict."""
+    if Service.objects.filter(slug=new.slug).exists():
+        raise Conflict(f"주소 {new.slug!r}는 이미 쓰고 있습니다")
+    if new.position is None:
+        last = Service.objects.aggregate(last=Max("position"))["last"]
+        position = 0 if last is None else last + 1
+    else:
+        position = new.position
+    service = Service(
+        slug=new.slug,
+        name=new.name,
+        summary=new.summary,
+        inquiry_kind=new.inquiry_kind,
+        lead=new.lead,
+        service_type=new.service_type,
+        audience=list(new.audience),
+        deliverables=_items(new.deliverables),
+        steps=_items(new.steps),
+        cases=_cases(new.cases),
+        contact=new.contact,
+        position=position,
+    )
+    _check(service)
+    try:
+        with transaction.atomic():
+            service.save()
+    except IntegrityError:
+        raise Conflict(f"주소 {service.slug!r}는 이미 쓰고 있습니다") from None
+    return service_out(service)
+
+
+def update_service(slug: str, patch: ServicePatch) -> ServiceOut:
+    """Change the given fields; a published page changes live. The slug does not change."""
+    service = _service_or_404(slug)
+    given = patch.model_fields_set
+    for field in ("name", "summary", "inquiry_kind", "lead", "service_type", "contact"):
+        if field in given:
+            setattr(service, field, getattr(patch, field))
+    if "audience" in given:
+        service.audience = list(patch.audience)
+    if "deliverables" in given:
+        service.deliverables = _items(patch.deliverables)
+    if "steps" in given:
+        service.steps = _items(patch.steps)
+    if "cases" in given:
+        service.cases = _cases(patch.cases)
+    if "position" in given:
+        service.position = patch.position
+    if "is_visible" in given:
+        service.is_visible = patch.is_visible
+    _check(service)
+    service.save()
+    return service_out(service)
+
+
+def publish_service(slug: str) -> ServiceOut:
+    """Open /services/<slug> (and point the card at it). Refused while a page field is empty."""
+    service = _service_or_404(slug)
+    service.is_published = True
+    _check(service)
+    service.save()
+    return service_out(service)
+
+
+def unpublish_service(slug: str) -> ServiceOut:
+    """Close the page at once (404, out of the sitemap); the card goes back to the inquiry form."""
+    service = _service_or_404(slug)
+    service.is_published = False
+    service.save()
+    return service_out(service)
+
+
+# --- public side: plain JSON for the shell ---
+
+
+def _offering(service: Service) -> Offering:
+    return Offering(
+        slug=service.slug,
+        name=service.name,
+        summary=service.summary,
+        inquiry_kind=service.inquiry_kind,
+        lead=service.lead,
+        service_type=service.service_type,
+        audience=list(service.audience),
+        deliverables=[Item(title=d["title"], text=d["text"]) for d in service.deliverables],
+        steps=[Item(title=d["title"], text=d["text"]) for d in service.steps],
+        cases=[
+            Case(title=c["title"], href=c["href"], kind=c["kind"], note=c["note"])
+            for c in service.cases
+        ],
+        contact=service.contact,
+    )
+
+
+def get(slug: str) -> Offering | None:
+    """A page's copy; None when the slug has no page (unknown, unpublished or without copy)."""
+    service = Service.objects.filter(slug=slug, is_published=True).first()
+    if service is None or not has_page(service):
+        return None
+    return _offering(service)
+
+
+def cards() -> list[OfferingCard]:
+    """The home's rows: visible services in `position` order."""
+    return [
+        OfferingCard(
+            slug=s.slug,
+            name=s.name,
+            summary=s.summary,
+            inquiry_kind=s.inquiry_kind,
+            href=_href(s),
+        )
+        for s in Service.objects.filter(is_visible=True).order_by("position", "id")
+    ]
+
+
+def page_stamps() -> list[tuple[str, date]]:
+    """(path, day of the last change) of every page, in card order, for sitemap `lastmod`."""
+    rows = Service.objects.filter(is_published=True).order_by("position", "id")
+    return [(path(s.slug), timezone.localdate(s.updated_at)) for s in rows if has_page(s)]
+
+
+# --- preview: a signed, short-lived link to a page as it will look, unpublished included ---
+
+PREVIEW_SALT = "service-preview"
+
+
+def issue_preview_url(slug: str) -> preview.PreviewLink:
+    """A link (`/preview/services/<token>`) that shows the page, published or not, as
+    /services/<slug> will, for `SERVICE_PREVIEW_MAX_AGE` seconds. Refused without a lead."""
+    service = _service_or_404(slug)
+    if not service.lead.strip():
+        raise Rejected.at("lead", "리드가 비어 있어 그릴 페이지가 없습니다")
+    return preview.issue(
+        salt=PREVIEW_SALT,
+        value=service.slug,
+        path="/preview/services/",
+        max_age=settings.SERVICE_PREVIEW_MAX_AGE,
+    )
+
+
+def preview_offering(token: str) -> Offering:
+    """The page a preview link names. `preview.BadPreviewToken`/`ExpiredPreviewToken`."""
+    slug = preview.unsign(token, salt=PREVIEW_SALT, max_age=settings.SERVICE_PREVIEW_MAX_AGE)
+    service = Service.objects.filter(slug=slug).first()
+    if service is None or not service.lead.strip():
+        raise preview.BadPreviewToken
+    return _offering(service)

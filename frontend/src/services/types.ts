@@ -7,14 +7,14 @@ export interface OfferingItem {
 
 export interface OfferingCase {
   title: string;
-  /** a page of this site */
+  /** a page of this site, or another site's https address (opens in a new tab) */
   href: string;
   /** the row's mono label: 「기록」 or 「포트폴리오」 */
   kind: string;
   note: string;
 }
 
-/** One service page's copy. Mirrors Offering in backend/services/offerings.py (the only copy). */
+/** One service page's copy (content.Service, issue 215). Mirrors Offering in backend/services/offerings.py. */
 export interface Offering {
   slug: string;
   name: string;
