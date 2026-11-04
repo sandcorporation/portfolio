@@ -33,6 +33,7 @@ Kind = Literal[
     "MCP 연동",
     "Claude Code 자동화",
     "RAG 상담 챗봇",
+    "AI 업무 자동화",
 ]  # Inquiry.Kind values
 Text = Annotated[str, StringConstraints(strip_whitespace=True)]
 

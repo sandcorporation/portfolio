@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("services")]
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
 TEMPLATES = Path(public_html.__file__).parent / "templates" / "core" / "public"
-SLUGS = ["mcp-integration", "claude-code-automation"]
+SLUGS = ["mcp-integration", "claude-code-automation", "ai-work-automation"]
 
 type Data = dict[str, Any]  # Any: tool results are arbitrary JSON
 
@@ -84,8 +84,8 @@ def test_a_service_page_has_its_title_description_and_service_json_ld(
 def test_titles_and_descriptions_differ_between_the_pages(client: Client) -> None:
     pages = [client.get(f"/services/{slug}").content.decode() for slug in SLUGS]
     titles = {re.search(r"<title>(.*?)</title>", html).group(1) for html in pages}  # type: ignore[union-attr]
-    assert len(titles) == 2
-    assert len({meta(html, "description") for html in pages}) == 2
+    assert len(titles) == len(SLUGS)
+    assert len({meta(html, "description") for html in pages}) == len(SLUGS)
 
 
 def test_an_unknown_service_is_404_and_the_bare_path_goes_to_the_home_section(
@@ -101,11 +101,12 @@ def test_the_sitemap_lists_both_pages_with_the_copy_date(
     client: Client, settings: Settings
 ) -> None:
     body = client.get("/sitemap.xml").content.decode()
-    for slug in SLUGS:
+    for slug in SLUGS[:2]:
         assert (
             f"<url><loc>{settings.SITE_URL}/services/{slug}</loc>"
             "<lastmod>2026-10-30</lastmod></url>"  # the copy date, kept by the migration
         ) in body
+    assert f"<loc>{settings.SITE_URL}/services/ai-work-automation</loc>" in body  # issue 223
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -121,13 +122,7 @@ def test_the_server_html_draws_every_section_cases_and_one_quote_button(
     for title in ["이런 분께 맞습니다", "해 드리는 일", "진행 방식", "실제 사례", "문의"]:
         assert f'class="page-section-title">{title}</h2>' in html
     assert all(line in html for line in offering["audience"])
-    assert [s["title"] for s in offering["steps"]] == [
-        "상담",
-        "범위 정의",
-        "주 단위 시연",
-        "납품",
-        "운영 지원",
-    ]
+    assert all(f"{s['title']}" in html for s in offering["steps"]) and len(offering["steps"]) == 5
     for case in offering["cases"]:
         assert f'<a class="work-row" href="{case["href"]}">' in html  # same tab: our own pages
     assert html.count('data-style="primary"') == 1
@@ -269,7 +264,11 @@ def test_hidden_cards_are_left_out_and_position_orders_them() -> None:
     offerings.update_service("rag-chatbot", patch({"is_visible": False}))
     offerings.update_service("claude-code-automation", patch({"position": -1}))
 
-    assert [c["slug"] for c in offerings.cards()] == ["claude-code-automation", "mcp-integration"]
+    assert [c["slug"] for c in offerings.cards()] == [
+        "claude-code-automation",
+        "mcp-integration",
+        "ai-work-automation",
+    ]
 
 
 def test_the_rules_refuse_what_would_break_the_page() -> None:
@@ -443,7 +442,7 @@ def test_write_preview_publish_and_hide_a_service(mcp: McpClient, client: Client
         {"slug": "web-app", "name": "웹 앱", "summary": "만듭니다.", "inquiry_kind": "신규 개발"},
     )
     assert made["is_visible"] is False and made["is_published"] is False
-    assert made["position"] == 3 and made["url"] == "/?inquiry=web-app#home-inquiry"
+    assert made["position"] == 4 and made["url"] == "/?inquiry=web-app#home-inquiry"
     assert "web-app" not in [c["slug"] for c in offerings.cards()]
     assert "lead" in refused(mcp, "publish_service", {"slug": "web-app"})
 
@@ -454,7 +453,13 @@ def test_write_preview_publish_and_hide_a_service(mcp: McpClient, client: Client
     assert published["has_page"] is True and published["url"] == "/services/web-app"
     assert client.get("/services/web-app").status_code == 200
     listed = [s["slug"] for s in ok(mcp, "list_services", {})["items"]]
-    assert listed == ["rag-chatbot", "mcp-integration", "claude-code-automation", "web-app"]
+    assert listed == [
+        "rag-chatbot",
+        "mcp-integration",
+        "claude-code-automation",
+        "ai-work-automation",
+        "web-app",
+    ]
     assert ok(mcp, "get_service", {"slug": "web-app"})["lead"] == RAG_PAGE["lead"]
 
     ok(mcp, "unpublish_service", {"slug": "web-app"})

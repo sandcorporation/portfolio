@@ -245,7 +245,9 @@ def test_admin_lists_and_filters_the_new_kinds(owner_client: Client) -> None:
 
 
 @pytest.mark.usefixtures("services")
-@pytest.mark.parametrize("slug", ["rag-chatbot", "mcp-integration", "claude-code-automation"])
+@pytest.mark.parametrize(
+    "slug", ["rag-chatbot", "mcp-integration", "claude-code-automation", "ai-work-automation"]
+)
 def test_each_service_is_an_inquiry_kind_by_its_name(
     client: Client, notifier: FakeNotifier, slug: str
 ) -> None:

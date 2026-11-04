@@ -790,6 +790,7 @@ class Inquiry(models.Model):
         MCP_INTEGRATION = "MCP 연동", "MCP 연동"
         CLAUDE_CODE_AUTOMATION = "Claude Code 자동화", "Claude Code 자동화"
         RAG_CHATBOT = "RAG 상담 챗봇", "RAG 상담 챗봇"
+        AI_WORK_AUTOMATION = "AI 업무 자동화", "AI 업무 자동화"
 
     site = models.CharField("사이트", max_length=40, default="portfolio")
     kind = models.CharField("구분", max_length=20, choices=Kind, default=Kind.INQUIRY)

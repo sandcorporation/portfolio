@@ -219,9 +219,9 @@ def pytest_runtest_makereport(
 
 @pytest.fixture
 def services(db: None) -> None:
-    """The service rows the data migration put in (content 0025, issue 215). A transactional
+    """The service rows the data migration put in (content 0025, 0029). A transactional
     test elsewhere flushes the tables, so this puts them back the migration's own way."""
     from django.apps import apps
 
-    seed = importlib.import_module("content.migrations.0025_service").seed
-    seed(apps, None)
+    for name in ("0025_service", "0029_service_ai_work_automation"):
+        importlib.import_module(f"content.migrations.{name}").seed(apps, None)
