@@ -28,6 +28,8 @@ class FakeYoutube:
     failing: bool = False
     feed: bytes = field(default_factory=atom_feed)  # the channel feed; empty by default
     regular: set[str] = field(default_factory=set)  # ids /shorts/<id> redirects (regular videos)
+    shorts_page: bytes = b""  # the Shorts tab HTML; no items by default
+    shorts_page_failing: bool = False
     shorts_check_failing: bool = False
     calls: list[str] = field(default_factory=list)
 
@@ -45,8 +47,28 @@ class FakeYoutube:
             raise YoutubeUnavailable("가짜 YouTube 장애")
         return self.feed
 
+    def channel_shorts_page(self) -> bytes:
+        self.calls.append("shorts_page")
+        if self.failing or self.shorts_page_failing:
+            raise YoutubeUnavailable("가짜 YouTube 장애")
+        return self.shorts_page
+
     def is_short(self, youtube_id: str) -> bool:
         self.calls.append(f"is_short:{youtube_id}")
         if self.failing or self.shorts_check_failing:
             raise YoutubeUnavailable("가짜 YouTube 장애")
         return youtube_id not in self.regular
+
+
+def shorts_page(*ids: str, outside: tuple[str, ...] = ()) -> bytes:
+    """A Shorts tab shaped like YouTube's, cut down: `outside` IDs sit in other shelves."""
+    items = "".join(
+        f'{{"shortsLockupViewModel":{{"entityId":"shorts-shelf-item-{vid}","onTap":{{"innertubeCommand":'
+        f'{{"reelWatchEndpoint":{{"videoId":"{vid}","params":"x"}}}}}}}}}},'
+        for vid in ids
+    )
+    other = "".join(f'{{"videoRenderer":{{"videoId":"{vid}"}}}},' for vid in outside)
+    return (
+        f'<html><script>var ytInitialData = {{"header":{other}"items":[{items}],'
+        f'"engagementPanels":[{other}]}};</script></html>'
+    ).encode()

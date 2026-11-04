@@ -11,7 +11,7 @@ from django.core.management import call_command
 from django.test import Client
 
 from adapters import youtube as youtube_adapter
-from adapters.fake_youtube import FakeYoutube, atom_feed
+from adapters.fake_youtube import FakeYoutube, atom_feed, shorts_page
 from content.models import DismissedShort, Short
 from core.management.commands import pdf_worker
 from mcpserver.protocol import INSTRUCTIONS
@@ -220,7 +220,75 @@ def test_the_command_syncs_now(youtube: FakeYoutube) -> None:
     youtube.feed = feed((A, "첫째", 1))
     out = StringIO()
     call_command("sync_shorts", stdout=out)
-    assert "새 쇼츠 1개" in out.getvalue()
+    assert "원천: 채널 피드, 새 쇼츠 1개" in out.getvalue()
+
+
+# --- the Shorts tab as the fallback (issue 213) ---
+
+X, Y = "xxxxxxxxxxx", "yyyyyyyyyyy"
+
+
+def test_the_shorts_page_gives_ids_in_page_order_without_duplicates_or_other_shelves(
+    youtube: FakeYoutube,
+) -> None:
+    youtube.shorts_page = shorts_page(B, A, B, C, outside=(X, Y))
+    assert youtube_adapter.fetch_channel_shorts_page() == [B, A, C]
+
+
+def test_the_shorts_page_is_cut_at_thirty(youtube: FakeYoutube) -> None:
+    ids = [f"id{n:09d}" for n in range(40)]
+    youtube.shorts_page = shorts_page(*ids)
+    assert youtube_adapter.fetch_channel_shorts_page() == ids[:30]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b"", b"<html>consent</html>", shorts_page(outside=(X,)), b'{"shortsLockupViewModel":{}}'],
+)
+def test_a_page_without_shorts_is_an_empty_list(youtube: FakeYoutube, body: bytes) -> None:
+    youtube.shorts_page = body
+    assert youtube_adapter.fetch_channel_shorts_page() == []
+
+
+def test_an_unreachable_or_consent_page_is_an_empty_list(youtube: FakeYoutube) -> None:
+    youtube.shorts_page_failing = True
+    assert youtube_adapter.fetch_channel_shorts_page() == []
+
+
+def test_a_dead_feed_falls_back_to_the_shorts_tab_newest_in_front(youtube: FakeYoutube) -> None:
+    youtube.failing = False
+    youtube.feed = b"<html>404</html>"
+    youtube.shorts_page = shorts_page(B, A)  # newest first
+    youtube.titles = {A: "첫째", B: "둘째"}
+    out = StringIO()
+    call_command("sync_shorts", stdout=out)
+    assert "원천: 쇼츠 탭, 새 쇼츠 2개" in out.getvalue()
+    assert order() == [B, A]
+    assert dict(Short.objects.values_list("youtube_id", "title")) == {A: "첫째", B: "둘째"}
+    assert not any(c.startswith("is_short:") for c in youtube.calls)  # the tab needs no HEAD
+
+
+def test_the_shorts_tab_keeps_the_other_rules(youtube: FakeYoutube) -> None:
+    Short.objects.create(youtube_id=A, title="손으로", position=5, is_visible=False)
+    shorts.dismiss(C)
+    youtube.feed = b""
+    youtube.shorts_page = shorts_page(C, B, A)
+    assert shorts.sync_from_channel() == 1  # only B is new
+    assert order() == [B, A]
+    assert Short.objects.get(youtube_id=A).title == "손으로"
+    assert Short.objects.get(youtube_id=B).title == ""  # oEmbed has no title: left empty
+
+
+def test_a_working_feed_is_used_before_the_tab(youtube: FakeYoutube) -> None:
+    youtube.feed = feed((A, "피드", 1))
+    youtube.shorts_page = shorts_page(B)
+    assert shorts.sync_channel() == shorts.SyncResult("채널 피드", 1)
+    assert "shorts_page" not in youtube.calls
+
+
+def test_both_sources_down_makes_nothing_and_raises_nothing(youtube: FakeYoutube) -> None:
+    youtube.failing = True
+    assert shorts.sync_channel() == shorts.SyncResult("쇼츠 탭", 0)
 
 
 # --- MCP wording ---

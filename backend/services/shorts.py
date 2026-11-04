@@ -10,9 +10,11 @@ A new short goes first by default (position one less than the current smallest):
 registered right after it is uploaded, so the newest is in front.
 
 New uploads also come in by themselves (issue 211): `sync_from_channel()` reads the channel's
-feed and registers every video it has never seen — not a Short yet and not dismissed — with the
-feed's title, visible, in front (newest first). It never changes an existing Short (hidden ones,
-order and links stay). Deleting a Short dismisses its ID (`DismissedShort`) so the sync does not
+feed (issue 213: when the feed fails or is empty, the Shorts tab instead, whose IDs are Shorts
+for sure and get their title from oEmbed) and registers every video it has never seen — not a
+Short yet and not dismissed — with the title found there, visible, in front (newest first). It
+never changes an existing Short (hidden ones, order and links stay). Deleting a Short dismisses
+its ID (`DismissedShort`) so the sync does not
 bring it back; `add_short` (or adding it in admin) takes the dismissal off. A video the sync finds
 to be a regular video is dismissed as well, so it is checked only once. The compose `worker` loop
 calls `sync_if_due()` (at most once per `SYNC_EVERY` across processes, like retention);
@@ -21,8 +23,10 @@ calls `sync_if_due()` (at most once per `SYNC_EVERY` across processes, like rete
 Public side: `public_cards()` — the visible ones by position, at most four.
 """
 
+import logging
 import re
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import TypedDict
 from urllib.parse import parse_qs, urlsplit
 
@@ -36,6 +40,8 @@ from content.models import SITE_PATH_PATTERN, DismissedShort, Short
 from services.errors import Conflict, NotFound, Rejected
 
 HOME_LIMIT = 4
+logger = logging.getLogger(__name__)
+
 # The channel sync runs at most this often across every process (django_cache key).
 SYNC_EVERY = timedelta(minutes=30)
 SYNC_DUE_KEY = "shorts:channel-synced"
@@ -261,12 +267,34 @@ def _register(entry: youtube.FeedEntry) -> bool:
     return created
 
 
-def sync_from_channel() -> int:
-    """Register the channel's videos never seen before; returns how many Shorts were made."""
+@dataclass(frozen=True)
+class SyncResult:
+    source: str  # "채널 피드" or "쇼츠 탭"
+    created: int
+
+
+def _entries_from_page(ids: list[str]) -> list[youtube.FeedEntry]:
+    """Shorts-tab IDs as entries titled by oEmbed, oldest first (the page lists newest first)."""
+    when = datetime.min.replace(tzinfo=UTC)
+    entries = [
+        youtube.FeedEntry(youtube_id=vid, title="", published=when + timedelta(seconds=n))
+        for n, vid in enumerate(reversed(ids))
+    ]
+    return entries
+
+
+def sync_channel() -> SyncResult:
+    """Register the channel's videos never seen before. The Atom feed is read first; when it
+    fails or is empty the Shorts tab is used (its IDs are Shorts for sure, so no HEAD check)."""
     entries = youtube.fetch_channel_feed()
+    source, trusted = "채널 피드", False
+    if not entries:
+        entries = _entries_from_page(youtube.fetch_channel_shorts_page())
+        source, trusted = "쇼츠 탭", True
     ids = {e.youtube_id for e in entries if _ID.match(e.youtube_id)}
+    logger.info("쇼츠 동기화 원천: %s (영상 %d개)", source, len(ids))
     if not ids:
-        return 0
+        return SyncResult(source, 0)
     seen = set(Short.objects.filter(youtube_id__in=ids).values_list("youtube_id", flat=True))
     seen |= set(
         DismissedShort.objects.filter(youtube_id__in=ids).values_list("youtube_id", flat=True)
@@ -277,11 +305,21 @@ def sync_from_channel() -> int:
         if entry.youtube_id not in ids or entry.youtube_id in seen:
             continue
         seen.add(entry.youtube_id)
-        if not youtube.check_is_short(entry.youtube_id):
+        if not trusted and not youtube.check_is_short(entry.youtube_id):
             dismiss(entry.youtube_id, DismissedShort.Reason.NOT_SHORT)
             continue
+        if trusted:
+            entry = youtube.FeedEntry(
+                entry.youtube_id, youtube.fetch_title(entry.youtube_id), entry.published
+            )
         created += _register(entry)
-    return created
+    logger.info("쇼츠 동기화: 원천 %s, 새 쇼츠 %d개", source, created)
+    return SyncResult(source, created)
+
+
+def sync_from_channel() -> int:
+    """`sync_channel()` for callers that only want the count of new Shorts."""
+    return sync_channel().created
 
 
 def sync_if_due() -> int | None:

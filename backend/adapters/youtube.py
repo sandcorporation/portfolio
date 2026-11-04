@@ -14,6 +14,16 @@ not say which videos are Shorts; `is_short()` asks `youtube.com/shorts/<id>` onc
 following redirects (200: a Short, 3xx: a regular video sent to /watch) and says True when it
 cannot tell, since the channel uploads Shorts only.
 
+The feed is not always there (issue 213: `feeds/videos.xml` answers 404 for this channel), so
+`fetch_channel_shorts_page()` is the fallback: it reads the channel's Shorts tab
+(`youtube.com/channel/<id>/shorts`, 4-second timeout, 3 MB cap) and takes the video IDs out of
+`ytInitialData`. Only the grid items count: each `"shortsLockupViewModel"` marker opens a window
+that ends at the next marker (at most 3,000 characters), and the first `"videoId":"…"` in the
+window is that item's. Any other `videoId` on the page (recommendations, the channel trailer, the
+player) sits outside those windows and is ignored. IDs come in page order (newest first), without
+duplicates, at most 30. A consent redirect, an error status or a page without such items is an
+empty list plus one log line. Everything on the Shorts tab is a Short, so no `is_short` check.
+
 Only registration and the worker call this (services/shorts.py); the home page never does.
 Tests swap the gateway with `set_gateway(FakeYoutube())` (`adapters/fake_youtube.py`, autouse in
 conftest).
@@ -21,13 +31,14 @@ conftest).
 
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from django.conf import settings
 
@@ -37,6 +48,12 @@ TITLE_MAX = 200  # Short.title's max_length
 
 
 FEED_BYTES_MAX = 2_000_000
+SHORTS_PAGE_BYTES_MAX = 3_000_000
+SHORTS_PAGE_TIMEOUT_SECONDS = 4.0
+SHORTS_PAGE_LIMIT = 30
+_LOCKUP_WINDOW = 3_000
+_LOCKUP = '"shortsLockupViewModel"'
+_VIDEO_ID = re.compile(r'"videoId":"([A-Za-z0-9_-]{11})"')
 _ATOM = "{http://www.w3.org/2005/Atom}"
 _YT = "{http://www.youtube.com/xml/schemas/2015}"
 
@@ -63,6 +80,10 @@ class YoutubeGateway(Protocol):
 
     def is_short(self, youtube_id: str) -> bool:
         """True for a Short, False for a regular video. Raises YoutubeUnavailable."""
+        ...
+
+    def channel_shorts_page(self) -> bytes:
+        """The channel's Shorts tab (HTML) as it came. Raises YoutubeUnavailable."""
         ...
 
 
@@ -94,6 +115,21 @@ def parse_feed(body: bytes) -> list[FeedEntry]:
             continue
         entries.append(FeedEntry(youtube_id=video_id, title=title, published=published))
     return entries
+
+
+def parse_shorts_page(body: bytes) -> list[str]:
+    """Short IDs from the Shorts tab's HTML, newest first, no duplicates, at most 30."""
+    text = body.decode("utf-8", errors="replace")
+    starts = [m.start() for m in re.finditer(re.escape(_LOCKUP), text)]
+    ids: list[str] = []
+    for i, start in enumerate(starts):
+        end = min(starts[i + 1] if i + 1 < len(starts) else len(text), start + _LOCKUP_WINDOW)
+        match = _VIDEO_ID.search(text, start, end)
+        if match and match.group(1) not in ids:
+            ids.append(match.group(1))
+        if len(ids) >= SHORTS_PAGE_LIMIT:
+            break
+    return ids
 
 
 def parse_title(payload: object) -> str:
@@ -155,6 +191,32 @@ class HttpYoutube:
         query = urlencode({"channel_id": self._channel_id})
         return self._get(f"{self._feed_url}?{query}", "application/atom+xml", FEED_BYTES_MAX)
 
+    def channel_shorts_page(self) -> bytes:
+        if not self._channel_id:
+            raise YoutubeUnavailable("꺼져 있음")
+        url = f"https://www.youtube.com/channel/{self._channel_id}/shorts"
+        request = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "text/html",
+                "Accept-Language": "en-US,en;q=0.9",
+                "User-Agent": "Mozilla/5.0 (compatible; sandcorp-portfolio)",
+            },
+        )
+        try:
+            with urllib.request.urlopen(  # noqa: S310
+                request, timeout=min(self._timeout, SHORTS_PAGE_TIMEOUT_SECONDS) or 1
+            ) as response:
+                host = urlsplit(response.geturl()).hostname or ""
+                if host != "www.youtube.com":
+                    raise YoutubeUnavailable(f"동의 페이지 등으로 넘어감: {host}")
+                body: bytes = response.read(SHORTS_PAGE_BYTES_MAX)
+        except urllib.error.HTTPError as e:
+            raise YoutubeUnavailable(f"HTTP {e.code}") from None
+        except (urllib.error.URLError, OSError) as e:
+            raise YoutubeUnavailable(f"닿지 못함: {e}") from None
+        return body
+
     def is_short(self, youtube_id: str) -> bool:
         request = urllib.request.Request(
             short_url(youtube_id), method="HEAD", headers={"User-Agent": "sandcorp-portfolio"}
@@ -210,6 +272,18 @@ def fetch_channel_feed() -> list[FeedEntry]:
     except YoutubeUnavailable as e:
         logger.warning("YouTube 채널 피드를 못 읽음: %s", e)
         return []
+
+
+def fetch_channel_shorts_page() -> list[str]:
+    """Short IDs from the channel's Shorts tab (newest first), or [] (logged, never raised)."""
+    try:
+        ids = parse_shorts_page(get_gateway().channel_shorts_page())
+    except YoutubeUnavailable as e:
+        logger.warning("YouTube 쇼츠 탭을 못 읽음: %s", e)
+        return []
+    if not ids:
+        logger.warning("YouTube 쇼츠 탭에서 쇼츠를 못 찾음")
+    return ids
 
 
 def check_is_short(youtube_id: str) -> bool:
