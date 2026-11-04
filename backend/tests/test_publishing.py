@@ -352,8 +352,9 @@ def test_admin_publish_shows_the_code_once_and_keeps_it_nowhere(
     assert code not in str(dict(admin_client.session))
     stored = Proposal.objects.get(slug=p.slug)
     assert publishing.code_matches(stored, code) and code not in stored.access_code_hash
+    # The staff detail page shows it again (issue 231), never the list.
     page = admin_client.get(reverse("admin:content_proposal_change", args=[stored.pk]))
-    assert code not in page.content.decode()
+    assert code in page.content.decode() and "no-store" in page["Cache-Control"]
     assert code not in admin_client.get(changelist()).content.decode()
     # Publishing again shows the new revision, and no code.
     again = act(admin_client, "publish", p.slug).content.decode()

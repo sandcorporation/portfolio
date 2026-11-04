@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
 from django.db.models import QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
@@ -25,11 +26,11 @@ from content.models import (
     Tip,
     TipCategory,
 )
+from services import access_code_box, publishing
 from services import inquiries as inquiry_service
 from services import media as media_service
 from services import pdf as pdf_service
 from services import proposals as proposal_service
-from services import publishing
 from services import shorts as short_service
 from services.errors import ServiceError
 
@@ -384,6 +385,7 @@ class MediaAdmin(_MediaAdmin):
 if TYPE_CHECKING:
     _ClientAdmin = admin.ModelAdmin[Client]
     _ProposalAdmin = admin.ModelAdmin[Proposal]
+    _ProposalForm = forms.ModelForm[Proposal]
     _RevisionAdmin = admin.ModelAdmin[ProposalRevision]
     _RevisionInline = admin.TabularInline[ProposalRevision, Proposal]
     _EventInline = admin.TabularInline[ProposalEvent, Proposal]
@@ -391,6 +393,7 @@ if TYPE_CHECKING:
 else:
     _ClientAdmin = admin.ModelAdmin
     _ProposalAdmin = admin.ModelAdmin
+    _ProposalForm = forms.ModelForm
     _RevisionAdmin = admin.ModelAdmin
     _RevisionInline = admin.TabularInline
     _EventInline = admin.TabularInline
@@ -439,9 +442,56 @@ class EventInline(_EventInline):
         return False
 
 
+NEW_ACCESS_CODE = "new_access_code"
+CODE_UNREADABLE = "다시 볼 수 없음 — 아래에 새 코드를 넣으세요"
+
+
+class ProposalAdminForm(_ProposalForm):
+    """The proposal fields plus 「새 접근 코드」, outside the model (issue 231): a value replaces
+    the customer's code the way `publishing.reissue_access_code` does. The admin only shows the
+    field on a published proposal."""
+
+    new_access_code = forms.CharField(
+        label="새 접근 코드",
+        required=False,
+        strip=False,
+        max_length=64,
+        help_text=(
+            "비우면 그대로 둡니다. 넣고 저장하면 이 코드로 바뀌고 고객의 기존 열람 세션은 "
+            "끊깁니다. 4~32자, 글자·숫자·하이픈·밑줄·공백."
+        ),
+        widget=forms.TextInput(attrs={"autocomplete": "off"}),
+    )
+
+    class Meta:
+        model = Proposal
+        fields = "__all__"
+
+    def clean_new_access_code(self) -> str:
+        raw: str = self.cleaned_data.get(NEW_ACCESS_CODE, "")
+        if not raw.strip():
+            return ""
+        client = self.cleaned_data.get("client") or self.instance.client
+        try:
+            return publishing.validate_access_code(
+                raw, proposal_slug=self.instance.slug, client_code=client.code
+            )
+        except ServiceError as e:
+            raise forms.ValidationError(str(e)) from e
+
+
 @admin.register(Proposal)
 class ProposalAdmin(_ProposalAdmin):
-    list_display = ("title", "client", "status", "latest_doc_number", "quote_date", "preview_link")
+    form = ProposalAdminForm
+    list_display = (
+        "title",
+        "client",
+        "status",
+        "latest_doc_number",
+        "quote_date",
+        "preview_link",
+        "public_link",
+    )
     list_filter = ("status", "client")
     search_fields = ("title", "client__name", "client__code")
     fields = (
@@ -454,9 +504,11 @@ class ProposalAdmin(_ProposalAdmin):
         "status",
         "slug",
         "preview_link",
+        "public_link",
+        "access_code_view",
         "document",
     )
-    readonly_fields = ("status", "slug", "preview_link")
+    readonly_fields = ("status", "slug", "preview_link", "public_link", "access_code_view")
     inlines = (RevisionInline, EventInline)
     actions = (
         "publish",
@@ -474,6 +526,31 @@ class ProposalAdmin(_ProposalAdmin):
         if obj is not None and obj.status == Proposal.Status.REVOKED:
             return self.fields  # revoked for good; duplicate it to keep working
         return tuple(self.readonly_fields)
+
+    def get_fields(self, request: HttpRequest, obj: Proposal | None = None) -> tuple[str, ...]:
+        fields = list(self.fields)
+        if obj is not None and obj.status == Proposal.Status.PUBLISHED:
+            fields.insert(fields.index("access_code_view") + 1, NEW_ACCESS_CODE)
+        return tuple(fields)
+
+    def change_view(
+        self,
+        request: HttpRequest,
+        object_id: str,
+        form_url: str = "",
+        extra_context: dict[str, object] | None = None,
+    ) -> HttpResponse:
+        response = super().change_view(request, object_id, form_url, extra_context)
+        response["Cache-Control"] = "no-store"  # the page shows the plain access code
+        return response
+
+    def save_model(
+        self, request: HttpRequest, obj: Proposal, form: _ProposalForm, change: bool
+    ) -> None:
+        super().save_model(request, obj, form, change)
+        code: str = form.cleaned_data.get(NEW_ACCESS_CODE, "")
+        if change and code and obj.status == Proposal.Status.PUBLISHED:
+            publishing.reissue_access_code(obj.slug, code)
 
     def get_urls(self) -> list[URLPattern]:
         # Before the model admin's own `<id>/` catch-all.
@@ -497,6 +574,19 @@ class ProposalAdmin(_ProposalAdmin):
             return "-"
         url = reverse("admin:content_proposal_preview", args=[obj.pk])
         return format_html('<a href="{}" target="_blank" rel="noopener">미리보기</a>', url)
+
+    @admin.display(description="공개 주소")
+    def public_link(self, obj: Proposal) -> str:
+        if obj.pk is None or obj.status != Proposal.Status.PUBLISHED:
+            return "-"
+        url = f"{settings.SITE_URL}/p/{obj.slug}"
+        return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', url, url)
+
+    @admin.display(description="접근 코드")
+    def access_code_view(self, obj: Proposal) -> str:
+        if obj.pk is None or obj.status != Proposal.Status.PUBLISHED:
+            return "-"
+        return access_code_box.open_(obj.access_code_encrypted) or CODE_UNREADABLE
 
     @admin.display(description="최신 문서번호")
     def latest_doc_number(self, obj: Proposal) -> str:

@@ -5,6 +5,7 @@ description = "Sandcorp portfolio and proposal site (Django + django-ninja)"
 requires-python = ">=3.14"
 dependencies = [
     "boto3>=1.43.117",
+    "cryptography>=50.0.2",
     "django>=6.1.2",
     "django-ninja>=1.7.1",
     "gunicorn>=26.2.0",

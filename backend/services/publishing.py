@@ -8,7 +8,8 @@ The first publication issues the access code, and so does a reissue, which also 
 every customer session. Either takes a code the owner chose (4-32 characters, see
 `validate_access_code`); without one an 8-character code without look-alikes is made. The plain
 code exists only in the return value of those two functions; the database keeps a Django password
-hash.
+hash, which is what checks a code, and a copy sealed with a key derived from `SECRET_KEY`
+(`access_code_box`) that only the staff admin opens.
 """
 
 import secrets
@@ -24,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from content.models import Client, Proposal, ProposalRevision
 from documents.validation import JSON
-from services import case_refs, pdf
+from services import access_code_box, case_refs, pdf
 from services.errors import Conflict, NotFound, Rejected
 from services.proposals import ProposalSummary, proposal_summary
 
@@ -194,6 +195,7 @@ def _issue_code(p: Proposal, chosen: str | None) -> str:
     else:
         code = new_access_code()
     p.access_code_hash = make_password(code)
+    p.access_code_encrypted = access_code_box.seal(code)  # for the staff admin only (issue 231)
     p.access_code_issued_at = timezone.now()
     return code
 
@@ -256,7 +258,14 @@ def reissue_access_code(slug: str, access_code: str | None = None) -> IssuedCode
         if p.status != Proposal.Status.PUBLISHED:
             raise Conflict("발행된 제안서만 접근 코드를 다시 만들 수 있습니다")
         code = _issue_code(p, access_code)
-        p.save(update_fields=["access_code_hash", "access_code_issued_at", "updated_at"])
+        p.save(
+            update_fields=[
+                "access_code_hash",
+                "access_code_encrypted",
+                "access_code_issued_at",
+                "updated_at",
+            ]
+        )
     assert p.access_code_issued_at is not None
     return IssuedCode(slug=p.slug, access_code=code, issued_at=p.access_code_issued_at)
 

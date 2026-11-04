@@ -640,6 +640,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "boto3" },
+    { name = "cryptography" },
     { name = "django" },
     { name = "django-ninja" },
     { name = "gunicorn" },
@@ -666,6 +667,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.43.117" },
+    { name = "cryptography", specifier = ">=50.0.2" },
     { name = "django", specifier = ">=6.1.2" },
     { name = "django-ninja", specifier = ">=1.7.1" },
     { name = "gunicorn", specifier = ">=26.2.0" },

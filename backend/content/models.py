@@ -665,6 +665,9 @@ class Proposal(models.Model):
     # Sessions carry `access_code_issued_at`, so a reissue invalidates every one of them.
     access_code_hash = models.CharField(max_length=256, blank=True, editable=False)
     access_code_issued_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # The same code sealed by `services.access_code_box` (key from SECRET_KEY), so the staff
+    # admin can show it again. Empty for codes issued before issue 231.
+    access_code_encrypted = models.TextField(blank=True, default="", db_default="", editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
