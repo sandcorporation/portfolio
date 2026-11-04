@@ -1,4 +1,5 @@
 import { Heading } from "./Heading";
+import { useRenderMode } from "./mode";
 import type { CaseRefBlock } from "./types";
 
 /**
@@ -7,6 +8,7 @@ import type { CaseRefBlock } from "./types";
  * revision carries `case` frozen in; a draft or preview gets it filled from the live portfolio.
  */
 export function CaseRef({ block, anchor }: { block: CaseRefBlock; anchor: string }) {
+  const { print } = useRenderMode();
   const shown = block.items.flatMap((item) => (item.case ? [{ ...item, case: item.case }] : []));
   if (shown.length === 0) return null;
   return (
@@ -23,7 +25,7 @@ export function CaseRef({ block, anchor }: { block: CaseRefBlock; anchor: string
           const text = item.highlight || c.summary;
           return (
             <li key={item.item_id} className="case-card">
-              {c.cover_url && <img className="case-cover" src={c.cover_url} alt="" loading="lazy" />}
+              {c.cover_url && <img className="case-cover" src={c.cover_url} alt="" loading={print ? "eager" : "lazy"} />}
               <div className="case-body">
                 <strong className="case-title">{c.title}</strong>
                 {c.period && <span className="case-period">{c.period}</span>}

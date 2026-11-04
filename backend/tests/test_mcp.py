@@ -393,3 +393,13 @@ def test_portfolio_tools_take_and_give_status_and_outcome(mcp: McpClient) -> Non
     listed = _obj(_list(_obj(mcp.call_tool("list_portfolio", {})["structuredContent"])["items"])[0])
     assert got["status"] == listed["status"] == "ended"
     assert got["outcome"] == listed["outcome"] == "결과 한 줄"
+
+
+def test_proposal_guide_has_a_figures_section_and_skeleton_slots(mcp: McpClient) -> None:
+    guide, skeleton = _guide(mcp)
+    assert "## 6. 그림" in guide
+    for name in ("start_upload", "complete_upload", "insert_block", "replace_block"):
+        assert f"`{name}`" in guide
+    assert "is_public 입력 false" in guide and "설명용 시안 — 실제 화면 아님" in guide
+    assert "그림」 절을 따른다" in guide
+    assert "설명용 시안" in str(skeleton)

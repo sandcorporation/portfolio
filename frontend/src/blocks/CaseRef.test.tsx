@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { DocumentView } from "./DocumentView";
+import { RenderModeContext, screenMode } from "./mode";
 import { documentOf, exampleBlock } from "./testing";
 import type { CaseRefBlock } from "./types";
 
@@ -48,4 +49,21 @@ test("예시 문서의 case-ref는 채워진 항목만 보여 준다", () => {
   expect(screen.getByText("라마바 통화 분석")).toBeInTheDocument();
   expect(screen.getByText("주문·재고를 한 화면으로 옮긴 사례")).toBeInTheDocument();
   expect(screen.getByText("분석")).toBeInTheDocument();
+});
+
+test("사례 카드 썸네일은 화면에서 lazy, 인쇄(PDF)에서는 eager다", () => {
+  const block: CaseRefBlock = {
+    id: "c",
+    type: "case-ref",
+    items: [{ ...filled(1, "알파", "요약"), case: { ...filled(1, "알파", "요약").case, cover_url: "/m/a.png" } }],
+  };
+  const { container, unmount } = render(<DocumentView document={documentOf(block)} />);
+  expect(container.querySelector("img.case-cover")).toHaveAttribute("loading", "lazy");
+  unmount();
+  const printed = render(
+    <RenderModeContext.Provider value={{ ...screenMode, print: true }}>
+      <DocumentView document={documentOf(block)} />
+    </RenderModeContext.Provider>,
+  );
+  expect(printed.container.querySelector("img.case-cover")).toHaveAttribute("loading", "eager");
 });
