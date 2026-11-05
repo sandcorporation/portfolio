@@ -35,6 +35,7 @@ from content.models import Media, PortfolioItem
 from core.vite import _read_manifest
 from documents.validation import JSON
 from oauth import auth
+from services import runtime_settings
 from tests.site_auth import SiteAuth
 
 _CPU_SPENT = pytest.StashKey[float]()
@@ -143,6 +144,25 @@ def renderer(monkeypatch: pytest.MonkeyPatch) -> FakeRenderer:
     fake = FakeRenderer()
     monkeypatch.setattr("services.pdf.get_renderer", lambda: fake)
     return fake
+
+
+_DB_FIXTURES = {
+    "db",
+    "transactional_db",
+    "django_db_reset_sequences",
+    "django_db_serialized_rollback",
+}
+
+
+@pytest.fixture(autouse=True)
+def runtime_settings_without_db(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A test without the database reads no admin overrides (#233): `.env`/settings only.
+    Tests with the database read the real shared snapshot."""
+    if request.node.get_closest_marker("django_db") or _DB_FIXTURES & set(request.fixturenames):
+        return
+    monkeypatch.setattr(runtime_settings, "_shared_snapshot", lambda: {"version": 0, "values": {}})
 
 
 @pytest.fixture(autouse=True)

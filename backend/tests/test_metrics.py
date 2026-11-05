@@ -95,7 +95,7 @@ def test_stats_are_cached(metrics: FakeMetrics) -> None:
 
 def test_a_failure_serves_the_last_good_answer(metrics: FakeMetrics) -> None:
     good = adapter.fetch_stats()
-    cache.delete("metrics:stats")  # the 60 seconds are over
+    cache.delete(adapter._key())  # the 60 seconds are over
     metrics.failing = True
 
     assert adapter.fetch_stats() == good

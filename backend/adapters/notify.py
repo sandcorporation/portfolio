@@ -14,7 +14,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from django.conf import settings
+from services import runtime_settings
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +111,30 @@ class NoNotifier:
 def get_notifier() -> Notifier:
     """Alerts go to DISCORD_ALERTS_WEBHOOK_URL, falling back to DISCORD_WEBHOOK_URL; activity
     goes to DISCORD_WEBHOOK_URL. Both empty: NoNotifier."""
-    activity: str = settings.DISCORD_WEBHOOK_URL
-    alerts: str = settings.DISCORD_ALERTS_WEBHOOK_URL
+    activity = runtime_settings.get("DISCORD_WEBHOOK_URL")
+    alerts = runtime_settings.get("DISCORD_ALERTS_WEBHOOK_URL")
     if not activity and not alerts:
         return NoNotifier()
     return DiscordNotifier(activity, alerts)
+
+
+def send_test(url: str) -> int | None:
+    """Post one short test message to a webhook (admin 「시험 메시지 보내기」, #233).
+
+    The HTTP status, or None when the request did not get an answer. Neither the URL nor the
+    error text is logged or returned: the URL is the secret."""
+    payload = {"content": "Sandcorp 운영 설정 시험 메시지", "allowed_mentions": {"parse": []}}
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json", "User-Agent": "sandcorp-portfolio"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
+            status: int = response.status
+            return status
+    except urllib.error.HTTPError as e:
+        return e.code
+    except urllib.error.URLError, OSError, ValueError:
+        return None

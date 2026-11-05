@@ -54,7 +54,7 @@ def test_recent_articles_are_cached(foresight: FakeForesight) -> None:
 
 def test_a_failure_serves_the_last_good_answer(foresight: FakeForesight) -> None:
     good = adapter.fetch_recent(5)
-    cache.delete("foresight:recent:commentary:5")  # the 10 minutes are over
+    cache.delete(adapter._key(5))  # the 10 minutes are over
     foresight.failing = True
 
     assert adapter.fetch_recent(5) == good

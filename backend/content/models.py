@@ -957,3 +957,28 @@ class Service(models.Model):
         found = problems(self)
         if found:
             raise ValidationError([f"{e.path}: {e.reason}" for e in found])
+
+
+class RuntimeSetting(models.Model):
+    """An admin override of one `.env` setting (#233). No row = the `.env` value is used.
+
+    Only names in `services/runtime_settings.py::REGISTRY` are written. A secret's `value` is the
+    sealed text (`services/sealed_box.py`), never the plain value; `__str__` and `repr` carry
+    only the name."""
+
+    name = models.CharField("이름", max_length=64, unique=True)
+    value = models.TextField("값", blank=True, default="")
+    is_secret = models.BooleanField("비밀", default=False)
+    updated_at = models.DateTimeField("변경 시각", auto_now=True)
+    updated_by = models.CharField("변경자", max_length=150, blank=True, default="")
+
+    class Meta:
+        verbose_name = "운영 설정"
+        verbose_name_plural = "운영 설정"
+        ordering: ClassVar[list[str]] = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return f"<RuntimeSetting {self.name}>"

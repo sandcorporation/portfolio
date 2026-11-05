@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block content %}
+<p>여기서 바꾼 값은 서버 <code>.env</code>보다 먼저 쓰이고, 저장하면 재시작 없이 모든 프로세스에 곧바로 반영됩니다. 출처가 「.env」면 덮어쓰기가 없는 것입니다. 비밀 값은 다시 보여 주지 않습니다.</p>
+<table>
+  <thead><tr><th>이름</th><th>설명</th><th>출처</th><th>값</th><th>마지막 변경</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td><code>{{ r.name }}</code>{% if r.secret %} <small>(비밀)</small>{% endif %}</td>
+      <td>{{ r.description }}</td>
+      <td>{{ r.source }}</td>
+      <td>{% if r.unreadable %}<strong>{{ r.shown }}</strong>{% elif r.shown %}<code>{{ r.shown }}</code>{% else %}<em>(빈 값)</em>{% endif %}</td>
+      <td>{% if r.updated_at %}{{ r.updated_at|date:"Y-m-d H:i" }} · {{ r.updated_by }}{% endif %}</td>
+      <td><a href="{% url 'admin:content_runtimesetting_edit' r.name %}">고치기</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

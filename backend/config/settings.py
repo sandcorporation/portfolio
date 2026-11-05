@@ -47,6 +47,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.RuntimeSettingsMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -112,6 +113,8 @@ PROXY_HOPS = int(env("PROXY_HOPS", "1"))
 
 # Inquiry form (issue #17). Server-to-server posts (news site) prove themselves with the shared
 # secret; empty means no one can. The Discord webhook URL is secret too; empty skips alerts only.
+# The names in services/runtime_settings.py::REGISTRY are only the fallback: an admin 「운영 설정」
+# override wins (#233), so read them through runtime_settings.get, never settings.<name>.
 INQUIRY_SHARED_SECRET = env("INQUIRY_SHARED_SECRET")
 INQUIRY_RATE_LIMIT = 5  # browser submissions per IP per window
 INQUIRY_RATE_WINDOW_SECONDS = 60 * 60

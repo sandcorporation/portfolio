@@ -9,6 +9,7 @@ seconds, and on failure the last good answer (kept 24 hours) or None plus one lo
 Tests swap the gateway with `set_gateway(FakeMetrics())` (`adapters/fake_metrics.py`).
 """
 
+import hashlib
 import json
 import logging
 import urllib.error
@@ -19,12 +20,28 @@ from typing import Protocol
 from django.conf import settings
 from django.core.cache import cache
 
+from services import runtime_settings
+
 logger = logging.getLogger(__name__)
 
 CACHE_SECONDS = 60
 LAST_GOOD_SECONDS = 24 * 60 * 60
-_KEY = "metrics:stats"
-_LAST_GOOD_KEY = "metrics:last-good"
+
+
+def _tag() -> str:
+    """The URL in force, hashed into the cache keys: a URL changed in the admin (#233) is
+    never answered from the old service's cache."""
+    return hashlib.sha256(runtime_settings.get("METRICS_API_URL").encode()).hexdigest()[:10]
+
+
+def _key() -> str:
+    return f"metrics:stats:{_tag()}"
+
+
+def _last_good_key() -> str:
+    return f"metrics:last-good:{_tag()}"
+
+
 _MISSING = "missing"  # cached for CACHE_SECONDS when the service failed and nothing good is kept
 
 
@@ -142,7 +159,7 @@ def set_gateway(gateway: MetricsGateway | None) -> None:
 def get_gateway() -> MetricsGateway:
     if _gateway is not None:
         return _gateway
-    url: str = settings.METRICS_API_URL
+    url = runtime_settings.get("METRICS_API_URL")
     if not url:
         return DisabledMetrics()
     return HttpMetrics(url, settings.METRICS_TIMEOUT_SECONDS)
@@ -163,7 +180,7 @@ def fetch_stats() -> Stats | None:
     Fresh answers are cached 60 seconds. When the service fails, the last good answer (24 hours)
     is served again — and re-cached for 60 seconds so a dead service is not asked on every page
     view — or None."""
-    cached = cache.get(_KEY)
+    cached = cache.get(_key())
     if cached == _MISSING:
         return None
     stats = _load(cached)
@@ -173,11 +190,11 @@ def fetch_stats() -> Stats | None:
         stats = get_gateway().stats()
     except MetricsUnavailable as e:
         logger.warning("방문 메트릭을 받지 못함: %s", e)
-        stats = _load(cache.get(_LAST_GOOD_KEY))
-        cache.set(_KEY, asdict(stats) if stats else _MISSING, CACHE_SECONDS)
+        stats = _load(cache.get(_last_good_key()))
+        cache.set(_key(), asdict(stats) if stats else _MISSING, CACHE_SECONDS)
         return stats
     if stats is None:  # switched off
         return None
-    cache.set(_KEY, asdict(stats), CACHE_SECONDS)
-    cache.set(_LAST_GOOD_KEY, asdict(stats), LAST_GOOD_SECONDS)
+    cache.set(_key(), asdict(stats), CACHE_SECONDS)
+    cache.set(_last_good_key(), asdict(stats), LAST_GOOD_SECONDS)
     return stats

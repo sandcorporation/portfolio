@@ -42,6 +42,8 @@ from urllib.parse import urlencode, urlsplit
 
 from django.conf import settings
 
+from services import runtime_settings
+
 logger = logging.getLogger(__name__)
 
 TITLE_MAX = 200  # Short.title's max_length
@@ -249,9 +251,9 @@ def get_gateway() -> YoutubeGateway:
     if _gateway is not None:
         return _gateway
     return HttpYoutube(
-        settings.YOUTUBE_OEMBED_URL,
+        runtime_settings.get("YOUTUBE_OEMBED_URL"),
         settings.YOUTUBE_FEED_URL,
-        settings.YOUTUBE_CHANNEL_ID,
+        runtime_settings.get("YOUTUBE_CHANNEL_ID"),
         settings.YOUTUBE_TIMEOUT_SECONDS,
     )
 

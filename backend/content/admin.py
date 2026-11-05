@@ -3,12 +3,14 @@ from typing import TYPE_CHECKING, Any
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html
 
+from adapters.notify import send_test
 from adapters.storage import StorageNotConfigured, get_storage
 from content.models import (
     BlogPost,
@@ -20,13 +22,14 @@ from content.models import (
     Proposal,
     ProposalEvent,
     ProposalRevision,
+    RuntimeSetting,
     Service,
     Short,
     SiteProfile,
     Tip,
     TipCategory,
 )
-from services import access_code_box, publishing
+from services import access_code_box, publishing, runtime_settings
 from services import inquiries as inquiry_service
 from services import media as media_service
 from services import pdf as pdf_service
@@ -928,3 +931,126 @@ class ServiceAdmin(_ServiceAdmin):
         "figure_caption",
         "updated_at",
     )
+
+
+if TYPE_CHECKING:
+    _RuntimeSettingAdmin = admin.ModelAdmin[RuntimeSetting]
+else:
+    _RuntimeSettingAdmin = admin.ModelAdmin
+
+
+@admin.register(RuntimeSetting)
+class RuntimeSettingAdmin(_RuntimeSettingAdmin):
+    """「운영 설정」 (#233): one page listing every registered name, one form per name.
+
+    Secrets are never shown again (only 「설정됨 · …끝 4자리」); every response is `no-store`.
+    LogEntry records who did what to which name, never the value."""
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: RuntimeSetting | None = None
+    ) -> bool:
+        return False
+
+    def get_urls(self) -> list[URLPattern]:
+        return [
+            path(
+                "edit/<str:name>/",
+                self.admin_site.admin_view(self.edit_view),
+                name="content_runtimesetting_edit",
+            ),
+            *super().get_urls(),
+        ]
+
+    def _page(
+        self, request: HttpRequest, template: str, context: dict[str, object]
+    ) -> HttpResponse:
+        response = TemplateResponse(
+            request,
+            template,
+            {**self.admin_site.each_context(request), "opts": self.model._meta, **context},
+        )
+        response["Cache-Control"] = "no-store"
+        return response
+
+    def changelist_view(
+        self, request: HttpRequest, extra_context: dict[str, object] | None = None
+    ) -> HttpResponse:
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        return self._page(
+            request,
+            "admin/runtime_settings.html",
+            {"title": "운영 설정", "rows": runtime_settings.rows()},
+        )
+
+    def change_view(
+        self,
+        request: HttpRequest,
+        object_id: str,
+        form_url: str = "",
+        extra_context: dict[str, object] | None = None,
+    ) -> HttpResponse:
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            raise Http404
+        return HttpResponseRedirect(reverse("admin:content_runtimesetting_edit", args=[obj.name]))
+
+    def _log(self, request: HttpRequest, name: str, what: str) -> None:
+        obj = RuntimeSetting.objects.filter(name=name).first()
+        if obj is not None:
+            self.log_change(request, obj, f"{name}: {what}")
+
+    def edit_view(self, request: HttpRequest, name: str) -> HttpResponse:
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        if name not in runtime_settings.REGISTRY:
+            raise Http404
+        back = reverse("admin:content_runtimesetting_changelist")
+        here = reverse("admin:content_runtimesetting_edit", args=[name])
+        test_status: str = ""
+        if request.method == "POST":
+            op = request.POST.get("op", "")
+            by = request.user.get_username()
+            try:
+                if op == "save":
+                    if runtime_settings.set_value(name, request.POST.get("value", ""), by=by):
+                        self._log(request, name, "저장")
+                        messages.success(request, f"{name}을(를) 저장했습니다.")
+                    else:
+                        messages.info(request, f"{name}: 빈 칸이라 기존 값을 그대로 둡니다.")
+                    return HttpResponseRedirect(back)
+                if op == "empty":
+                    runtime_settings.set_empty(name, by=by)
+                    self._log(request, name, "빈 값으로 덮어씀")
+                    messages.success(request, f"{name}을(를) 빈 값으로 덮어썼습니다(꺼짐).")
+                    return HttpResponseRedirect(back)
+                if op == "clear":
+                    self._log(request, name, "덮어쓰기 지움(.env로)")
+                    if runtime_settings.clear(name):
+                        messages.success(
+                            request, f"{name}: 덮어쓰기를 지웠습니다. .env 값을 씁니다."
+                        )
+                    return HttpResponseRedirect(back)
+                if op == "test" and runtime_settings.REGISTRY[name].secret:
+                    url = runtime_settings.get(name)
+                    if not url:
+                        test_status = "값이 없어 보내지 않았습니다."
+                    else:
+                        status = send_test(url)
+                        test_status = "응답 없음(연결 실패)" if status is None else f"HTTP {status}"
+            except ServiceError as exc:
+                messages.error(request, str(exc))
+                return HttpResponseRedirect(here)
+        return self._page(
+            request,
+            "admin/runtime_setting_edit.html",
+            {
+                "title": f"운영 설정: {name}",
+                "row": runtime_settings.row(name),
+                "back_url": back,
+                "test_status": test_status,
+            },
+        )

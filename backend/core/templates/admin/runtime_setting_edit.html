@@ -1,0 +1,28 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block content %}
+<p>{{ row.description }}</p>
+<p>출처: <strong>{{ row.source }}</strong>{% if row.updated_at %} · 마지막 변경 {{ row.updated_at|date:"Y-m-d H:i" }} · {{ row.updated_by }}{% endif %}</p>
+<p>현재 값: {% if row.unreadable %}<strong>{{ row.shown }}</strong>{% elif row.shown %}<code>{{ row.shown }}</code>{% else %}<em>(빈 값)</em>{% endif %}</p>
+{% if test_status %}<p>시험 메시지 결과: <strong>{{ test_status }}</strong></p>{% endif %}
+<form method="post" autocomplete="off">
+  {% csrf_token %}
+  <p>
+    <label for="id_value">새 값</label><br>
+    {% if row.secret %}
+      <input type="password" id="id_value" name="value" size="80" autocomplete="new-password" spellcheck="false">
+      <br><small>비워 두고 저장하면 기존 값을 그대로 둡니다.</small>
+    {% else %}
+      <input type="text" id="id_value" name="value" size="80" value="{{ row.shown }}" spellcheck="false">
+    {% endif %}
+  </p>
+  <p>
+    <button type="submit" name="op" value="save" class="default">저장</button>
+    {% if row.may_be_empty %}<button type="submit" name="op" value="empty">빈 값으로 덮어쓰기(끄기)</button>{% endif %}
+    {% if row.source == "DB" %}<button type="submit" name="op" value="clear">덮어쓰기 지우기(.env로)</button>{% endif %}
+    {% if row.secret %}<button type="submit" name="op" value="test">시험 메시지 보내기</button>{% endif %}
+    <a href="{{ back_url }}">목록으로</a>
+  </p>
+  {% if row.secret %}<p><small>「시험 메시지 보내기」는 지금 쓰이는 웹훅으로 짧은 메시지 1건을 실제로 보내고 HTTP 상태만 보여 줍니다.</small></p>{% endif %}
+</form>
+{% endblock %}

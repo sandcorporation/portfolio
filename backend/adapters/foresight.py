@@ -16,6 +16,7 @@ empty list plus one log line.
 Tests swap the gateway with `set_gateway(FakeForesight())` (`adapters/fake_foresight.py`).
 """
 
+import hashlib
 import json
 import logging
 import urllib.error
@@ -27,6 +28,8 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.cache import cache
+
+from services import runtime_settings
 
 logger = logging.getLogger(__name__)
 
@@ -180,19 +183,25 @@ def set_gateway(gateway: ForesightGateway | None) -> None:
 def get_gateway() -> ForesightGateway:
     if _gateway is not None:
         return _gateway
-    url: str = settings.FORESIGHT_API_URL
-    stats_url: str = settings.FORESIGHT_STATS_URL
+    url = runtime_settings.get("FORESIGHT_API_URL")
+    stats_url = runtime_settings.get("FORESIGHT_STATS_URL")
     if not url and not stats_url:
         return DisabledForesight()
     return HttpForesight(url, settings.FORESIGHT_TIMEOUT_SECONDS, stats_url)
 
 
+def _tag(setting: str) -> str:
+    """The URL in force, hashed into the cache keys: a URL changed in the admin (#233) is
+    never answered from the old site's cache."""
+    return hashlib.sha256(runtime_settings.get(setting).encode()).hexdigest()[:10]
+
+
 def _key(limit: int) -> str:
-    return f"foresight:recent:commentary:{limit}"
+    return f"foresight:recent:commentary:{limit}:{_tag('FORESIGHT_API_URL')}"
 
 
 def _last_good_key(limit: int) -> str:
-    return f"foresight:last-good:commentary:{limit}"
+    return f"foresight:last-good:commentary:{limit}:{_tag('FORESIGHT_API_URL')}"
 
 
 def _dump(articles: list[ForesightArticle]) -> list[dict[str, str]]:
@@ -231,8 +240,12 @@ def fetch_recent(limit: int = 5) -> list[ForesightArticle]:
     return articles
 
 
-STATS_KEY = "foresight:stats"
-STATS_LAST_GOOD_KEY = "foresight:stats-last-good"
+def _stats_key() -> str:
+    return f"foresight:stats:{_tag('FORESIGHT_STATS_URL')}"
+
+
+def _stats_last_good_key() -> str:
+    return f"foresight:stats-last-good:{_tag('FORESIGHT_STATS_URL')}"
 
 
 def _dump_stats(stats: ForesightStats | None) -> dict[str, object]:
@@ -263,17 +276,17 @@ def fetch_stats() -> ForesightStats | None:
 
     Same rules as `fetch_recent`: 10 minutes cached; on failure the last good answer (24 hours,
     re-cached 10 minutes) or None."""
-    found, cached = _load_stats(cache.get(STATS_KEY))
+    found, cached = _load_stats(cache.get(_stats_key()))
     if found:
         return cached
     try:
         stats = get_gateway().stats()
     except ForesightUnavailable as e:
         logger.warning("Foresight 통계를 받지 못함: %s", e)
-        _, stats = _load_stats(cache.get(STATS_LAST_GOOD_KEY))
-        cache.set(STATS_KEY, _dump_stats(stats), CACHE_SECONDS)
+        _, stats = _load_stats(cache.get(_stats_last_good_key()))
+        cache.set(_stats_key(), _dump_stats(stats), CACHE_SECONDS)
         return stats
-    cache.set(STATS_KEY, _dump_stats(stats), CACHE_SECONDS)
+    cache.set(_stats_key(), _dump_stats(stats), CACHE_SECONDS)
     if stats is not None:
-        cache.set(STATS_LAST_GOOD_KEY, _dump_stats(stats), LAST_GOOD_SECONDS)
+        cache.set(_stats_last_good_key(), _dump_stats(stats), LAST_GOOD_SECONDS)
     return stats

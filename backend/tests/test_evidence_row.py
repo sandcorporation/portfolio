@@ -59,7 +59,7 @@ def test_stats_are_cached_ten_minutes(foresight: FakeForesight) -> None:
 
 def test_a_failure_serves_the_last_good_stats_and_asks_once(foresight: FakeForesight) -> None:
     good = adapter.fetch_stats()
-    cache.delete(adapter.STATS_KEY)  # the 10 minutes are over
+    cache.delete(adapter._stats_key())  # the 10 minutes are over
     foresight.failing = True
 
     assert adapter.fetch_stats() == good

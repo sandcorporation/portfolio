@@ -52,6 +52,7 @@ from services import (
     preview,
     proposals,
     publishing,
+    runtime_settings,
     tips,
 )
 from services import proposal_access as access
@@ -136,11 +137,15 @@ def render_shell(
         or (OG_IMAGE_SIZE if meta.image == DEFAULT_OG_IMAGE else None),
         "jsonld": _jsonld(meta.jsonld),
         "canonical": request.build_absolute_uri(request.path) if meta.canonical else "",
-        "verify_google": settings.GOOGLE_SITE_VERIFICATION if meta.robots == INDEX else "",
-        "verify_naver": settings.NAVER_SITE_VERIFICATION if meta.robots == INDEX else "",
+        "verify_google": runtime_settings.get("GOOGLE_SITE_VERIFICATION")
+        if meta.robots == INDEX
+        else "",
+        "verify_naver": runtime_settings.get("NAVER_SITE_VERIFICATION")
+        if meta.robots == INDEX
+        else "",
         "assets": entry_assets(),
-        "metrics_snippet_url": settings.METRICS_SNIPPET_URL if count_visit else "",
-        "metrics_site_key": settings.METRICS_SITE_KEY,
+        "metrics_snippet_url": runtime_settings.get("METRICS_SNIPPET_URL") if count_visit else "",
+        "metrics_site_key": runtime_settings.get("METRICS_SITE_KEY"),
         "body": body,
     }
     return render(request, "core/shell.html", context, status=status)

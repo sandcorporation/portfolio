@@ -28,7 +28,7 @@ from content.models import (
     stored_document,
 )
 from documents.validation import JSON, DocumentError, InvalidDocument
-from services import case_refs, document_edit, media, platform_mode, preview
+from services import case_refs, document_edit, media, platform_mode, preview, runtime_settings
 from services.errors import Conflict, NotFound, Rejected
 from services.preview import BadPreviewToken as BadPreviewToken
 from services.preview import ExpiredPreviewToken as ExpiredPreviewToken
@@ -569,7 +569,7 @@ def supplier(*, platform: bool = False) -> Supplier:
         return Supplier(name=platform_mode.SUPPLIER_NAME, email="", phone="", address="")
     profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
     return Supplier(
-        name=settings.SUPPLIER_NAME,
+        name=runtime_settings.get("SUPPLIER_NAME"),
         email=profile.contact_email,
         phone=profile.contact_phone,
         address=profile.address,
