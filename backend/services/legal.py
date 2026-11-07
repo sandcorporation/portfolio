@@ -15,7 +15,7 @@ from typing import Literal, TypedDict
 from services import retention
 
 # The day this text takes effect; also sitemap.xml's <lastmod>.
-EFFECTIVE_ON = date(2026, 11, 4)
+EFFECTIVE_ON = date(2026, 11, 7)
 
 PATH = "/privacy"
 TITLE = "개인정보처리방침"
@@ -28,6 +28,8 @@ CONTACT_EMAIL = "gksdjf1690@gmail.com"
 
 YOUTUBE_TERMS_URL = "https://www.youtube.com/t/terms"
 GOOGLE_PRIVACY_URL = "https://policies.google.com/privacy"
+# The shared Sandcorp document on error records (privacy-and-terms PR #7, issue 237).
+ERROR_RECORDS_URL = "https://sandcorporation.github.io/privacy-and-terms/errors/"
 KISA_URL = "https://privacy.kisa.or.kr"
 
 # The owner approved this sentence word for word (issue 211); change it only with a new approval.
@@ -139,6 +141,13 @@ SECTIONS: list[Section] = [
                     "홈·포트폴리오·기록·서비스 페이지와 이 문서를 볼 때",
                     "자동으로 생김",
                 ],
+                [
+                    "서비스 오류 기록 — 오류 내용과 발생 위치, 시각, 서비스 버전, "
+                    "페이지 주소(URL), 브라우저·기기 정보(User-Agent), "
+                    "서버 오류의 요청 경로와 메서드",
+                    "사이트 화면이나 서버에서 오류가 날 때",
+                    "자동으로 생김",
+                ],
             ),
             _p(
                 "회원 가입·로그인 기능이 없어 방문자의 계정 정보는 없습니다. 주민등록번호, "
@@ -159,6 +168,11 @@ SECTIONS: list[Section] = [
                 "더해 남기고 받는 항목은 같습니다."
             ),
             _p("제안서 열람 기록과 방문 기록은 페이지를 여는 동안 자동으로 남습니다."),
+            _p(
+                "서비스 오류 기록은 오류가 날 때 자동으로 만들어집니다. 보내기 전에 쿠키, 인증 "
+                "헤더, 토큰, 비밀번호, 요청 본문, 프로그램 내부 변수 값은 지우며, 이메일·이름은 "
+                "일부러 보내지 않습니다."
+            ),
         ],
     },
     {
@@ -173,6 +187,7 @@ SECTIONS: list[Section] = [
                 "막습니다.",
                 "방문 통계 — 페이지별 조회 수와 방문자 수를 셉니다. 사이트에 보이는 「누적 방문」 "
                 "숫자도 여기서 나옵니다.",
+                "오류 수정 — 서비스 오류를 발견해 고치고, 사이트를 안정적으로 운영합니다.",
             ),
             _p("광고, 마케팅, 개인별 이용 행태 분석에는 쓰지 않습니다."),
         ],
@@ -190,6 +205,7 @@ SECTIONS: list[Section] = [
                 "요청 제한에 쓰는 IP 주소 — 문의 폼은 1시간, 제안서 접근 코드 실패 차단은 15분(IP "
                 "주소의 해시), 제안서 탭 이동 제한은 10분 뒤 사라집니다.",
                 "Discord 알림(6번) — 운영자의 알림 채널에 남으며, 운영자가 지울 때까지 보관됩니다.",
+                "서비스 오류 기록 — 90일 뒤 자동으로 지웁니다.",
             ),
             _p("법령이 따로 보관을 요구하는 경우에는 그 기간 동안 보관합니다."),
         ],
@@ -204,6 +220,12 @@ SECTIONS: list[Section] = [
         "title": "6. 처리 위탁과 국외 이전",
         "blocks": [
             _p("「처리 위탁」은 개인정보를 다루는 일의 일부를 다른 회사에 맡기는 것을 말합니다."),
+            _p(
+                "서비스 오류 기록(1번)은 샌드코프가 직접 운영하는 국내 오류 수집 서버로 보냅니다. "
+                "다른 회사에 맡기지 않으며, 제3자 제공이나 국외 이전도 아닙니다. 자세한 내용은 "
+                "샌드코프 공통 문서 「Sandcorp 서비스 오류 기록」에 있습니다."
+            ),
+            _links(("Sandcorp 서비스 오류 기록", ERROR_RECORDS_URL)),
             _table(
                 ["맡은 곳", "맡긴 일"],
                 [
@@ -364,7 +386,9 @@ def policy() -> Policy:
             "페이지뿐입니다.",
             f"문의는 답을 드리는 데만 쓰고 접수 {_years(retention.INQUIRY_KEEP)} 뒤 지웁니다. "
             "방문 수는 IP 주소를 저장하지 않고 "
-            "셉니다. 광고·마케팅에 쓰지 않으며, 누구에게도 팔거나 넘기지 않습니다.",
+            "셉니다. 오류가 나면 오류 기록(페이지 주소·브라우저 정보 등)을 샌드코프가 직접 "
+            "운영하는 국내 서버로 보내 90일 보관합니다. "
+            "광고·마케팅에 쓰지 않으며, 누구에게도 팔거나 넘기지 않습니다.",
         ],
         "intro": (
             "이 문서는 샌드코프 회사 사이트(sandcorp.co.kr, 이하 「사이트」)가 개인정보를 어떻게 "
