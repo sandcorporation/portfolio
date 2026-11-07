@@ -63,6 +63,7 @@ def test_the_server_html_has_the_company_the_date_every_section_and_the_youtube_
     assert "시행 2026년 11월 7일" in text
     # issue 237: error records (GlitchTip) and the shared document link
     assert "서비스 오류 기록 — 90일 뒤 자동으로 지웁니다." in text
+    assert "접속 IP(끝자리를 가린 것 — IPv4 마지막 8비트, IPv6 /64 이후를 0으로)" in text
     assert 'href="https://sandcorporation.github.io/privacy-and-terms/errors/"' in html
     assert (
         "운영자: 개인사업자 샌드코프(Sandcorp) · 대표 김한얼 · 사업자등록번호 752-26-01740" in text
