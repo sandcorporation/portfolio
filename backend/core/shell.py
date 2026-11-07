@@ -36,7 +36,7 @@ from content.models import (
     ProposalRevision,
     SiteProfile,
 )
-from core import public_html
+from core import observability, public_html
 from core.clientip import client_ip
 from core.public_html import HOME_DESCRIPTION
 from core.seo import home_jsonld, service_jsonld, work_jsonld
@@ -147,8 +147,15 @@ def render_shell(
         "metrics_snippet_url": runtime_settings.get("METRICS_SNIPPET_URL") if count_visit else "",
         "metrics_site_key": runtime_settings.get("METRICS_SITE_KEY"),
         "body": body,
+        "public_config": _public_config(request.path),
     }
     return render(request, "core/shell.html", context, status=status)
+
+
+def _public_config(path: str) -> str:
+    """`window.__PUBLIC__` for the browser error reporter (issue 235), "" when there is none."""
+    config = observability.public_config(path)
+    return _jsonld(config) if config else ""
 
 
 def _jsonld(value: Mapping[str, object] | None) -> str:

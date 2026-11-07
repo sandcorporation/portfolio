@@ -16,6 +16,7 @@ dependencies = [
     "pydantic>=2.12",
     "pyjwt[crypto]>=2.10",
     "sandcorp-authkit[django]",
+    "sentry-sdk[django]>=2.74.0",
     "whitenoise>=6.12.0",
 ]
 

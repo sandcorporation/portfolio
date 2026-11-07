@@ -230,3 +230,13 @@ PDF_RENDER_TIMEOUT_SECONDS = 60
 PDF_JOB_MAX_ATTEMPTS = 3
 # One render takes at most about 2 x timeout + 10s; a job running longer than this lost its worker.
 PDF_JOB_STALE_SECONDS = 5 * 60
+
+# GlitchTip error reports (issue 235, core/observability.py): the backend SDK starts only when
+# SENTRY_DSN is set (compose passes SENTRY_DSN_BACKEND from .env); dev, CI and tests stay quiet.
+# SENTRY_DSN_FRONTEND goes to the browser through the page shell (window.__PUBLIC__), never on
+# /print/ pages.
+SENTRY_DSN_FRONTEND = env("SENTRY_DSN_FRONTEND")
+
+from core.observability import configure as _configure_error_reports  # noqa: E402
+
+_configure_error_reports()

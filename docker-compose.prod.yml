@@ -21,6 +21,10 @@ services:
     env_file: [.env]
     environment:
       DJANGO_DEBUG: "0"
+      # GlitchTip (issue 235): release = the sha tag of this image; DSNs from .env (empty = off).
+      PORTFOLIO_IMAGE: ${PORTFOLIO_IMAGE:-}
+      SENTRY_DSN: ${SENTRY_DSN_BACKEND:-}
+      SENTRY_DSN_FRONTEND: ${SENTRY_DSN_FRONTEND:-}
     ports:
       - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-18091}:8000"
     # Hits /api/health (which round-trips to the database) with the first allowed host as Host header.
@@ -47,6 +51,8 @@ services:
     env_file: [.env]
     environment:
       DJANGO_DEBUG: "0"
+      PORTFOLIO_IMAGE: ${PORTFOLIO_IMAGE:-}
+      SENTRY_DSN: ${SENTRY_DSN_BACKEND:-}
     stop_grace_period: 2m  # SIGTERM lets the current PDF finish
     cpus: 0.25
     mem_limit: 256m
