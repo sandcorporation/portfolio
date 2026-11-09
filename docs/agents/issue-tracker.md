@@ -2,6 +2,8 @@
 
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
+저장소는 2026-11-09 공개 전환 때 새로 만들었다. 그 전의 이슈·PR(#1~#245, 코드·CLAUDE.md에 적힌 `#N`·`issue N`)은 비공개 `sandcorporation/portfolio-archive`에 있고, 이 저장소의 번호는 #1부터 다시 시작한다.
+
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
