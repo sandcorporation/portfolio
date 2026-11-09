@@ -26,7 +26,9 @@ class Command(BaseCommand):
     help = "제안서 지금 문서를 PDF로 렌더해 stdout(또는 파일)에 낸다. DB·버킷에 쓰지 않는다"
 
     def add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument("slug")
+        parser.add_argument(
+            "slug", help="제안서 slug. 「-」로 시작하는 옛 slug는 `-- <slug>`로 넘긴다"
+        )
         mode = parser.add_mutually_exclusive_group()
         mode.add_argument("--platform", dest="platform", action="store_true", default=None)
         mode.add_argument("--no-platform", dest="platform", action="store_false")
