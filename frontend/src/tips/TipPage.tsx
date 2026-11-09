@@ -3,21 +3,23 @@ import type { Components } from "react-markdown";
 import { Prose } from "../blocks/Prose";
 import { postDate } from "../blog/format";
 import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
+import { loadHighlight } from "./loadHighlight";
 import { TipRows } from "./TipRows";
 import { tipsIndexHref, type TipData } from "./types";
 
 type CodeComponent = Components["code"];
 
 /** The code renderer that colours fenced blocks, loaded only when the body has one: highlight.js
- * is its own chunk (issue 203), so no other page pays for it. Plain code until it arrives. */
+ * is its own chunk (issue 203), so no other page pays for it. Plain code until it arrives — and
+ * for good if the chunk will not load (loadHighlight). */
 function useHighlightedCode(markdown: string): CodeComponent | undefined {
   const [code, setCode] = useState<CodeComponent>();
   const fenced = /^\s*(```|~~~)/m.test(markdown);
   useEffect(() => {
     if (!fenced) return;
     let live = true;
-    void import("./highlight").then((module) => {
-      if (live) setCode(() => module.highlightedCode);
+    void loadHighlight().then((module) => {
+      if (live && module) setCode(() => module.highlightedCode);
     });
     return () => {
       live = false;
