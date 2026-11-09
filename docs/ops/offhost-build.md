@@ -18,7 +18,7 @@ GitHub push ─▶ 배포할 커밋 확인 ─▶ 이미지 빌드 ────�
 ```
 
 - **작업 브랜치 push는 배포 없이 끝난다.** 웹훅은 브랜치 생성·push·삭제에도 잡을 깨우지만, 잡은 늘 main을 받는다. main sha가 직전 성공 빌드의 sha와 같으면 `NOT_BUILT`(디스코드 알림 없음). 배포 중에 들어온 두 번째 이벤트가 쌓은 빌드(11/01 #96·#97 같은 sha 두 번)도 같은 이유로 건너뛴다.
-- **배포 전 검사**: 빌드 노드에서 이미지를 굽기 전에 `bash scripts/ci/check.sh`가 `make check`와 같은 것(gen-check·lint·typecheck·시험·운영 프론트 빌드)을 도커 안에서 돌린다. 운영 이미지 빌드(`Dockerfile`)는 `pnpm build`(tsc 포함)만 하고 백엔드 시험·린트는 하지 않아서 따로 돈다. 실패하면 굽지도 배포하지도 않는다(GitHub 무료 요금제라 병합을 막지 못해 여기서 막는다). 같은 검사가 PR 때도 돈다: 멀티브랜치 잡 `sandcorp-portfolio-pr`(`Jenkinsfile.pr`, 라이브러리 `sandcorpPrCheck`)가 파괴적 migrate 검사와 함께 돌려 PR 상태로 올리고, 작업자는 `wait-ci.py` 통과 뒤 병합한다.
+- **배포 전 검사**: 빌드 노드에서 이미지를 굽기 전에 `bash scripts/ci/check.sh`가 `make check`와 같은 것(gen-check·lint·typecheck·시험·운영 프론트 빌드)을 도커 안에서 돌린다. 운영 이미지 빌드(`Dockerfile`)는 `pnpm build`(tsc 포함)만 하고 백엔드 시험·린트는 하지 않아서 따로 돈다. 실패하면 굽지도 배포하지도 않는다(GitHub 무료 요금제라 병합을 막지 못해 여기서 막는다). PR 검사는 GitHub Actions(`.github/workflows/pr-check.yml`)가 같은 단계를 파괴적 migrate 검사와 함께 돌린다(2026-11-09부터, Jenkins PR 잡 `sandcorp-portfolio-pr`은 껐다).
 - **노드를 못 잡았을 때만** home으로 넘어간다. macos에서 검사·빌드가 실패하면 실패로 끝낸다.
 - 빌드 노드는 콘솔(`== 빌드 노드: macos (...)`)과 빌드 설명(`<sha12> · 빌드 macos · oracle pull`)·디스코드 알림에 남는다.
 - 이미지: `ghcr.io/sandcorporation/portfolio:<커밋 sha 40자>`, 레이블 `org.opencontainers.image.source`·`revision`. 빌드 캐시는 `portfolio-buildcache:arm64`(레지스트리, `mode=max`, buildx 빌더 `portfolio-images`).
