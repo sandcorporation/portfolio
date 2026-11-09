@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # One image: the Vite build is baked in and collected into Django's static files (served by whitenoise).
-# Built off-host as linux/arm64 by Jenkins (macos, else home; jenkins-shared sandcorpDeploy), oracle only pulls; also builds on x86 for local checks.
+# Built as linux/arm64 by GitHub Actions (image.yml, ubuntu-24.04-arm; emergency: Jenkins macos/home), oracle only pulls; also builds on x86 for local checks.
 
 FROM node:24-alpine AS frontend
 RUN npm install -g pnpm@11.25.0
@@ -29,7 +29,13 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_PYTHON_DOWNLOADS=never
 WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
-RUN --mount=type=ssh uv sync --frozen --no-dev --no-install-project
+# AUTHKIT_VIA_HTTPS=1 (GitHub Actions image.yml): sandcorp-auth is public, so fetch it over https with no key. Not a secret.
+# Empty (Jenkins emergency path, make prod-local): fetch over the forwarded ssh agent as before.
+ARG AUTHKIT_VIA_HTTPS=
+RUN --mount=type=ssh if [ -n "$AUTHKIT_VIA_HTTPS" ]; then \
+      git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"; \
+    fi \
+ && uv sync --frozen --no-dev --no-install-project
 
 FROM python:3.14-slim AS runtime
 # libmariadb3: the client library mysqlclient links to.
