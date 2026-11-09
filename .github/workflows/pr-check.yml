@@ -1,21 +1,22 @@
 # PR 검사 — scripts/ci/check.sh(= make check)와 같은 것을 GitHub 호스팅 실행기에서 돌린다.
 # 파괴적 migrate 검사(scripts/ci/migrate-guard.sh, jenkins-shared 복사본) → gen-check · lint · typecheck · 프론트 시험 · 운영 프론트 빌드 · 백엔드 시험(MySQL service container).
 # 보안: pull_request만(pull_request_target 금지), GitHub 호스팅 실행기만, 읽기 권한만, secrets 없음.
-# 배포는 Jenkins(main push)가 그대로 맡는다.
-# 캐시(uv·pnpm 내려받기, mypy): 저장은 main push 실행만, PR은 main이 만든 캐시를 복원만 한다
+# main push에서는 release.yml이 이 워크플로를 workflow_call로 불러 같은 검사를 돌린다(#5) — 통과해야 이미지·production 승격으로 간다.
+# 그때 github.event_name은 부른 쪽의 push라 캐시 저장 조건(push)이 그대로 main에서만 돈다.
+# 캐시(uv·pnpm 내려받기, mypy): 저장은 main(release) 실행만, PR은 main이 만든 캐시를 복원만 한다
 # (PR에서 만든 캐시는 그 PR 안에서만 보여 다른 PR이 못 쓴다). 저장소 캐시 합계 10GB 안.
 name: PR 검사
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-check-${{ github.ref }}
+  # PR은 번호마다 새 push가 옛 실행을 끊는다. main(workflow_call)은 커밋마다 따로 — 끊기면 그 sha의 승격 실행이 취소로 끝난다.
+  group: pr-check-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -120,6 +121,9 @@ jobs:
 
       - name: 백엔드 시험
         run: cd backend && uv run pytest -q
+
+      - name: 승격 스크립트 시험
+        run: bash scripts/ci/promote_test.sh
 
       # 아래는 main push에서만 — 저장 전 uv 캐시를 CI용으로 줄인다(받은 휠은 빼고 소스에서 빌드한 휠(mysqlclient)은 남김).
       - name: uv 캐시 줄이기
