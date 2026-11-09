@@ -632,8 +632,14 @@ def default_proposal_document() -> dict[str, JSON]:
 
 
 def new_proposal_slug() -> str:
-    """An unguessable URL part (128 random bits, URL-safe)."""
-    return secrets.token_urlsafe(16)
+    """An unguessable URL part (128 random bits, URL-safe) that starts with a letter or digit.
+
+    A leading `-` makes argparse read it as an option (`manage.py proposal_pdf <slug>`, issue 7).
+    """
+    while True:
+        slug = secrets.token_urlsafe(16)
+        if slug[0].isalnum():
+            return slug
 
 
 class Proposal(models.Model):

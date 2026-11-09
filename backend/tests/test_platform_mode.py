@@ -14,7 +14,7 @@ from django.test import Client as HttpClient
 
 from adapters.fake_renderer import FAKE_PDF, FakeRenderer
 from adapters.fake_storage import FakeObjectStorage
-from content.models import PortfolioItem, Proposal, ProposalRevision, SiteProfile
+from content.models import PortfolioItem, Proposal, ProposalRevision, SiteProfile, new_proposal_slug
 from services import pdf, platform_mode, publishing
 from services import proposals as svc
 from services.errors import Conflict
@@ -339,6 +339,26 @@ def test_the_management_command_writes_only_the_pdf(
     assert (after.platform_mode, after.updated_at) == (False, before.updated_at)
     assert fake_storage.objects == {}
     assert not ProposalRevision.objects.exists()
+
+
+def test_new_slugs_never_start_with_a_dash(monkeypatch: pytest.MonkeyPatch) -> None:
+    # issue 7: token_urlsafe starts with "-" about 1 in 64 — argparse reads that as an option.
+    tokens = iter(["-abc", "_def", "Xyz"])
+    monkeypatch.setattr("content.models.secrets.token_urlsafe", lambda n: next(tokens))
+    assert new_proposal_slug() == "Xyz"
+
+
+def test_the_management_command_takes_an_old_dash_slug_after_double_dash(
+    renderer: FakeRenderer, fake_storage: FakeObjectStorage, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    p = platform_draft(mode=False)
+    Proposal.objects.filter(slug=p.slug).update(slug="-" + p.slug[1:])
+    out = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(out))
+
+    call_command("proposal_pdf", "--platform", "--", "-" + p.slug[1:], stderr=io.StringIO())
+
+    assert out.getvalue() == FAKE_PDF
 
 
 # --- #229: names and our addresses are masked in every rendered text ---
