@@ -1,0 +1,97 @@
+# PR 검사 — scripts/ci/check.sh(= make check)와 같은 것을 GitHub 호스팅 실행기에서 돌린다.
+# 파괴적 migrate 검사(scripts/ci/migrate-guard.sh, jenkins-shared 복사본) → gen-check · lint · typecheck · 프론트 시험 · 운영 프론트 빌드 · 백엔드 시험(MySQL service container).
+# 보안: pull_request만(pull_request_target 금지), GitHub 호스팅 실행기만, 읽기 권한만, secrets 없음.
+# 배포는 Jenkins(main push)가 그대로 맡는다.
+name: PR 검사
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:26.10.0
+        env:
+          MYSQL_DATABASE: portfolio
+          MYSQL_USER: portfolio
+          MYSQL_PASSWORD: portfolio
+          MYSQL_ROOT_PASSWORD: portfolio-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysql -uportfolio -pportfolio -h127.0.0.1 -e 'SELECT 1' portfolio"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      PORTFOLIO_TEST_CPU_LIMIT: "1.0"
+      UV_PYTHON_DOWNLOADS: never
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: 파괴적 migrate 검사 (PR이 새로 더한 migration만)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bash scripts/ci/migrate-guard.sh "origin/$BASE_REF"
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: backend/.python-version
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: 도구 (uv · pnpm · mysqlclient 빌드 의존성)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config default-libmysqlclient-dev
+          python -m pip install --disable-pip-version-check uv==0.12.9
+          npm install -g pnpm@11.25.0
+          # sandcorp-authkit은 공개 저장소다 — ssh 소스를 비밀값 없이 https로 받는다.
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
+      - name: 의존성
+        run: |
+          cd backend && uv sync --frozen
+          cd ../frontend && pnpm install --frozen-lockfile
+
+      - name: 시험 DB 권한 (pytest-django가 test_portfolio를 만들고 지운다)
+        run: |
+          docker exec ${{ job.services.mysql.id }} \
+            mysql -uroot -pportfolio-root -e "GRANT ALL PRIVILEGES ON \`test\_portfolio\`.* TO 'portfolio'@'%';"
+
+      - name: gen-check
+        run: make gen-check
+
+      - name: lint
+        run: make lint
+
+      - name: typecheck
+        run: make typecheck
+
+      - name: 프론트 시험
+        run: make test-frontend
+
+      - name: 운영 프론트 빌드
+        run: make build-frontend
+
+      - name: 백엔드 시험
+        run: cd backend && uv run pytest -q
