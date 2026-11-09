@@ -19,7 +19,7 @@
 - `embed` 블록(#121)은 우리 Flow 체험 페이지(`flow.sandcorp.co.kr`, 이 호스트만 스키마 패턴이 허용)를 iframe으로 띄운다. 필드 `src`·`title`(프레임 이름)·`intro`(한 줄)·`open_label`(기본 「새 탭에서 열기」). 화면은 폭 100%·처음 640px 프레임 + 새 탭 링크(`linkAttrs`), load 때 `sandcorp-flow:hello`를 Flow origin으로 보내고 `sandcorp-flow:height`는 origin과 source(이 프레임) 둘 다 맞을 때만 200~4000px로 반영한다. 사이트 테마는 토글 없이 `prefers-color-scheme`이라 다크면 src에 `theme=dark`를 붙이고 바뀌면 src를 갱신한다(`embedSrc.ts`). 서버 HTML은 같은 iframe(640px 고정)+링크, 인쇄(`print`·`@media print`)는 프레임 없이 문구+주소. 목차에는 싣지 않는다.
 - 블로그 글(`/blog/<slug>`, `blog/BlogPostPage.tsx`)도 포트폴리오처럼 `DocumentView` 하나로 본문을 그린다(`idPrefix="post-"`, 탭은 보통 하나). 블록을 더하면 글에도 그대로 나온다.
 - 이 빌드가 모르는 블록 타입(더 새 데이터)은 건너뛰고 나머지를 그린다.
-- 예시 문서 픽스처(가나다상사 견적 제안 원본 `examples/견적 제안 · 가나다상사.html`의 두 탭 전체를 옮긴 것; 미디어 1-3 이미지, 4-6·8-15 오디오, 7·16 영상은 시험이 만드는 가짜 행): 저장소 루트 `fixtures/documents/example-proposal.json`. 백엔드 검증 시험(`backend/tests/conftest.py`의 `example_document`)과 렌더러 시험(`testing.ts`의 `exampleDocument`)이 같은 파일을 읽는다. Docker 빌드도 `tsc`를 돌리므로 Dockerfile이 `fixtures/`를 복사한다.
+- 예시 문서 픽스처(가상의 회사 「가나다상사」 견적 제안 두 탭; 미디어 1-3 이미지, 4-6·8-15 오디오, 7·16 영상은 시험이 만드는 가짜 행): 저장소 루트 `fixtures/documents/example-proposal.json`. 백엔드 검증 시험(`backend/tests/conftest.py`의 `example_document`)과 렌더러 시험(`testing.ts`의 `exampleDocument`)이 같은 파일을 읽는다. Docker 빌드도 `tsc`를 돌리므로 Dockerfile이 `fixtures/`를 복사한다.
 
 ## 새 블록 추가 절차
 

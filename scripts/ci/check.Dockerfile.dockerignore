@@ -1,4 +1,4 @@
-# scripts/ci/check.Dockerfile 전용(BuildKit은 <Dockerfile>.dockerignore를 먼저 본다). 시험이 docs/·examples/를 읽으므로
+# scripts/ci/check.Dockerfile 전용(BuildKit은 <Dockerfile>.dockerignore를 먼저 본다). 시험이 docs/를 읽으므로
 # 운영 이미지의 .dockerignore와 달리 그것들을 넣는다.
 .git
 .env
