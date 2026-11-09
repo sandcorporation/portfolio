@@ -2,6 +2,8 @@
 # 파괴적 migrate 검사(scripts/ci/migrate-guard.sh, jenkins-shared 복사본) → gen-check · lint · typecheck · 프론트 시험 · 운영 프론트 빌드 · 백엔드 시험(MySQL service container).
 # 보안: pull_request만(pull_request_target 금지), GitHub 호스팅 실행기만, 읽기 권한만, secrets 없음.
 # 배포는 Jenkins(main push)가 그대로 맡는다.
+# 캐시(uv·pnpm 내려받기, mypy): 저장은 main push 실행만, PR은 main이 만든 캐시를 복원만 한다
+# (PR에서 만든 캐시는 그 PR 안에서만 보여 다른 PR이 못 쓴다). 저장소 캐시 합계 10GB 안.
 name: PR 검사
 
 on:
@@ -39,6 +41,8 @@ jobs:
       PORTFOLIO_TEST_CPU_LIMIT: "1.0"
       UV_PYTHON_DOWNLOADS: never
       PYTHONDONTWRITEBYTECODE: "1"
+      UV_CACHE_DIR: /home/runner/.cache/uv
+      PNPM_STORE: /home/runner/.cache/pnpm-store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -68,10 +72,31 @@ jobs:
           # sandcorp-authkit은 공개 저장소다 — ssh 소스를 비밀값 없이 https로 받는다.
           git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
+      - name: 캐시 복원 — uv
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-${{ runner.os }}-${{ hashFiles('backend/.python-version', 'backend/uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: 캐시 복원 — pnpm
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: 캐시 복원 — mypy
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.mypy_cache
+          key: mypy-${{ runner.os }}-${{ hashFiles('backend/uv.lock') }}-${{ github.sha }}
+          restore-keys: mypy-${{ runner.os }}-${{ hashFiles('backend/uv.lock') }}-
+
       - name: 의존성
         run: |
           cd backend && uv sync --frozen
-          cd ../frontend && pnpm install --frozen-lockfile
+          cd ../frontend && pnpm install --frozen-lockfile --store-dir "$PNPM_STORE"
 
       - name: 시험 DB 권한 (pytest-django가 test_portfolio를 만들고 지운다)
         run: |
@@ -95,3 +120,29 @@ jobs:
 
       - name: 백엔드 시험
         run: cd backend && uv run pytest -q
+
+      # 아래는 main push에서만 — 저장 전 uv 캐시를 CI용으로 줄인다(받은 휠은 빼고 소스에서 빌드한 휠(mysqlclient)은 남김).
+      - name: uv 캐시 줄이기
+        if: github.event_name == 'push'
+        run: uv cache prune --ci
+
+      - name: 캐시 저장 — uv
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-${{ runner.os }}-${{ hashFiles('backend/.python-version', 'backend/uv.lock') }}
+
+      - name: 캐시 저장 — pnpm
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+      - name: 캐시 저장 — mypy
+        if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.mypy_cache
+          key: mypy-${{ runner.os }}-${{ hashFiles('backend/uv.lock') }}-${{ github.sha }}
