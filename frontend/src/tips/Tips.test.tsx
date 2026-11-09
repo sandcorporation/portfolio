@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { App } from "../App";
 import { highlightLanguage } from "./highlight";
+import { loadHighlight } from "./loadHighlight";
 import type { TipCard, TipData, TipsIndexData } from "./types";
 import { tipsIndexHref } from "./types";
 
@@ -99,5 +100,19 @@ describe("/tips/<slug>", () => {
     expect(highlightLanguage("language-sh")).toBe("sh");
     expect(highlightLanguage("language-cobol")).toBeNull();
     expect(highlightLanguage(undefined)).toBeNull();
+  });
+});
+
+describe("loadHighlight (GlitchTip 119)", () => {
+  it("retries a failed chunk once, then gives up quietly", async () => {
+    const load = vi.fn().mockRejectedValue(new TypeError("Failed to fetch dynamically imported module"));
+    await expect(loadHighlight(load)).resolves.toBeUndefined();
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the chunk when the retry works", async () => {
+    const module = await import("./highlight");
+    const load = vi.fn().mockRejectedValueOnce(new TypeError("offline")).mockResolvedValue(module);
+    await expect(loadHighlight(load)).resolves.toBe(module);
   });
 });
