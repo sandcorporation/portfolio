@@ -11,15 +11,17 @@ oracle(aarch64, 4코어)은 운영 서비스 열 개 남짓이 CPU를 나눠 쓴
 ```
 PR ─▶ PR 검사(pr-check.yml) ─▶ main 병합
         └▶ release.yml (on push main)
-             check    pr-check.yml(workflow_call) — PR과 같은 검사. 깨지면 아래 없음
-             image    image.yml(workflow_call) — ubuntu-24.04-arm 네이티브, ghcr.io/sandcorporation/portfolio:<sha>
-             promote  scripts/ci/promote.sh ff <sha> — production을 그 sha로 fast-forward만
+             check    pr-check.yml(workflow_call) — PR과 같은 검사         ┐ 나란히 돈다
+             image    image.yml(workflow_call) — ubuntu-24.04-arm 네이티브,  ┘ (산출물 주고받지 않음)
+                      ghcr.io/sandcorporation/portfolio:<sha>
+             promote  needs check·image — 둘 다 초록일 때만 scripts/ci/promote.sh ff <sha> (production fast-forward만)
                   └▶ production push(웹훅) ─▶ Jenkins sandcorp-portfolio(잡 브랜치 */production)
                        굽지도 검사하지도 않는다. ghcr에 <sha> 이미지가 있는지 짧게 보고
                        oracle: docker pull → DB 확인 → migrate → web 교체 → healthy → renderer·worker → 헬스 확인
                        헬스 실패 → 직전 성공 이미지로 자동 롤백
 ```
 
+- check와 image는 나란히 돈다(promptlab #13에서 병합→배포가 50초 줄어 펼침). check가 깨지면 승격이 없어 운영은 그대로지만, 그 sha 이미지는 ghcr에 오를 수 있다 — `ROLLBACK_SHA`로 그런 sha를 고르지 않는다.
 - **production은 앞으로만 간다.** ruleset이 강제 push·삭제를 막는다. 사람이 직접 push하지 않는다(승격은 release.yml의 GITHUB_TOKEN만).
 - 승격은 저장소 전체에서 한 번에 하나(`concurrency: production-branch`). 옛 실행이 늦게 끝나 production이 이미 더 새 판이면 건너뛴다(실패 아님).
 - GITHUB_TOKEN의 push는 다른 워크플로를 깨우지 않는다 — production push로 Actions가 다시 돌지 않고, 저장소 웹훅(Jenkins)만 깨운다.

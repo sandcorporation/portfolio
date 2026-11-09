@@ -1,6 +1,6 @@
 // 운영 = production 브랜치 머리(#5). 이 잡은 production만 배포한다(잡 브랜치 지정자 */production).
 //
-//   main push → GitHub Actions release.yml: 검사(pr-check) → 이미지(image.yml, ubuntu-24.04-arm) → production fast-forward
+//   main push → GitHub Actions release.yml: 검사(pr-check)와 이미지(image.yml, ubuntu-24.04-arm)를 나란히 → 둘 다 초록이면 production fast-forward
 //   production push → 여기: 굽지도 검사하지도 않는다. ghcr.io/sandcorporation/portfolio:<sha>가 있는지 짧게 보고
 //                     oracle에서 pull → DB 확인 → migrate → web 교체 → renderer·worker → 헬스 확인(실패하면 자동 롤백)
 //
