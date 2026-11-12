@@ -1,6 +1,6 @@
 # 배포 이미지(#5): linux/arm64 이미지를 GitHub 호스팅 arm64 실행기에서 네이티브로 굽고 ghcr에 올린다.
 # main push에서는 release.yml이 검사(check)와 나란히 workflow_call로 부른다. 이미지가 모두 오르면 release.yml이 production을 승격하고,
-# Jenkins `sandcorp-portfolio`는 production 머리의 이 태그를 받아(jenkins-shared sandcorpDeploy deployFrom) oracle에 배포한다.
+# Jenkins `sandcorp-portfolio`는 production 머리의 이 태그를 받아(jenkins-shared sandcorpDeploy deployFrom) oracle에 배포한다. 빌드·검사는 Actions 전용이다.
 #
 # 보안 규칙(공개 저장소):
 #   - main push의 release.yml(workflow_call)과 수동 실행만. pull_request·pull_request_target으로 이미지를 굽거나 올리지 않는다.

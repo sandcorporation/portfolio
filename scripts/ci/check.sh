@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # 배포 전 검사: `make check`와 같은 것(gen-check·lint·typecheck·시험·운영 프론트 빌드)을 도커 안에서 돌린다.
-# Jenkins `sandcorp-portfolio`(jenkins-shared 라이브러리 sandcorpDeploy의 「검사」)가 빌드 노드에서 이미지를 굽기 전에 부르고,
-# 실패하면 이미지를 굽지도 배포하지도 않는다. PR 검사는 GitHub Actions(.github/workflows/pr-check.yml)가 같은 단계를 돌린다. 노드에 uv·pnpm이 없어도 되고, 로컬에서도 그대로 돈다.
+# GitHub Actions PR 검사(.github/workflows/pr-check.yml)가 같은 단계를 돌린다. 노드에 uv·pnpm이 없어도 되고, 로컬에서도 그대로 돈다.
 #
 #   bash scripts/ci/check.sh
 #
 # 시험 DB는 이 실행만의 MySQL 컨테이너(mysql:26.10.0, 같은 콜레이션)를 이 실행만의 네트워크에 띄운다 — 호스트 포트를
 # 열지 않아 다른 작업(make db의 15442 등)과 겹치지 않는다. 끝나면 컨테이너·네트워크·검사 이미지 태그를 지운다.
-# 비공개 의존성(sandcorp-authkit)은 BuildKit ssh로 받는다: GIT_SSH_KEY(Jenkins)가 있으면 임시 ssh-agent, 없으면 내 agent.
+# 비공개 의존성(sandcorp-authkit)은 BuildKit ssh로 받는다: GIT_SSH_KEY가 있으면 임시 ssh-agent, 없으면 내 agent.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 

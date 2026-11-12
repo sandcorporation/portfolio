@@ -6,19 +6,15 @@
 //
 // 파이프라인은 Jenkins 공용 라이브러리 sandcorp(sandcorporation/jenkins-shared)의 sandcorpDeploy에 있다(README 「승격 브랜치에서 배포」).
 // 여기에는 이 저장소가 넘기는 값만 둔다. 이 저장소 사정은 docs/ops/offhost-build.md. 파라미터:
-//   BUILD_ON=jenkins  비상 길: Actions가 못 구울 때 oracle 밖(macos, 못 잡으면 home)에서 검사(check) 뒤 굽고 배포한다.
-//   ROLLBACK_SHA      비상 되돌리기: 빌드 없이 그 sha의 이미지로 배포. production은 그대로 — 정석은 main에 revert PR.
+//   ROLLBACK_SHA      비상 되돌리기: Actions가 GHCR에 게시한 sha 이미지로 배포. production은 그대로 — 정석은 main에 revert PR.
 @Library('sandcorp') _
 
 sandcorpDeploy(
   name: 'Sandcorp',
   image: 'ghcr.io/sandcorporation/portfolio',
   imageVar: 'PORTFOLIO_IMAGE',
-  sourceUrl: 'https://github.com/sandcorporation/portfolio',
   deployFrom: 'production',
   imageWaitHint: 'https://github.com/sandcorporation/portfolio/actions/workflows/release.yml',
-  buildSsh: true,                       // BUILD_ON=jenkins 비상 길: sandcorp-authkit을 ssh로
-  check: 'bash scripts/ci/check.sh',    // BUILD_ON=jenkins 비상 길에서만: make check를 도커 안에서, 실패하면 굽지 않는다
   composeProject: 'portfolio',
   composeFiles: ['docker-compose.prod.yml', 'docker-compose.oracle.yml'],
   preServices: ['mysql'],               // 로컬 확인용 compose에만 있다. 운영 DB(HeatWave)는 compose 밖
