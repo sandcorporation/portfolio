@@ -13,7 +13,6 @@ sandcorpDeploy(
   name: 'Sandcorp',
   image: 'ghcr.io/sandcorporation/portfolio',
   imageVar: 'PORTFOLIO_IMAGE',
-  sourceUrl: 'https://github.com/sandcorporation/portfolio',
   deployFrom: 'production',
   imageWaitHint: 'https://github.com/sandcorporation/portfolio/actions/workflows/release.yml',
   composeProject: 'portfolio',
