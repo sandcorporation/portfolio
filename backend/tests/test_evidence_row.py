@@ -194,6 +194,7 @@ def test_the_home_shell_carries_the_row(
     make("a", 1, status="live")
     row = SiteProfile.load()
     row.career_started_on = date(2020, 1, 1)
+    row.response_promise = "영업일 1일"  # blank by default since issue 15
     row.save()
 
     data = page_data(client.get("/").content.decode())

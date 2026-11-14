@@ -79,8 +79,9 @@ class ProfilePatch(BaseModel):
         default="",
         max_length=40,
         description=(
-            "First-reply promise on the home evidence row, e.g. 영업일 1일 (shown as 「1일」 "
-            'with 「영업일 기준」). "" hides it.'
+            'First-reply promise on the home evidence row. Leave it "" (the default, which hides '
+            "the tile): we do not promise a reply deadline (2026-11-14). A value starting with "
+            "영업일 is drawn as the rest with 「영업일 기준」."
         ),
     )
     business_name: str = Field(
