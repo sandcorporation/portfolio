@@ -194,8 +194,11 @@ class SiteProfile(models.Model):
         "첫 회신 약속",
         max_length=40,
         blank=True,
-        default="영업일 1일",
-        help_text="홈 증거 행의 「첫 회신」 문구(예: 영업일 1일). 비우면 그 항목을 숨긴다.",
+        default="",
+        help_text=(
+            "홈 증거 행의 「첫 회신」 문구. 기본은 비움(숨김) — "
+            "답변 기한을 약속하지 않는다(2026-11-14 대표 결정)."
+        ),
     )
     business_name = models.CharField(
         "상호",

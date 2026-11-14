@@ -203,7 +203,7 @@ export function HomePage({ data }: { data: HomeData }) {
                   <h2 id="home-inquiry" className="page-section-title">
                     문의·제안
                   </h2>
-                  <p className="inquiry-lead">웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동 문의를 받습니다. 남겨 주시면 영업일 1일 안에 답합니다.</p>
+                  <p className="inquiry-lead">웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동 문의를 받습니다. 남겨 주시면 확인하는 대로 답합니다.</p>
                   <InquiryEmail email={contact.email} />
                   <p className="inquiry-links">
                     <a href={GITHUB_URL} {...linkAttrs(GITHUB_URL)}>

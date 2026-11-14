@@ -131,7 +131,7 @@ def test_the_server_html_draws_every_section_cases_and_one_quote_button(
         '#home-inquiry">견적 문의 →</a>' in html
     )
     assert 'aria-current="page">서비스</a>' in html
-    text = re.sub(r"<[^>]+>", "", html).replace("20만 원부터", "")
+    text = re.sub(r"<[^>]+>", "", html).replace("20만 원부터(부가세 별도)", "")
     assert not re.search(r"\d[\d,]*\s*만?\s*원", text)  # only the starting price (issue 13)
 
 

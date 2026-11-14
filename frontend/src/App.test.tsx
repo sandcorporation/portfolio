@@ -170,7 +170,7 @@ test("히어로 왼쪽 소개 문장과 문의 응답 약속 문구가 이슈 �
       "웹·AI 제품을 기획부터 운영까지 한 사람이 맡는 1인 개발사. 재하청 없이 대표가 직접 합니다.",
     ),
   ).toHaveClass("hero-lead");
-  expect(screen.getByText("웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동 문의를 받습니다. 남겨 주시면 영업일 1일 안에 답합니다.")).toBeInTheDocument();
+  expect(screen.getByText("웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동 문의를 받습니다. 남겨 주시면 확인하는 대로 답합니다.")).toBeInTheDocument();
 });
 
 const availability = { text: "새 프로젝트 받는 중", updated: "2026.10" };
