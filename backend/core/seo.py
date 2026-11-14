@@ -89,8 +89,8 @@ def work_jsonld(
 
 
 def service_jsonld(*, site_url: str, url: str, offering: Offering) -> dict[str, object]:
-    """A service page (issue 163) as a Service offered by the home's Organization. No price:
-    the pages quote none."""
+    """A service page (issue 163) as a Service offered by the home's Organization. No price
+    (`offers`): the pages quote only a starting price in prose (issue 13), not put here yet."""
     data: dict[str, object] = {
         "@context": CONTEXT,
         "@type": "Service",
