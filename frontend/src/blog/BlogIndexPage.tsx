@@ -2,9 +2,11 @@ import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
 import { PostRows } from "./PostRows";
 import { blogIndexHref, type BlogIndexData } from "./types";
 
-/** /blog: the newest-first list, a mono tab per tag, pages of twenty. */
+/** /blog: the recommended posts or every post (issue 21), a mono tab per tag on the latter,
+ * newest first, pages of twenty. */
 export function BlogIndexPage({ data }: { data: BlogIndexData }) {
-  const { tag, page, pages } = data;
+  const { tag, page, pages, view } = data;
+  const allHref = blogIndexHref("", 1, "all");
   return (
     <>
       <Masthead>
@@ -20,9 +22,19 @@ export function BlogIndexPage({ data }: { data: BlogIndexData }) {
           <h1 id="blog-title" className="page-section-title">
             만들면서 남긴 기록
           </h1>
-          {data.tags.length > 0 && (
+          {data.has_featured && (
+            <nav className="view-tabs" aria-label="보기">
+              <a href="/blog" aria-current={view === "featured" ? "page" : undefined}>
+                추천
+              </a>
+              <a href={allHref} aria-current={view === "all" ? "page" : undefined}>
+                전체 기록
+              </a>
+            </nav>
+          )}
+          {data.tags.length > 0 && view === "all" && (
             <nav className="tag-filter" aria-label="태그">
-              <a href={blogIndexHref("")} aria-current={tag === "" ? "page" : undefined}>
+              <a href={allHref} aria-current={tag === "" ? "page" : undefined}>
                 전체
               </a>
               {data.tags.map((item) => (
@@ -45,11 +57,11 @@ export function BlogIndexPage({ data }: { data: BlogIndexData }) {
           )}
           {pages > 1 && (
             <nav className="pager" aria-label="쪽">
-              {page > 1 ? <a href={blogIndexHref(tag, page - 1)}>← 이전</a> : <span aria-hidden="true" />}
+              {page > 1 ? <a href={blogIndexHref(tag, page - 1, view)}>← 이전</a> : <span aria-hidden="true" />}
               <span>
                 {page} / {pages}
               </span>
-              {page < pages ? <a href={blogIndexHref(tag, page + 1)}>다음 →</a> : <span aria-hidden="true" />}
+              {page < pages ? <a href={blogIndexHref(tag, page + 1, view)}>다음 →</a> : <span aria-hidden="true" />}
             </nav>
           )}
         </section>

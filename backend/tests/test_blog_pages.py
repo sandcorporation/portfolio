@@ -5,6 +5,7 @@ import json
 import re
 import time
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -19,6 +20,7 @@ from services.errors import NotFound
 
 pytestmark = pytest.mark.django_db
 
+FRONTEND_BLOG = Path(__file__).resolve().parents[2] / "frontend" / "src" / "blog"
 NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 
 
@@ -302,3 +304,98 @@ def test_home_data_carries_tip_pool_and_server_html_draws_three(db: None) -> Non
     html = str(home_body(data))
     assert html.count('href="/tips/tip-') == 3
     assert "팁 더 보기" in html
+
+
+# --- recommended posts (issue 21) ---
+
+
+def recommend(*slugs: str) -> None:
+    BlogPost.objects.filter(slug__in=slugs).update(featured=True)
+
+
+def slugs_of(data: dict[str, object]) -> list[str]:
+    return [cast(str, p["slug"]) for p in cast(list[dict[str, object]], data["posts"])]
+
+
+def test_blog_shows_recommended_posts_and_all_of_them_on_the_all_view(client: Client) -> None:
+    post("plain", ago_hours=1, tags="운영")
+    post("pick", ago_hours=2, tags="운영")
+    post("pick-draft", published=False)
+    recommend("pick", "pick-draft")
+
+    featured_html = client.get("/blog").content.decode()
+    all_html = client.get("/blog?view=all").content.decode()
+    featured, every = page_data(featured_html), page_data(all_html)
+
+    assert (featured["view"], featured["has_featured"]) == ("featured", True)
+    assert slugs_of(featured) == ["pick"]
+    assert meta_content(featured_html, "robots") == "index, follow"
+    assert (every["view"], slugs_of(every)) == ("all", ["plain", "pick"])
+    assert meta_content(all_html, "robots") == "noindex, follow"
+    # server HTML: the two tabs (same words as BlogIndexPage.tsx); tags only on the all view
+    assert '<nav class="view-tabs" aria-label="보기">' in featured_html
+    assert '<a href="/blog" aria-current="page">추천</a>' in featured_html
+    assert '<a href="/blog?view=all">전체 기록</a>' in featured_html
+    assert 'aria-label="태그"' not in featured_html
+    assert '<a href="/blog?view=all" aria-current="page">전체 기록</a>' in all_html
+    assert 'aria-label="태그"' in all_html
+    tsx = (blog_index_tsx := FRONTEND_BLOG / "BlogIndexPage.tsx").read_text()
+    for word in ('aria-label="보기"', "추천", "전체 기록", 'className="view-tabs"'):
+        assert word in tsx, (blog_index_tsx, word)
+
+
+def test_blog_without_recommended_posts_shows_all_and_no_tabs(client: Client) -> None:
+    post("a")
+
+    html = client.get("/blog").content.decode()
+    data = page_data(html)
+
+    assert (data["view"], data["has_featured"], slugs_of(data)) == ("all", False, ["a"])
+    assert "view-tabs" not in html
+    assert meta_content(html, "robots") == "index, follow"
+
+
+def test_a_tag_means_the_all_view_and_an_unknown_view_is_404(client: Client) -> None:
+    post("plain", tags="운영")
+    post("pick", ago_hours=2)
+    recommend("pick")
+
+    data = page_data(client.get("/blog?tag=운영").content.decode())
+
+    assert (data["view"], slugs_of(data)) == ("all", ["plain"])
+    assert client.get("/blog?view=new").status_code == 404
+
+
+def test_recommended_view_pages_keep_their_view() -> None:
+    for n in range(3):
+        post(f"p{n}", ago_hours=n + 1)
+    recommend("p0", "p1", "p2")
+
+    listing = blog.public_listing(page=2, per_page=2)
+
+    assert listing is not None
+    assert (listing["view"], listing["pages"], listing["total"]) == ("featured", 2, 3)
+    assert blog.public_listing(page=3, per_page=2) is None
+
+
+def test_home_shows_recommended_posts_or_the_newest_while_none_is(client: Client) -> None:
+    for n in range(4):
+        post(f"p{n}", ago_hours=n + 1)
+
+    assert slugs_of(page_data(client.get("/").content.decode())) == ["p0", "p1", "p2"]
+
+    recommend("p3")
+    assert slugs_of(page_data(client.get("/").content.decode())) == ["p3"]
+
+
+def test_feed_and_sitemap_keep_every_published_post(client: Client) -> None:
+    post("plain")
+    post("pick", ago_hours=2)
+    recommend("pick")
+
+    feed = client.get("/blog/feed.xml").content.decode()
+    sitemap = client.get("/sitemap.xml").content.decode()
+
+    for slug in ("plain", "pick"):
+        assert f"/blog/{slug}" in feed
+        assert f"/blog/{slug}" in sitemap

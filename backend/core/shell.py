@@ -638,16 +638,22 @@ def _publisher() -> dict[str, str]:
 
 
 def blog_index(request: HttpRequest) -> HttpResponse:
-    """/blog: the newest-first list, `?tag=` narrows it, `?page=` pages it (20 per page)."""
+    """/blog: the recommended posts (issue 21), `?view=all` every post newest first, `?tag=`
+    narrows that, `?page=` pages it (20 per page)."""
     tag = request.GET.get("tag", "").strip()
+    view = request.GET.get("view", "")
+    if view not in ("", "all"):
+        raise Http404
     try:
         page = int(request.GET.get("page", "1"))
     except ValueError:
         raise Http404 from None
-    listing = blog.public_listing(tag, page)
+    listing = blog.public_listing(tag, page, view="all" if view else "featured")
     if listing is None:
         raise Http404
-    narrowed = bool(tag) or page > 1  # the same posts as /blog: keep them out of the index
+    # Narrowed or another view of the same posts: keep them out of the index (the posts are in
+    # the sitemap either way).
+    narrowed = bool(tag) or page > 1 or bool(view)
     title = f"{tag} · {BLOG_TITLE}" if tag else BLOG_TITLE
     data = {**listing, "availability": site_availability(), "business": site_business()}
     return render_shell(

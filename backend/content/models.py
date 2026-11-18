@@ -416,6 +416,12 @@ class BlogPost(models.Model):
         blank=True,
         help_text="첫 발행 때 채워지고 그 뒤 유지된다(목록 순서).",
     )
+    featured = models.BooleanField(
+        "추천",
+        default=False,
+        db_default=False,
+        help_text="/blog 「추천」 탭과 홈 「기록」에 나온다(issue 21).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

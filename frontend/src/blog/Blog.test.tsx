@@ -21,6 +21,8 @@ const index = (extra: Partial<BlogIndexData> = {}): BlogIndexData => ({
     { tag: "도구", count: 1 },
   ],
   tag: "",
+  view: "all",
+  has_featured: false,
   page: 1,
   pages: 1,
   total: 2,
@@ -166,7 +168,7 @@ test("/blog는 글 행과 태그 탭을 보여 주고 지금 태그를 표시한
   const tags = screen.getByRole("navigation", { name: "태그" });
   expect(within(tags).getByRole("link", { name: "도구" })).toHaveAttribute("aria-current", "page");
   expect(within(tags).getByRole("link", { name: "운영" })).toHaveAttribute("href", "/blog?tag=%EC%9A%B4%EC%98%81");
-  expect(within(tags).getByRole("link", { name: "전체" })).toHaveAttribute("href", "/blog");
+  expect(within(tags).getByRole("link", { name: "전체" })).toHaveAttribute("href", "/blog?view=all");
   expect(screen.getByRole("link", { name: /제목 a →/ })).toHaveAttribute("href", "/blog/a");
 });
 
@@ -182,6 +184,37 @@ test("/blog 쪽 이동은 태그를 지키고 처음·끝에서는 없는 쪽으
 
   rerender(<App path="/blog" data={index({ page: 1, pages: 1 })} />);
   expect(screen.queryByRole("navigation", { name: "쪽" })).toBeNull();
+});
+
+test("추천 글이 있으면 /blog는 추천·전체 기록 탭을 두고, 추천 탭에서는 태그 탭을 감춘다", () => {
+  const { rerender } = render(
+    <App path="/blog" data={index({ view: "featured", has_featured: true, page: 2, pages: 3 })} />,
+  );
+
+  const views = screen.getByRole("navigation", { name: "보기" });
+  expect(within(views).getByRole("link", { name: "추천" })).toHaveAttribute("aria-current", "page");
+  expect(within(views).getByRole("link", { name: "추천" })).toHaveAttribute("href", "/blog");
+  expect(within(views).getByRole("link", { name: "전체 기록" })).toHaveAttribute("href", "/blog?view=all");
+  expect(screen.queryByRole("navigation", { name: "태그" })).toBeNull();
+  const pager = screen.getByRole("navigation", { name: "쪽" });
+  expect(within(pager).getByRole("link", { name: "다음 →" })).toHaveAttribute("href", "/blog?page=3");
+
+  rerender(<App path="/blog" data={index({ view: "all", has_featured: true, page: 2, pages: 3 })} />);
+  expect(within(screen.getByRole("navigation", { name: "보기" })).getByRole("link", { name: "전체 기록" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(screen.getByRole("navigation", { name: "태그" })).toBeInTheDocument();
+  expect(within(screen.getByRole("navigation", { name: "쪽" })).getByRole("link", { name: "다음 →" })).toHaveAttribute(
+    "href",
+    "/blog?view=all&page=3",
+  );
+});
+
+test("추천 글이 없으면 /blog에 보기 탭이 없다", () => {
+  render(<App path="/blog" data={index()} />);
+
+  expect(screen.queryByRole("navigation", { name: "보기" })).toBeNull();
 });
 
 test("/blog에 글이 없으면 빈 안내를 보여 준다", () => {

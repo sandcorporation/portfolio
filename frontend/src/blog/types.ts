@@ -23,6 +23,10 @@ export interface BlogIndexData {
   tags: TagCount[];
   /** "" for all posts */
   tag: string;
+  /** "featured" = /blog (recommended only), "all" = /blog?view=all; a tag means "all" (issue 21) */
+  view: BlogView;
+  /** false: nothing is recommended, so /blog shows every post and there are no tabs */
+  has_featured: boolean;
   page: number;
   pages: number;
   total: number;
@@ -58,10 +62,14 @@ export function isBlogPostData(value: unknown): value is BlogPostData {
 
 export const blogPath = (slug: string) => `/blog/${slug}`;
 
-/** `/blog` with the filter and page the list is on (the first page and "all" leave no query). */
-export function blogIndexHref(tag: string, page = 1): string {
+export type BlogView = "featured" | "all";
+
+/** `/blog` with the view, filter and page the list is on (the recommended first page leaves no
+ * query; a tag already means the "all" view). Mirrors `blog_index_href` in core/public_html.py. */
+export function blogIndexHref(tag: string, page = 1, view: BlogView = "featured"): string {
   const query = new URLSearchParams();
   if (tag) query.set("tag", tag);
+  if (view === "all" && !tag) query.set("view", "all");
   if (page > 1) query.set("page", String(page));
   const text = query.toString();
   return text ? `/blog?${text}` : "/blog";
