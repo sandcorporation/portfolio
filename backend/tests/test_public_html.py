@@ -285,7 +285,7 @@ def test_home_every_external_link_opens_in_new_tab(client: Client) -> None:
     internal = [(h, rest) for h, rest in anchors if not public_html.is_external(h)]
 
     hosts = {h.split("/")[2] for h, _ in external}
-    assert hosts == {"news.sandcorp.co.kr", "github.com"}
+    assert hosts == {"news.sandcorp.co.kr", "github.com", "auth.sandcorp.co.kr"}  # footer, #17
     assert (
         sum(h.startswith("https://github.com") for h, _ in external) >= 3
     )  # masthead, footer, inquiry

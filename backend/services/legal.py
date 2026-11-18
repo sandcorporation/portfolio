@@ -31,6 +31,10 @@ GOOGLE_PRIVACY_URL = "https://policies.google.com/privacy"
 # The shared Sandcorp document on error records (privacy-and-terms PR #7, issue 237).
 ERROR_RECORDS_URL = "https://sandcorporation.github.io/privacy-and-terms/errors/"
 KISA_URL = "https://privacy.kisa.or.kr"
+# The Sandcorp account's own documents (issue 17, Google OAuth brand verification): the public
+# footers (brand/Masthead.tsx SiteFooter, _footer.html) and the intro below link them.
+ACCOUNT_PRIVACY_URL = "https://auth.sandcorp.co.kr/legal/privacy"
+ACCOUNT_TERMS_URL = "https://auth.sandcorp.co.kr/legal/terms"
 
 # The owner approved this sentence word for word (issue 211); change it only with a new approval.
 SHORTS_PLAYER_NOTICE = (
@@ -88,13 +92,18 @@ class Section(TypedDict):
     blocks: list[Block]
 
 
+class TextPart(TypedDict):
+    text: str
+    href: str  # "" for plain text
+
+
 class Policy(TypedDict):
     """#page-data["policy"] of the shell. Mirrored by frontend/src/legal/types.ts."""
 
     title: str
     effective_on: str  # 「2026년 11월 4일」
     summary: list[str]  # the box on top
-    intro: str
+    intro: list[TextPart]  # one paragraph; a part with an href is a link
     operator: str  # the one line: 상호 · 대표 · 사업자등록번호 · 문의
     sections: list[Section]
 
@@ -391,11 +400,19 @@ def policy() -> Policy:
             "운영하는 국내 서버로 보내 90일 보관합니다. "
             "광고·마케팅에 쓰지 않으며, 누구에게도 팔거나 넘기지 않습니다.",
         ],
-        "intro": (
-            "이 문서는 샌드코프 회사 사이트(sandcorp.co.kr, 이하 「사이트」)가 개인정보를 어떻게 "
-            "모으고 쓰는지 설명합니다. Sandcorp 계정(auth.sandcorp.co.kr)과 샌드코프의 다른 "
-            "서비스는 각 서비스의 문서를 따릅니다."
-        ),
+        "intro": [
+            {
+                "text": "이 문서는 샌드코프 회사 사이트(sandcorp.co.kr, 이하 「사이트」)가 "
+                "개인정보를 어떻게 모으고 쓰는지 설명합니다. ",
+                "href": "",
+            },
+            {"text": "Sandcorp 계정", "href": ACCOUNT_PRIVACY_URL},
+            {
+                "text": "(auth.sandcorp.co.kr)과 샌드코프의 다른 서비스는 각 서비스의 문서를 "
+                "따릅니다.",
+                "href": "",
+            },
+        ],
         "operator": (
             f"운영자: 개인사업자 {OPERATOR_NAME} · 대표 {OPERATOR_REPRESENTATIVE} · "
             f"사업자등록번호 {OPERATOR_NUMBER} · 문의 {CONTACT_EMAIL}"

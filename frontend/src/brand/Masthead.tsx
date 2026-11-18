@@ -80,6 +80,9 @@ export function SiteMeta({
 
 /** The privacy policy (issue 201), linked from every footer. */
 export const PRIVACY_PATH = "/privacy";
+/** The Sandcorp account's documents (ACCOUNT_*_URL in backend/services), in every footer. */
+export const ACCOUNT_PRIVACY_URL = "https://auth.sandcorp.co.kr/legal/privacy";
+export const ACCOUNT_TERMS_URL = "https://auth.sandcorp.co.kr/legal/terms";
 
 export const FORESIGHT_NAV_URL = "https://news.sandcorp.co.kr/?utm_source=sandcorp&utm_medium=nav";
 
@@ -145,6 +148,12 @@ export function SiteFooter({ business }: { business?: Business | null }) {
           GitHub
         </a>
         <a href={PRIVACY_PATH}>개인정보처리방침</a>
+        <a href={ACCOUNT_PRIVACY_URL} {...linkAttrs(ACCOUNT_PRIVACY_URL)}>
+          계정 개인정보처리방침
+        </a>
+        <a href={ACCOUNT_TERMS_URL} {...linkAttrs(ACCOUNT_TERMS_URL)}>
+          계정 이용약관
+        </a>
       </p>
       <p className="site-footer-copy">© Sandcorp</p>
     </footer>

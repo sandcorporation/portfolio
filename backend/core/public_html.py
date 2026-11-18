@@ -44,7 +44,7 @@ from documents.blocks import (
     VideoBlock,
 )
 from documents.validation import JSON, InvalidDocument, validate_document
-from services import shorts
+from services import legal, shorts
 from services.blog import PostListing
 from services.home import HomeData
 from services.tips import TipListing
@@ -508,7 +508,14 @@ HOME_DESCRIPTION = (
 
 
 def _render(page: str, data: Mapping[str, object], **extra: object) -> SafeString:
-    context = {"data": data, "github_url": GITHUB_URL, "hero_lead": HERO_LEAD, **extra}
+    context = {
+        "data": data,
+        "github_url": GITHUB_URL,
+        "account_privacy_url": legal.ACCOUNT_PRIVACY_URL,
+        "account_terms_url": legal.ACCOUNT_TERMS_URL,
+        "hero_lead": HERO_LEAD,
+        **extra,
+    }
     return mark_safe(  # noqa: S308 - a Django template, autoescaped
         render_to_string(f"core/public/{page}.html", context)
     )
