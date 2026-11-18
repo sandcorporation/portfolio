@@ -27,13 +27,14 @@ services:
       SENTRY_DSN_FRONTEND: ${SENTRY_DSN_FRONTEND:-}
     ports:
       - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-18091}:8000"
-    # Hits /api/health (which round-trips to the database) with the first allowed host as Host header.
+    # Hits /api/health?scope=ready (database only — a dead worker must not take web out; Gatus watches
+    # the full /api/health, core/health.py) with the first allowed host as Host header.
     healthcheck:
       test:
         - CMD
         - python
         - -c
-        - "import os,urllib.request as u;h=os.environ.get('DJANGO_ALLOWED_HOSTS','localhost').split(',')[0].strip();u.urlopen(u.Request('http://127.0.0.1:8000/api/health',headers={'Host':h}),timeout=5)"
+        - "import os,urllib.request as u;h=os.environ.get('DJANGO_ALLOWED_HOSTS','localhost').split(',')[0].strip();u.urlopen(u.Request('http://127.0.0.1:8000/api/health?scope=ready',headers={'Host':h}),timeout=5)"
       interval: 60s
       timeout: 6s
       retries: 3
@@ -54,6 +55,18 @@ services:
       PORTFOLIO_IMAGE: ${PORTFOLIO_IMAGE:-}
       SENTRY_DSN: ${SENTRY_DSN_BACKEND:-}
     stop_grace_period: 2m  # SIGTERM lets the current PDF finish
+    # The heartbeat thread touches this file every 15 s while the loop turns (core/health.py).
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,sys,time;sys.exit(time.time()-os.path.getmtime('/tmp/pdf-worker-alive')>90)"
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
     cpus: 0.25
     mem_limit: 256m
     restart: unless-stopped
