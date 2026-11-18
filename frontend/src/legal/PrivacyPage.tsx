@@ -86,7 +86,17 @@ export function PrivacyPage({ data }: { data: PrivacyData }) {
                 <p key={line}>{line}</p>
               ))}
             </aside>
-            <p>{p.intro}</p>
+            <p className="privacy-intro">
+              {p.intro.map((part, i) =>
+                part.href ? (
+                  <a key={i} href={part.href} {...linkAttrs(part.href)}>
+                    {part.text}
+                  </a>
+                ) : (
+                  part.text
+                ),
+              )}
+            </p>
             <p className="privacy-operator">{p.operator}</p>
             {p.sections.map((s) => (
               <section key={s.id} aria-labelledby={`privacy-${s.id}`}>

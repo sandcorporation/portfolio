@@ -25,7 +25,8 @@ export interface Policy {
   title: string;
   effective_on: string;
   summary: string[];
-  intro: string;
+  /** One paragraph; a part with an href is a link. */
+  intro: { text: string; href: string }[];
   operator: string;
   sections: PolicySection[];
 }

@@ -7,7 +7,11 @@ const page = (): PrivacyData => ({
     title: "개인정보처리방침",
     effective_on: "2026년 11월 4일",
     summary: ["요약 하나", "요약 둘"],
-    intro: "이 문서는 …",
+    intro: [
+      { text: "이 문서는 … ", href: "" },
+      { text: "Sandcorp 계정", href: "https://auth.sandcorp.co.kr/legal/privacy" },
+      { text: "(auth.sandcorp.co.kr)과 …", href: "" },
+    ],
     operator: "운영자: 개인사업자 샌드코프(Sandcorp)",
     sections: [
       {
@@ -61,4 +65,25 @@ test("푸터에 개인정보처리방침 링크가 있다", () => {
 
   const footer = screen.getByRole("contentinfo");
   expect(within(footer).getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
+});
+
+test("푸터에 계정 개인정보처리방침·이용약관 링크가 새 탭으로 있다 (issue 17)", () => {
+  render(<App path="/privacy" data={page()} />);
+
+  const footer = screen.getByRole("contentinfo");
+  const privacy = within(footer).getByRole("link", { name: "계정 개인정보처리방침" });
+  expect(privacy).toHaveAttribute("href", "https://auth.sandcorp.co.kr/legal/privacy");
+  expect(privacy).toHaveAttribute("target", "_blank");
+  expect(within(footer).getByRole("link", { name: "계정 이용약관" })).toHaveAttribute(
+    "href",
+    "https://auth.sandcorp.co.kr/legal/terms",
+  );
+});
+
+test("머리말의 「Sandcorp 계정」은 계정 개인정보처리방침으로 간다 (issue 17)", () => {
+  render(<App path="/privacy" data={page()} />);
+
+  const link = screen.getByRole("link", { name: "Sandcorp 계정" });
+  expect(link).toHaveAttribute("href", "https://auth.sandcorp.co.kr/legal/privacy");
+  expect(link.closest("p")).toHaveTextContent("이 문서는 … Sandcorp 계정(auth.sandcorp.co.kr)과 …");
 });

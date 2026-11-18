@@ -110,6 +110,26 @@ def test_every_public_page_footer_links_the_policy(client: Client) -> None:
         html = root(client.get(path).content.decode())
         footer = html[html.index('<footer class="site-footer">') :]
         assert '<a href="/privacy">개인정보처리방침</a>' in footer, path
+        for href, label in [
+            (legal.ACCOUNT_PRIVACY_URL, "계정 개인정보처리방침"),
+            (legal.ACCOUNT_TERMS_URL, "계정 이용약관"),
+        ]:  # issue 17: Google OAuth brand verification looks for the account policy
+            assert (
+                f'<a href="{href}" target="_blank" rel="noopener noreferrer">{label}</a>' in footer
+            ), (path, label)
+
+
+def test_the_intro_links_the_account_policy(client: Client) -> None:
+    """Issue 17: 「Sandcorp 계정」 in the intro goes to the account's own policy."""
+    html = root(client.get("/privacy").content.decode())
+    intro = html[html.index('<p class="privacy-intro">') :]
+    intro = intro[: intro.index("</p>")]
+    assert (
+        f'<a href="{legal.ACCOUNT_PRIVACY_URL}" target="_blank" rel="noopener noreferrer">'
+        "Sandcorp 계정</a>(auth.sandcorp.co.kr)과 샌드코프의 다른 서비스는" in intro
+    )
+    assert legal.ACCOUNT_PRIVACY_URL == "https://auth.sandcorp.co.kr/legal/privacy"
+    assert legal.ACCOUNT_TERMS_URL == "https://auth.sandcorp.co.kr/legal/terms"
 
 
 def test_the_home_shorts_player_is_disclosed_with_the_approved_sentence(client: Client) -> None:
@@ -161,3 +181,8 @@ def test_fixed_text_matches_the_app_sources() -> None:
     assert 'PRIVACY_PATH = "/privacy"' in masthead
     assert "<a href={PRIVACY_PATH}>개인정보처리방침</a>" in masthead
     assert '<a href="/privacy">개인정보처리방침</a>' in footer
+    assert f'ACCOUNT_PRIVACY_URL = "{legal.ACCOUNT_PRIVACY_URL}"' in masthead
+    assert f'ACCOUNT_TERMS_URL = "{legal.ACCOUNT_TERMS_URL}"' in masthead
+    for label in ["계정 개인정보처리방침", "계정 이용약관", "privacy-intro"]:
+        assert label in masthead + page, label
+        assert label in footer + template, label
