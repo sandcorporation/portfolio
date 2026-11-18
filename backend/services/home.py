@@ -278,5 +278,6 @@ def home_page() -> HomePage:
 
 
 def recent_posts(limit: int = RECENT_POSTS) -> list[blog.PostCard]:
-    """The home page's newest blog posts (published only)."""
-    return blog.public_cards(limit=limit)
+    """The home page's newest recommended posts (issue 21); the newest published ones while no
+    post is recommended, so the section does not go empty."""
+    return blog.public_cards(limit=limit, featured_only=blog.has_featured())

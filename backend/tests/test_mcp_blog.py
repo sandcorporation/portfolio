@@ -78,3 +78,18 @@ def test_refusals_become_tool_errors(mcp: McpClient) -> None:
     assert "저장하지 않았습니다" in bad and "body.tabs[0].blocks[0]" in bad
     assert "없습니다" in refused(mcp, "get_post", {"slug": "missing"})
     assert "이미 쓰고 있습니다" in refused(mcp, "create_post", {"title": "x", "slug": slug})
+
+
+def test_a_post_is_recommended_and_unrecommended_through_update_post(
+    mcp: McpClient, client: Client
+) -> None:
+    post = ok(mcp, "create_post", {"title": "추천할 글", "featured": True})
+    assert post["featured"] is True
+    slug = post["slug"]
+    ok(mcp, "publish_post", {"slug": slug})
+    assert "추천할 글" in client.get("/blog").content.decode()
+
+    assert ok(mcp, "update_post", {"slug": slug, "featured": False})["featured"] is False
+    listed = cast(list[Data], ok(mcp, "list_posts", {})["items"])
+    assert [p["featured"] for p in listed if p["slug"] == slug] == [False]
+    assert ok(mcp, "update_post", {"slug": slug, "summary": "요약"})["featured"] is False

@@ -479,9 +479,13 @@ def bare_url(url: str) -> str:
     return re.split(r"[/?#]", url, maxsplit=1)[0]
 
 
-def blog_index_href(tag: str, page: int = 1) -> str:
-    """blog/types.ts `blogIndexHref`."""
-    query = {**({"tag": tag} if tag else {}), **({"page": str(page)} if page > 1 else {})}
+def blog_index_href(tag: str, page: int = 1, view: str = "featured") -> str:
+    """blog/types.ts `blogIndexHref`. A tag already means the "all" view."""
+    query = {
+        **({"tag": tag} if tag else {}),
+        **({"view": "all"} if view == "all" and not tag else {}),
+        **({"page": str(page)} if page > 1 else {}),
+    }
     return f"/blog?{urlencode(query)}" if query else "/blog"
 
 
@@ -552,12 +556,13 @@ def work_body(data: Mapping[str, object]) -> SafeString:
 
 def blog_index_body(listing: PostListing, data: Mapping[str, object]) -> SafeString:
     """/blog: `data` is `listing` plus the masthead's availability and the footer."""
-    tag, page = listing["tag"], listing["page"]
+    tag, page, view = listing["tag"], listing["page"], listing["view"]
     return _render(
         "blog_index",
         data,
-        prev_href=blog_index_href(tag, page - 1),
-        next_href=blog_index_href(tag, page + 1),
+        prev_href=blog_index_href(tag, page - 1, view),
+        next_href=blog_index_href(tag, page + 1, view),
+        all_href=blog_index_href("", 1, "all"),
     )
 
 

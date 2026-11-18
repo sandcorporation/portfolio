@@ -116,11 +116,22 @@ else:
 class BlogPostAdmin(_PostAdmin):
     """Posts are usually written through MCP; here the same fields, the document as JSON."""
 
-    list_display = ("title", "status", "published_at", "tags", "slug")
-    list_filter = ("status",)
+    list_display = ("title", "status", "featured", "published_at", "tags", "slug")
+    list_editable = ("featured",)
+    list_filter = ("status", "featured")
     search_fields = ("title", "slug", "tags")
     prepopulated_fields = {"slug": ("title",)}
-    fields = ("title", "slug", "summary", "cover", "tags", "status", "published_at", "body")
+    fields = (
+        "title",
+        "slug",
+        "summary",
+        "cover",
+        "tags",
+        "status",
+        "published_at",
+        "featured",
+        "body",
+    )
 
 
 if TYPE_CHECKING:

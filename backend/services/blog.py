@@ -42,6 +42,12 @@ type PostStatus = Literal["draft", "published"]
 # --- owner side: Pydantic in, Pydantic out ---
 
 
+FEATURED_HELP = (
+    "Recommended post (추천): shown on /blog's default 「추천」 tab and the home 「기록」 section; "
+    "every published post stays on 「전체 기록」 (/blog?view=all), the RSS feed and the sitemap."
+)
+
+
 class PostSummary(BaseModel):
     id: int
     slug: str
@@ -51,6 +57,7 @@ class PostSummary(BaseModel):
     status: PostStatus
     published_at: datetime | None
     cover_media_id: int | None
+    featured: bool
     url: str
     updated_at: datetime
 
@@ -76,6 +83,7 @@ class NewPost(BaseModel):
     cover_media_id: int | None = Field(
         default=None, description="Id of a finished, public image upload; omit for no cover."
     )
+    featured: bool = Field(default=False, description=FEATURED_HELP)
     body: dict[str, object] = Field(
         default_factory=lambda: dict[str, object](empty_document()),
         description="Block document (see block_schema). Default: one empty tab 'main'.",
@@ -91,6 +99,7 @@ class PostPatch(BaseModel):
     summary: str = Field(default="", max_length=300)
     tags: list[str] = Field(default_factory=list)
     cover_media_id: int | None = None
+    featured: bool = Field(default=False, description=FEATURED_HELP)
     body: dict[str, object] = Field(
         default_factory=dict, description="Whole block document (see block_schema)."
     )
@@ -106,6 +115,7 @@ def _summary_fields(post: BlogPost) -> dict[str, object]:
         "status": post.status,
         "published_at": post.published_at,
         "cover_media_id": post.cover_id,
+        "featured": post.featured,
         "url": f"/blog/{post.slug}",
         "updated_at": post.updated_at,
     }
@@ -199,6 +209,7 @@ def create_post(new: NewPost) -> PostOut:
         summary=new.summary,
         tags=", ".join(clean_tags(new.tags)),
         cover=cover_media(new.cover_media_id),
+        featured=new.featured,
         body=_body(new.body),
     )
     try:
@@ -221,6 +232,8 @@ def update_post(slug: str, patch: PostPatch) -> PostOut:
         post.tags = ", ".join(clean_tags(patch.tags))
     if "cover_media_id" in given:
         post.cover = cover_media(patch.cover_media_id)
+    if "featured" in given:
+        post.featured = patch.featured
     if "body" in given:
         post.body = _body(patch.body)
     post.save()
@@ -323,10 +336,19 @@ def card_of(post: BlogPost) -> PostCard:
     )
 
 
-def public_cards(limit: int | None = None, tag: str = "") -> list[PostCard]:
-    """Published posts, newest first (optionally one tag's, at most `limit`)."""
+def has_featured() -> bool:
+    return _published().filter(featured=True).exists()
+
+
+def public_cards(
+    limit: int | None = None, tag: str = "", *, featured_only: bool = False
+) -> list[PostCard]:
+    """Published posts, newest first (optionally one tag's or only the recommended ones, at most
+    `limit`)."""
     tag = tag.strip()
     query = _published().select_related("cover")
+    if featured_only:
+        query = query.filter(featured=True)
     if tag:  # the column holds "a, b": narrow in SQL, then match whole tags
         posts = [p for p in query.filter(tags__contains=tag) if _has_tag(p, tag)]
         posts = posts if limit is None else posts[: max(limit, 0)]
@@ -437,22 +459,37 @@ def public_tags() -> list[TagCount]:
 PAGE_SIZE = 20
 
 
+View = Literal["featured", "all"]
+
+
 class PostListing(TypedDict):
     """For /blog (#75): one page of the newest-first list, the tags to filter by and which one is
-    on. Mirrored by frontend/src/blog/types.ts."""
+    on. Mirrored by frontend/src/blog/types.ts.
+
+    `view` (issue 21): "featured" (/blog, recommended posts only) or "all" (/blog?view=all, every
+    published post; a tag narrows this one). With no recommended post /blog is "all" and
+    `has_featured` is false, so the screens draw no tabs."""
 
     posts: list[PostCard]
     tags: list[TagCount]
     tag: str  # "" for all posts
+    view: View
+    has_featured: bool
     page: int  # 1-based
     pages: int  # at least 1 (an empty list is one empty page)
     total: int
 
 
-def public_listing(tag: str = "", page: int = 1, per_page: int = PAGE_SIZE) -> PostListing | None:
-    """One page of the public list; None when `page` is past the last one (or below 1)."""
+def public_listing(
+    tag: str = "", page: int = 1, per_page: int = PAGE_SIZE, view: View = "featured"
+) -> PostListing | None:
+    """One page of the public list; None when `page` is past the last one (or below 1). A tag
+    always means the "all" view; "featured" falls back to "all" when nothing is recommended."""
     tag = tag.strip()
-    cards = public_cards(tag=tag)
+    featured = has_featured()
+    if tag or not featured:
+        view = "all"
+    cards = public_cards(tag=tag, featured_only=view == "featured")
     pages = max(1, -(-len(cards) // per_page))
     if not 1 <= page <= pages:
         return None
@@ -461,6 +498,8 @@ def public_listing(tag: str = "", page: int = 1, per_page: int = PAGE_SIZE) -> P
         posts=cards[start : start + per_page],
         tags=public_tags(),
         tag=tag,
+        view=view,
+        has_featured=featured,
         page=page,
         pages=pages,
         total=len(cards),

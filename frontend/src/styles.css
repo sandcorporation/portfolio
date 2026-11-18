@@ -138,6 +138,7 @@ img {
 .gallery-prev,
 .gallery-next,
 .tag-filter,
+.view-tabs,
 .pager,
 .post-nav-label,
 .contact dt {
@@ -1574,6 +1575,31 @@ h3.block-heading {
 }
 
 /* /blog: tag tabs and pages */
+/* /blog 「추천」·「전체 기록」 (issue 21) */
+.view-tabs {
+  display: flex;
+  gap: var(--space-6);
+  margin: 0 0 var(--space-5);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.view-tabs a {
+  padding: var(--space-3) 0;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.view-tabs a:hover,
+.view-tabs a[aria-current] {
+  color: var(--color-ink);
+}
+
+.view-tabs a[aria-current] {
+  border-bottom-color: var(--color-ink);
+}
+
 .tag-filter {
   display: flex;
   flex-wrap: wrap;
