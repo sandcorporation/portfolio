@@ -45,6 +45,21 @@ jobs:
       UV_CACHE_DIR: /home/runner/.cache/uv
       PNPM_STORE: /home/runner/.cache/pnpm-store
     steps:
+      # 실험 갈래(exp/…)는 병합하지 않는다. 필수 검사인 이 잡에서 막아 main 규칙이 병합을 거절하게 한다.
+      # 갈래 이름은 env로만 넘긴다(스크립트에 직접 끼우지 않는다).
+      - name: 실험 갈래(exp/) 막기
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$HEAD_REF" in
+            exp/*)
+              echo "::error title=실험 갈래::exp/ 갈래는 실험용이라 병합하지 않는다 — 운영에 들이기로 정해졌으면 평소 갈래에서 PR을 다시 낸다."
+              exit 1
+              ;;
+          esac
+          echo "갈래 확인: 실험 갈래 아님"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
