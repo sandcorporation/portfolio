@@ -120,6 +120,8 @@ INQUIRY_RATE_LIMIT = 5  # browser submissions per IP per window
 INQUIRY_RATE_WINDOW_SECONDS = 60 * 60
 DISCORD_WEBHOOK_URL = env("DISCORD_WEBHOOK_URL")
 DISCORD_ALERTS_WEBHOOK_URL = env("DISCORD_ALERTS_WEBHOOK_URL")
+# Second alert destination (issue 26): operational alerts only, same body as Discord. Empty skips.
+ALERTS_NOTICE_WEBHOOK_URL = env("ALERTS_NOTICE_WEBHOOK_URL")
 
 # Foresight (news.sandcorp.co.kr) public JSON for the home page's recent-articles section (#74).
 # Empty turns the section off. The adapter caches 10 minutes in django_cache.
