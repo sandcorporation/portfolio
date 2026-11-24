@@ -112,6 +112,16 @@ def test_the_news_site_with_the_secret_names_its_site_and_kind(
     assert "news" in notifier.sent[0].title and "제안" in notifier.sent[0].title
 
 
+def test_each_inquiry_alert_title_carries_its_number_not_the_sender(
+    client: Client, notifier: FakeNotifier
+) -> None:
+    assert post(client, FORM) == 201
+    inquiry = Inquiry.objects.get()
+    title = notifier.sent[0].title
+    assert f"#{inquiry.pk}" in title
+    assert inquiry.name not in title and inquiry.contact not in title
+
+
 @pytest.mark.parametrize("headers", [{}, {"x-inquiry-secret": "wrong"}])
 def test_without_a_valid_secret_the_site_is_ignored(
     client: Client, notifier: FakeNotifier, secret: str, headers: dict[str, str]

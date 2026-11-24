@@ -67,7 +67,10 @@ def test_activity_skipped_when_only_alerts_webhook(posted: list[str]) -> None:
 
 
 @override_settings(
-    DISCORD_WEBHOOK_URL="", DISCORD_ALERTS_WEBHOOK_URL="", ALERTS_NOTICE_WEBHOOK_URL=""
+    DISCORD_WEBHOOK_URL="",
+    DISCORD_ALERTS_WEBHOOK_URL="",
+    ALERTS_NOTICE_WEBHOOK_URL="",
+    ACTIVITY_NOTICE_WEBHOOK_URL="",
 )
 def test_nothing_configured_skips() -> None:
     assert isinstance(get_notifier(), NoNotifier)
@@ -164,3 +167,77 @@ def test_second_destination_alone(bodies: dict[str, object]) -> None:
 
 def test_second_destination_times_out_sooner() -> None:
     assert NOTICE_TIMEOUT_SECONDS <= TIMEOUT_SECONDS
+
+
+# --- second activity destination (issue 28) ---
+
+ACTIVITY = Notification(title="새 신규 개발 #7 · sandcorp", text="본문")
+
+
+@override_settings(
+    DISCORD_WEBHOOK_URL="https://a/act",
+    DISCORD_ALERTS_WEBHOOK_URL="https://a/alert",
+    ALERTS_NOTICE_WEBHOOK_URL="https://b/notice",
+    ACTIVITY_NOTICE_WEBHOOK_URL="https://b/activity",
+)
+def test_activity_goes_to_both_with_same_body_and_alerts_keep_their_own(
+    bodies: dict[str, object],
+) -> None:
+    n = get_notifier()
+    assert n.send(ACTIVITY)
+    assert bodies["https://a/act"] == bodies["https://b/activity"] == discord_payload(ACTIVITY)
+    assert n.send(ALERT)
+    assert bodies["https://b/notice"] == discord_payload(ALERT)
+    assert bodies["https://b/activity"] == discord_payload(ACTIVITY)  # the alert did not go there
+
+
+@override_settings(
+    DISCORD_WEBHOOK_URL="https://a/act",
+    DISCORD_ALERTS_WEBHOOK_URL="",
+    ALERTS_NOTICE_WEBHOOK_URL="",
+    ACTIVITY_NOTICE_WEBHOOK_URL="",
+)
+def test_no_activity_destination_is_discord_only(bodies: dict[str, object]) -> None:
+    assert get_notifier().send(ACTIVITY)
+    assert set(bodies) == {"failing", "https://a/act"}
+
+
+@override_settings(
+    DISCORD_WEBHOOK_URL="https://a/act",
+    DISCORD_ALERTS_WEBHOOK_URL="",
+    ALERTS_NOTICE_WEBHOOK_URL="",
+    ACTIVITY_NOTICE_WEBHOOK_URL="https://b/activity",
+)
+def test_activity_destination_goes_when_discord_fails(bodies: dict[str, object]) -> None:
+    bodies["failing"] = {"https://a/act"}
+    assert get_notifier().send(ACTIVITY)
+    assert bodies["https://b/activity"] == discord_payload(ACTIVITY)
+
+
+@override_settings(
+    DISCORD_WEBHOOK_URL="https://a/act",
+    DISCORD_ALERTS_WEBHOOK_URL="",
+    ALERTS_NOTICE_WEBHOOK_URL="",
+    ACTIVITY_NOTICE_WEBHOOK_URL="https://b/activity",
+)
+def test_activity_destination_failure_does_not_break_discord(
+    bodies: dict[str, object], caplog: pytest.LogCaptureFixture
+) -> None:
+    bodies["failing"] = {"https://b/activity"}
+    assert get_notifier().send(ACTIVITY)
+    assert bodies["https://a/act"] == discord_payload(ACTIVITY)
+    assert "b/activity" not in caplog.text and "down" not in caplog.text
+
+
+@override_settings(
+    DISCORD_WEBHOOK_URL="",
+    DISCORD_ALERTS_WEBHOOK_URL="",
+    ALERTS_NOTICE_WEBHOOK_URL="",
+    ACTIVITY_NOTICE_WEBHOOK_URL="https://b/activity",
+)
+def test_activity_destination_alone(bodies: dict[str, object]) -> None:
+    n = get_notifier()
+    assert isinstance(n, DiscordNotifier)
+    assert n.send(ACTIVITY)
+    assert not n.send(ALERT)  # with no alert destinations, an alert falls back to nothing
+    assert set(bodies) == {"failing", "https://b/activity"}

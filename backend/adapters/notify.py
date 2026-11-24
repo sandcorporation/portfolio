@@ -6,8 +6,9 @@ know about inquiries. Sending never raises: a failed alert must not fail the req
 it. `send` returns whether the alert went out. The fake in `adapters/fake_notify.py` stands in
 for tests.
 
-Operational alerts (`severity="alert"`) also go, with the same Discord-shaped body, to a second
-alert destination (`ALERTS_NOTICE_WEBHOOK_URL`, issue 26) when it is set. The two posts run side
+Each notification also goes, with the same Discord-shaped body, to a second destination for its
+severity when that is set: alerts to `ALERTS_NOTICE_WEBHOOK_URL` (issue 26), activity to
+`ACTIVITY_NOTICE_WEBHOOK_URL` (issue 28). The two posts run side
 by side and are independent: one failing or hanging does not stop or delay the other beyond its
 own timeout. Neither URL is ever logged.
 """
@@ -25,7 +26,7 @@ from services import runtime_settings
 logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 5
-NOTICE_TIMEOUT_SECONDS = 3  # the second alert destination: shorter than Discord's
+NOTICE_TIMEOUT_SECONDS = 3  # the second destinations: shorter than Discord's
 # Discord's embed limits: title 256, description 4096, field name 256, field value 1024.
 _TITLE_MAX = 256
 _TEXT_MAX = 4096
@@ -97,10 +98,17 @@ def _post(url: str, payload: dict[str, object], timeout: float, what: str) -> bo
 
 
 class DiscordNotifier:
-    def __init__(self, activity_url: str, alerts_url: str = "", notice_url: str = "") -> None:
+    def __init__(
+        self,
+        activity_url: str,
+        alerts_url: str = "",
+        notice_url: str = "",
+        activity_notice_url: str = "",
+    ) -> None:
         self._activity_url = activity_url
         self._alerts_url = alerts_url
         self._notice_url = notice_url
+        self._activity_notice_url = activity_notice_url
 
     def _url_for(self, severity: Severity) -> str:
         if severity == "alert":
@@ -115,6 +123,10 @@ class DiscordNotifier:
             posts.append((url, TIMEOUT_SECONDS, "Discord alert"))
         if notification.severity == "alert" and self._notice_url:
             posts.append((self._notice_url, NOTICE_TIMEOUT_SECONDS, "second alert destination"))
+        if notification.severity == "activity" and self._activity_notice_url:
+            posts.append(
+                (self._activity_notice_url, NOTICE_TIMEOUT_SECONDS, "second activity destination")
+            )
         if not posts:
             return False
         if len(posts) == 1:
@@ -134,13 +146,15 @@ class NoNotifier:
 
 def get_notifier() -> Notifier:
     """Alerts go to DISCORD_ALERTS_WEBHOOK_URL, falling back to DISCORD_WEBHOOK_URL, and also to
-    ALERTS_NOTICE_WEBHOOK_URL; activity goes to DISCORD_WEBHOOK_URL only. All empty: NoNotifier."""
+    ALERTS_NOTICE_WEBHOOK_URL; activity goes to DISCORD_WEBHOOK_URL and ACTIVITY_NOTICE_WEBHOOK_URL.
+    All empty: NoNotifier."""
     activity = runtime_settings.get("DISCORD_WEBHOOK_URL")
     alerts = runtime_settings.get("DISCORD_ALERTS_WEBHOOK_URL")
     notice = runtime_settings.get("ALERTS_NOTICE_WEBHOOK_URL")
-    if not activity and not alerts and not notice:
+    activity_notice = runtime_settings.get("ACTIVITY_NOTICE_WEBHOOK_URL")
+    if not (activity or alerts or notice or activity_notice):
         return NoNotifier()
-    return DiscordNotifier(activity, alerts, notice)
+    return DiscordNotifier(activity, alerts, notice, activity_notice)
 
 
 def send_test(url: str) -> int | None:

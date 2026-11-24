@@ -104,6 +104,12 @@ REGISTRY: dict[str, Spec] = {
             _https_url,
             secret=True,
         ),
+        Spec(
+            "ACTIVITY_NOTICE_WEBHOOK_URL",
+            "둘째 알림 목적지(문의 접수·제안서 이벤트, Discord와 같은 본문). 비면 안 보냄.",
+            _https_url,
+            secret=True,
+        ),
         Spec("FORESIGHT_API_URL", "Foresight 최근 기사 JSON(홈 「최근 뉴스」). 비면 끔.", _url),
         Spec("FORESIGHT_STATS_URL", "Foresight 집계(홈 증거 행 「N건/일」). 비면 끔.", _url),
         Spec("METRICS_API_URL", "sandcorp-metrics 방문 집계(홈 숫자). 비면 끔.", _url),
