@@ -114,7 +114,8 @@ def notification_for(inquiry: Inquiry) -> Notification:
         fields.append(NotifyField("회사", inquiry.company, inline=True))
     fields.append(NotifyField("연락처", inquiry.contact))
     return Notification(
-        title=f"새 {inquiry.kind} · {inquiry.site}",
+        # The number keeps each inquiry's title distinct; never the sender's name or contact.
+        title=f"새 {inquiry.kind} #{inquiry.pk} · {inquiry.site}",
         text=inquiry.message,
         fields=tuple(fields),
     )
