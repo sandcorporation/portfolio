@@ -20,7 +20,7 @@ from typing import TypedDict
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
@@ -541,6 +541,23 @@ def cards() -> list[OfferingCard]:
     """The home's rows: visible services in `position` order."""
     rows = Service.objects.filter(is_visible=True).select_related("cover", "card")
     return [_card(s) for s in rows.order_by("position", "id")]
+
+
+class InquiryOption(TypedDict):
+    """A slug → 구분 pair for the inquiry form's `?inquiry=` preselect."""
+
+    slug: str
+    inquiry_kind: str
+
+
+def inquiry_options() -> list[InquiryOption]:
+    """Every service a visitor can arrive from — its card is shown or its page is published —
+    so a hidden-card service's 「견적 문의」 still preselects its 구분 (issue 37)."""
+    rows = Service.objects.filter(Q(is_visible=True) | Q(is_published=True))
+    return [
+        InquiryOption(slug=s.slug, inquiry_kind=s.inquiry_kind)
+        for s in rows.order_by("position", "id")
+    ]
 
 
 def page_stamps() -> list[tuple[str, date]]:

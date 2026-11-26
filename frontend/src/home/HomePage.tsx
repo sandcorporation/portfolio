@@ -212,7 +212,7 @@ export function HomePage({ data }: { data: HomeData }) {
                   </p>
                 </div>
                 <div className="inquiry-body">
-                  <InquiryForm offerings={services} />
+                  <InquiryForm offerings={data.inquiry_options ?? services} />
                 </div>
               </div>
             </section>

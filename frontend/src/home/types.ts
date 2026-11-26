@@ -88,6 +88,8 @@ export interface HomeData {
   evidence?: EvidenceItem[];
   /** The 「서비스」 rows (issue 163); empty/absent hides the section. */
   services?: OfferingCard[];
+  /** slug → 구분 of every service a visitor can arrive from, hidden cards included (issue 37). */
+  inquiry_options?: { slug: string; inquiry_kind: string }[];
   contact: { email: string; phone: string; address: string };
 }
 

@@ -93,6 +93,9 @@ class HomeData(TypedDict):
     business: Business | None  # None (all empty) leaves the footer line out
     evidence: list[EvidenceItem]  # the row under the hero; empty hides it (fewer than 2 items)
     services: list[offerings.OfferingCard]  # the 「서비스」 rows (issue 163); empty hides them
+    inquiry_options: list[
+        offerings.InquiryOption
+    ]  # slug → 구분 of every reachable service (issue 37)
 
 
 def relative_time(then: datetime, now: datetime) -> str:
@@ -273,6 +276,7 @@ def home_page() -> HomePage:
                 profile, portfolio, fetch_foresight_stats(), timezone.localdate(), stats
             ),
             services=offerings.cards(),
+            inquiry_options=offerings.inquiry_options(),
         ),
     )
 

@@ -82,3 +82,18 @@ test("알 수 없는 질의 값은 기본값을 쓴다", () => {
   expect(screen.getByLabelText("구분")).toHaveValue("신규 개발");
   window.history.pushState({}, "", "/");
 });
+
+test("카드에 없는 서비스의 slug도 구분을 미리 고르고, 같은 구분은 한 번만 낸다", () => {
+  window.history.pushState({}, "", "/?inquiry=hidden-one");
+  const options = [
+    { slug: "mcp-integration", inquiry_kind: "MCP 연동" },
+    { slug: "hidden-one", inquiry_kind: "MCP 연동" },
+    { slug: "hidden-two", inquiry_kind: "Claude Code 자동화" },
+  ];
+  render(<InquiryForm offerings={options} />);
+  const select = screen.getByLabelText("구분");
+  const values = Array.from(select.querySelectorAll("option")).map((o) => o.value);
+  expect(values).toEqual(["신규 개발", "유지보수", "MCP 연동", "Claude Code 자동화", "제안", "기타"]);
+  expect(select).toHaveValue("MCP 연동");
+  window.history.pushState({}, "", "/");
+});

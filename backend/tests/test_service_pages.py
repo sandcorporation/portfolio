@@ -471,3 +471,16 @@ def test_write_preview_publish_and_hide_a_service(mcp: McpClient, client: Client
     assert "inquiry_kind" in refused(
         mcp, "update_service", {"slug": "web-app", "inquiry_kind": "없는 구분"}
     )
+
+
+def test_home_inquiry_options_include_hidden_card_but_published_service(client: Client) -> None:
+    from content.models import Service
+
+    Service.objects.filter(slug=SLUGS[0]).update(is_visible=False, is_published=True)
+    data: dict[str, Any] = dict(page_data(client.get("/").content.decode()))
+    assert SLUGS[0] not in [c["slug"] for c in data["services"]]
+    kind = Service.objects.get(slug=SLUGS[0]).inquiry_kind
+    assert {"slug": SLUGS[0], "inquiry_kind": kind} in data["inquiry_options"]
+    Service.objects.filter(slug=SLUGS[1]).update(is_visible=False, is_published=False)
+    data = dict(page_data(client.get("/").content.decode()))
+    assert SLUGS[1] not in [o["slug"] for o in data["inquiry_options"]]
