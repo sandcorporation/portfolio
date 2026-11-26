@@ -965,8 +965,13 @@ h3.block-heading {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* a long value wraps inside its tile (390px: two columns); only the wide one-line row keeps it on one line */
+.evidence-row .kpi-card {
+  min-width: 0;
+}
+
 .evidence-row .kpi-value {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* five tiles are narrower than four: shrink the big numbers so 「38,523명」 fits one line */
@@ -993,6 +998,10 @@ h3.block-heading {
 
   .evidence-row {
     grid-template-columns: repeat(var(--evidence-count, 4), minmax(0, 1fr));
+  }
+
+  .evidence-row .kpi-value {
+    white-space: nowrap;
   }
 }
 
