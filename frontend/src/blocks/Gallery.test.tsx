@@ -68,3 +68,26 @@ test("갤러리는 한 장씩 원본 그대로 그리고 캡션을 이미지 아
   expect(img).not.toHaveAttribute("width");
   expect(img).not.toHaveAttribute("height");
 });
+
+test("뷰어에서 Tab·Shift+Tab은 창 안에서만 돈다", async () => {
+  const user = userEvent.setup();
+  renderGallery();
+
+  await user.click(screen.getAllByRole("button", { name: /크게 보기/ })[0] as HTMLElement);
+  const viewer = screen.getByRole("dialog", { name: "이미지 보기" });
+  const buttons = within(viewer).getAllByRole("button");
+  expect(buttons[0]).toHaveFocus();
+  const lastButton = buttons[buttons.length - 1] as HTMLElement;
+
+  for (let i = 0; i < buttons.length * 2 + 1; i += 1) {
+    await user.tab();
+    expect(viewer).toContainElement(document.activeElement as HTMLElement);
+  }
+  for (let i = 0; i < buttons.length * 2 + 1; i += 1) {
+    await user.tab({ shift: true });
+    expect(viewer).toContainElement(document.activeElement as HTMLElement);
+  }
+  (buttons[0] as HTMLElement).focus();
+  await user.tab({ shift: true });
+  expect(lastButton).toHaveFocus();
+});

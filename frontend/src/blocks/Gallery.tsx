@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Heading } from "./Heading";
 import { useMediaUrls } from "./media";
 import { useRenderMode } from "./mode";
@@ -59,6 +59,25 @@ export function Gallery({ block, anchor }: { block: GalleryBlock; anchor: string
   );
 }
 
+/** Keep Tab and Shift+Tab inside the dialog: wrap at either end (issue 38). */
+function trapTab(event: KeyboardEvent<HTMLElement>, root: HTMLElement | null) {
+  const items = Array.from(root?.querySelectorAll<HTMLElement>("button, [href], [tabindex]:not([tabindex='-1'])") ?? []);
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (!first || !last) return;
+  const active = document.activeElement;
+  if (!root?.contains(active)) {
+    event.preventDefault();
+    first.focus();
+  } else if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 export function Viewer({
   images,
   index,
@@ -74,6 +93,7 @@ export function Viewer({
   natural?: boolean;
 }) {
   const closeButton = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
   const image = images[index];
   const step = (by: number) => onIndex((index + by + images.length) % images.length);
 
@@ -83,6 +103,7 @@ export function Viewer({
 
   return (
     <div
+      ref={dialog}
       className={natural ? "gallery-viewer gallery-viewer-natural" : "gallery-viewer"}
       role="dialog"
       aria-modal="true"
@@ -91,6 +112,7 @@ export function Viewer({
         if (event.key === "Escape") onClose();
         else if (event.key === "ArrowRight") step(1);
         else if (event.key === "ArrowLeft") step(-1);
+        else if (event.key === "Tab") trapTab(event, dialog.current);
       }}
     >
       <div className="gallery-backdrop" onClick={onClose} />
