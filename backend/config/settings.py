@@ -68,6 +68,15 @@ TEMPLATES = [
     },
 ]
 
+
+def db_options(connect_timeout: str, read_timeout: str) -> dict[str, object]:
+    """mysqlclient options; read/write waits only when read_timeout > 0 (web only)."""
+    options: dict[str, object] = {"charset": "utf8mb4", "connect_timeout": int(connect_timeout)}
+    if int(read_timeout) > 0:
+        options["read_timeout"] = options["write_timeout"] = int(read_timeout)
+    return options
+
+
 # MySQL (OCI HeatWave in production, `make db` locally). The database is created with
 # utf8mb4 / utf8mb4_0900_as_cs so slugs, client codes and usernames compare case-sensitively,
 # as they did on Postgres. Django opens sessions in READ COMMITTED; keep it (the document-number
@@ -84,8 +93,9 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
         # A database that does not answer must fail in seconds, not at the OS default: gunicorn
         # kills a worker at 30s and the plain English 500 goes out instead of core/errors.py's page
-        # (issue 70). One failed connect ends the request, so the wait is this value once.
-        "OPTIONS": {"charset": "utf8mb4", "connect_timeout": int(env("DB_CONNECT_TIMEOUT", "3"))},
+        # (issue 70). connect_timeout covers new connections; DB_READ_TIMEOUT (web only, set by the
+        # Dockerfile CMD) covers a reused connection that stalls (issue 74).
+        "OPTIONS": db_options(env("DB_CONNECT_TIMEOUT", "3"), env("DB_READ_TIMEOUT", "0")),
         "TEST": {"CHARSET": "utf8mb4", "COLLATION": "utf8mb4_0900_as_cs"},
     }
 }
