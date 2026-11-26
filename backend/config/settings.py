@@ -82,7 +82,10 @@ DATABASES = {
         "PORT": env("DB_PORT", "3306"),
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": {"charset": "utf8mb4"},
+        # A database that does not answer must fail in seconds, not at the OS default: gunicorn
+        # kills a worker at 30s and the plain English 500 goes out instead of core/errors.py's page
+        # (issue 70). One failed connect ends the request, so the wait is this value once.
+        "OPTIONS": {"charset": "utf8mb4", "connect_timeout": int(env("DB_CONNECT_TIMEOUT", "3"))},
         "TEST": {"CHARSET": "utf8mb4", "COLLATION": "utf8mb4_0900_as_cs"},
     }
 }
