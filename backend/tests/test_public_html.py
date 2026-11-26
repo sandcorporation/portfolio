@@ -391,3 +391,29 @@ def test_server_html_uses_the_app_body_classes(tsx: str, classes: str) -> None:
         t.read_text() for t in (Path(public_html.__file__).parent / "templates").rglob("*.html")
     )
     assert f'class="{classes}"' in server
+
+
+def test_a_block_that_draws_nothing_has_no_contents_line() -> None:
+    document: dict[str, JSON] = {
+        "tabs": [
+            {
+                "id": "main",
+                "title": "본문",
+                "blocks": [
+                    {"id": "m", "type": "markdown", "title": "개요", "body": "본문"},
+                    {"id": "c", "type": "case-ref", "title": "빈 사례", "items": [{"item_id": 5}]},
+                    {
+                        "id": "g",
+                        "type": "gallery",
+                        "title": "빈 그림",
+                        "images": [{"media_id": 1, "alt": "a"}],
+                    },
+                ],
+            }
+        ]
+    }
+    html = public_html.document_html(document, "d-")
+
+    toc = html.split("</nav>")[0]
+    assert "개요" in toc
+    assert "빈 사례" not in html and "빈 그림" not in html

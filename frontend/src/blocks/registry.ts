@@ -36,6 +36,12 @@ const titled =
   (block: { title?: string | null }): TocTitle | null =>
     block.title ? { text: block.title, level } : null;
 
+/** A block that draws nothing (no filled case, no image with a url) has no contents line either. */
+const titledIf =
+  <B extends { title?: string | null }>(drawn: (block: B) => boolean) =>
+  (block: B): TocTitle | null =>
+    drawn(block) ? titled(3)(block) : null;
+
 export const registry: Registry = {
   cover: { Render: Cover },
   kpi: { Render: Kpi, toc: titled(3) },
@@ -46,8 +52,8 @@ export const registry: Registry = {
   table: { Render: Table, toc: titled(3) },
   callout: { Render: Callout },
   details: { Render: Details },
-  gallery: { Render: Gallery, toc: titled(3) },
-  "case-ref": { Render: CaseRef, toc: titled(3) },
+  gallery: { Render: Gallery, toc: titledIf((block) => block.images.some((image) => image.url)) },
+  "case-ref": { Render: CaseRef, toc: titledIf((block) => block.items.some((item) => item.case)) },
   "audio-compare": { Render: AudioCompare, toc: titled(3) },
   video: { Render: Video, toc: titled(3) },
   steps: { Render: Steps, toc: titled(3) },
