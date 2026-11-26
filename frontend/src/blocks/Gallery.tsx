@@ -116,7 +116,10 @@ export function Viewer({
       }}
     >
       <div className="gallery-backdrop" onClick={onClose} />
-      <figure className="gallery-figure">
+      <figure
+        className="gallery-figure"
+        {...(natural ? { tabIndex: 0, role: "group", "aria-label": `${image.alt || "이미지"} — 화살표 키로 스크롤` } : {})}
+      >
         <img src={image.url} alt={image.alt} onError={image.onError} />
         {image.caption && <figcaption>{image.caption}</figcaption>}
       </figure>
