@@ -94,7 +94,10 @@ test("상세는 제목과 본문 문서를 보여 주고 목록으로 돌아가�
   render(<App path="/work/voice" data={{ card: home.portfolio[0], body: exampleDocument }} />);
 
   expect(screen.getByRole("heading", { level: 1, name: "녹취 분석" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /포트폴리오 목록/ })).toHaveAttribute("href", "/");
+  expect(screen.getByRole("link", { name: /포트폴리오 목록/ })).toHaveAttribute(
+    "href",
+    "/#home-portfolio",
+  );
   expect(screen.getByRole("article")).toHaveTextContent("채권추심 녹취 분석 시스템 구축 제안");
 });
 
