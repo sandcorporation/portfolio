@@ -505,7 +505,7 @@ HERO_LEAD = (  # home/HomePage.tsx HERO_LEAD
 )
 # The home's meta/og/twitter description and the JSON-LD WebSite description (core/shell.py).
 HOME_DESCRIPTION = (
-    "Flow·Codemit·Daypage·Foresight와 이 사이트까지 서비스 다섯 개를 직접 만들어 운영하는 "
+    "Flow·Codemit·Daypage·Foresight와 이 사이트를 직접 만들어 운영하는 "
     "1인 개발사. 웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동을 외주로 맡습니다. "
     "재하청 없이 대표가 직접 합니다."
 )
