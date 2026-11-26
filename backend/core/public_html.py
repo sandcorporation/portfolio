@@ -300,6 +300,8 @@ def _gallery(block: GalleryBlock, anchor: str) -> SafeString:
             if image.url
         ),
     )
+    if not images:
+        return SafeString("")
     return format_html(
         '<section class="block-gallery">{}'
         '<ul class="gallery-grid sc-prose-gallery">{}</ul></section>',
@@ -433,9 +435,10 @@ def document_html(document: Mapping[str, JSON], prefix: str, toc: bool = True) -
         if several:
             parts.append(format_html('<h2 class="print-tab-title">{}</h2>', tab.title))
         for block in tab.blocks:
-            parts.append(block_html(block, prefix))
+            drawn = block_html(block, prefix)
+            parts.append(drawn)
             title = _toc_title(block)
-            if title:
+            if title and drawn:  # a block that draws nothing has no contents line either
                 entries.append((title[1], f"#{prefix}{block.id}", title[0]))
     nav = (
         format_html(
