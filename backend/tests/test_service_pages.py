@@ -97,6 +97,19 @@ def test_an_unknown_service_is_404_and_the_bare_path_goes_to_the_home_section(
     assert response["Location"] == "/#home-services"
 
 
+def test_without_a_visible_card_the_nav_drops_services_and_the_bare_path_goes_home(
+    client: Client,
+) -> None:
+    assert 'href="/#home-services"' in client.get("/blog").content.decode()
+    Service.objects.update(is_visible=False)
+    for path in ("/", "/blog", "/tips", "/privacy"):
+        html = client.get(path).content.decode()
+        assert 'href="/#home-services"' not in html, path
+        assert page_data(html)["services_nav"] is False, path
+    response = client.get("/services")
+    assert (response.status_code, response["Location"]) == (301, "/")
+
+
 def test_the_sitemap_lists_both_pages_with_the_copy_date(
     client: Client, settings: Settings
 ) -> None:
