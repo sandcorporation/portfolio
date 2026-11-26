@@ -20,4 +20,14 @@ describe("external links (#129)", () => {
     expect(screen.getAllByRole("link", { name: "기록" })[0]).not.toHaveAttribute("target");
     expect(screen.getByRole("link", { name: "홈" })).not.toHaveAttribute("target");
   });
+
+  it("drops 「서비스」 when the shell says no service card shows (issue 50)", () => {
+    document.body.innerHTML = '<script id="page-data" type="application/json">{"services_nav": false}</script>';
+    try {
+      render(<SiteNav />);
+      expect(screen.queryByRole("link", { name: "서비스" })).toBeNull();
+    } finally {
+      document.body.innerHTML = "";
+    }
+  });
 });

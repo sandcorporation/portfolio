@@ -7,6 +7,7 @@ from django.utils.safestring import SafeString
 
 from core import public_html
 from documents.validation import JSON
+from services import offerings
 
 register = template.Library()
 
@@ -66,3 +67,9 @@ def prose(source: str) -> SafeString:
 def number(value: int) -> str:
     """1234 -> 1,234 (Intl.NumberFormat("ko-KR"))."""
     return f"{value:,}"
+
+
+@register.simple_tag
+def services_nav() -> bool:
+    """Whether the nav shows 「서비스」: only while the home has a service card (issue 50)."""
+    return offerings.has_cards()

@@ -543,6 +543,11 @@ def cards() -> list[OfferingCard]:
     return [_card(s) for s in rows.order_by("position", "id")]
 
 
+def has_cards() -> bool:
+    """Whether the home shows a 「서비스」 row; nav and /services follow (issue 50)."""
+    return Service.objects.filter(is_visible=True).exists()
+
+
 class InquiryOption(TypedDict):
     """A slug → 구분 pair for the inquiry form's `?inquiry=` preselect."""
 
