@@ -21,6 +21,7 @@ import json
 import logging
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Protocol
@@ -217,7 +218,20 @@ def _load(rows: object) -> list[ForesightArticle] | None:
         return None
 
 
-def fetch_recent(limit: int = 5) -> list[ForesightArticle]:
+def recent_cached(limit: int = 5) -> bool:
+    """True when `fetch_recent(limit)` would answer without asking the news site."""
+    limit = max(1, min(limit, MAX_LIMIT))
+    return _load(cache.get(_key(limit))) is not None
+
+
+def stats_cached() -> bool:
+    """True when `fetch_stats` would answer without asking the news site."""
+    return _load_stats(cache.get(_stats_key()))[0]
+
+
+def fetch_recent(
+    limit: int = 5, call: Callable[[int], list[ForesightArticle]] | None = None
+) -> list[ForesightArticle]:
     """The newest Foresight articles for the home page, never raising.
 
     Fresh answers are cached 10 minutes. When the news site fails, the last good answer
@@ -228,7 +242,7 @@ def fetch_recent(limit: int = 5) -> list[ForesightArticle]:
     if cached is not None:
         return cached
     try:
-        articles = get_gateway().recent(limit)[:limit]
+        articles = (call or get_gateway().recent)(limit)[:limit]
     except ForesightUnavailable as e:
         logger.warning("Foresight 최근 기사를 받지 못함: %s", e)
         articles = _load(cache.get(_last_good_key(limit))) or []
@@ -271,7 +285,7 @@ def _load_stats(row: object) -> tuple[bool, ForesightStats | None]:
         return False, None
 
 
-def fetch_stats() -> ForesightStats | None:
+def fetch_stats(call: Callable[[], ForesightStats | None] | None = None) -> ForesightStats | None:
     """The Foresight aggregate numbers for the home page's evidence row, never raising.
 
     Same rules as `fetch_recent`: 10 minutes cached; on failure the last good answer (24 hours,
@@ -280,7 +294,7 @@ def fetch_stats() -> ForesightStats | None:
     if found:
         return cached
     try:
-        stats = get_gateway().stats()
+        stats = (call or get_gateway().stats)()
     except ForesightUnavailable as e:
         logger.warning("Foresight 통계를 받지 못함: %s", e)
         _, stats = _load_stats(cache.get(_stats_last_good_key()))

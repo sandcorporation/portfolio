@@ -32,6 +32,7 @@ from content.models import (
     PortfolioItem,
     Proposal,
     ProposalRevision,
+    Service,
     SiteProfile,
     media_kind,
 )
@@ -250,7 +251,7 @@ class MediaUsage:
         if self.revisions:
             parts.append("발행 리비전 " + ", ".join(self.revisions))
         if self.pages:
-            parts.append("공개 페이지 " + ", ".join(self.pages))
+            parts.append("페이지 " + ", ".join(self.pages))
         return "다음에서 쓰고 있어 지울 수 없습니다: " + " / ".join(parts)
 
 
@@ -281,6 +282,12 @@ def usage_of(media_ids: Iterable[int]) -> dict[int, MediaUsage]:
     for title, status, cover_id, body in posts:
         kind = "pages" if status == BlogPost.Status.PUBLISHED else "drafts"
         note(kind, f"블로그 「{title}」", body, cover_id)
+    for name, cover_id, figure_id, card_id in Service.objects.values_list(
+        "name", "cover_id", "figure_id", "card_id"
+    ):
+        for image_id in (cover_id, figure_id, card_id):
+            if image_id in found:
+                found[image_id]["pages"].append(f"서비스 「{name}」")
     profile = SiteProfile.objects.first()
     if profile is not None:
         for field in SiteProfile.DOCUMENT_FIELDS:

@@ -97,6 +97,33 @@ def test_an_unknown_service_is_404_and_the_bare_path_goes_to_the_home_section(
     assert response["Location"] == "/#home-services"
 
 
+def test_without_a_visible_card_the_nav_drops_services_and_the_bare_path_goes_home(
+    client: Client,
+) -> None:
+    assert 'href="/#home-services"' in client.get("/blog").content.decode()
+    Service.objects.update(is_visible=False)
+    for path in ("/", "/blog", "/tips", "/privacy"):
+        html = client.get(path).content.decode()
+        assert 'href="/#home-services"' not in html, path
+        assert page_data(html)["services_nav"] is False, path
+    response = client.get("/services")
+    assert (response.status_code, response["Location"]) == (301, "/")
+
+
+def test_a_service_page_without_a_visible_card_has_no_nav_service_and_backs_to_home(
+    client: Client,
+) -> None:
+    slug = SLUGS[0]
+    html = client.get(f"/services/{slug}").content.decode()
+    assert 'href="/#home-services"' in html
+    assert '<a class="back-link" href="/#home-services">← 서비스</a>' in html
+    Service.objects.update(is_visible=False)  # the detail pages stay published
+    html = client.get(f"/services/{slug}").content.decode()
+    assert page_data(html)["services_nav"] is False
+    assert 'href="/#home-services"' not in html
+    assert '<a class="back-link" href="/">← 서비스</a>' in html
+
+
 def test_the_sitemap_lists_both_pages_with_the_copy_date(
     client: Client, settings: Settings
 ) -> None:
@@ -133,6 +160,21 @@ def test_the_server_html_draws_every_section_cases_and_one_quote_button(
     assert 'aria-current="page">서비스</a>' in html
     text = re.sub(r"<[^>]+>", "", html).replace("20만 원부터(부가세 별도)", "")
     assert not re.search(r"\d[\d,]*\s*만?\s*원", text)  # only the starting price (issue 13)
+
+
+def test_a_service_without_cases_drops_the_cases_section_and_renumbers_contact(
+    client: Client,
+) -> None:
+    service = Service.objects.get(slug="mcp-integration")
+    full = root(client.get("/services/mcp-integration").content.decode())
+    assert "실제 사례" in full and "05 — Contact" in full
+
+    service.cases = []
+    service.save()
+    html = root(client.get("/services/mcp-integration").content.decode())
+
+    assert "실제 사례" not in html and "service-cases" not in html and "04 — Cases" not in html
+    assert "04 — Contact" in html and "05 — Contact" not in html
 
 
 def test_every_case_links_to_a_page_of_this_site() -> None:
@@ -471,3 +513,16 @@ def test_write_preview_publish_and_hide_a_service(mcp: McpClient, client: Client
     assert "inquiry_kind" in refused(
         mcp, "update_service", {"slug": "web-app", "inquiry_kind": "없는 구분"}
     )
+
+
+def test_home_inquiry_options_include_hidden_card_but_published_service(client: Client) -> None:
+    from content.models import Service
+
+    Service.objects.filter(slug=SLUGS[0]).update(is_visible=False, is_published=True)
+    data: dict[str, Any] = dict(page_data(client.get("/").content.decode()))
+    assert SLUGS[0] not in [c["slug"] for c in data["services"]]
+    kind = Service.objects.get(slug=SLUGS[0]).inquiry_kind
+    assert {"slug": SLUGS[0], "inquiry_kind": kind} in data["inquiry_options"]
+    Service.objects.filter(slug=SLUGS[1]).update(is_visible=False, is_published=False)
+    data = dict(page_data(client.get("/").content.decode()))
+    assert SLUGS[1] not in [o["slug"] for o in data["inquiry_options"]]

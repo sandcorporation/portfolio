@@ -14,6 +14,7 @@ import json
 import logging
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from typing import Protocol
 
@@ -174,7 +175,13 @@ def _load(row: object) -> Stats | None:
         return None
 
 
-def fetch_stats() -> Stats | None:
+def is_cached() -> bool:
+    """True when `fetch_stats` would answer without asking the service."""
+    cached = cache.get(_key())
+    return cached == _MISSING or _load(cached) is not None
+
+
+def fetch_stats(call: Callable[[], Stats | None] | None = None) -> Stats | None:
     """The counts for the home page, never raising; None means "show no numbers".
 
     Fresh answers are cached 60 seconds. When the service fails, the last good answer (24 hours)
@@ -187,7 +194,7 @@ def fetch_stats() -> Stats | None:
     if stats is not None:
         return stats
     try:
-        stats = get_gateway().stats()
+        stats = (call or get_gateway().stats)()
     except MetricsUnavailable as e:
         logger.warning("방문 메트릭을 받지 못함: %s", e)
         stats = _load(cache.get(_last_good_key()))

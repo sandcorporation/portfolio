@@ -7,7 +7,7 @@ from django.test import Client as HttpClient
 
 from adapters.fake_storage import FakeObjectStorage
 from adapters.storage import Bucket
-from content.models import Media, PortfolioItem, ProposalRevision, SiteProfile
+from content.models import Media, PortfolioItem, ProposalRevision, Service, SiteProfile
 from documents.validation import JSON
 from services import media as media_service
 from services import proposals as svc
@@ -175,3 +175,48 @@ def test_the_admin_change_page_lists_where_a_media_is_used(
 
     assert "사용처" in used_html and doc_number_of(slug) in used_html
     assert "사용 안 함" in unused_html
+
+
+@pytest.mark.parametrize("field", ["cover", "figure", "card"])
+def test_a_service_image_blocks_deletion_until_detached(
+    field: str, fake_storage: FakeObjectStorage
+) -> None:
+    image = stored(private("image/png", public=True), fake_storage)
+    service = Service.objects.create(slug="svc", name="외주 서비스", **{field: image})
+
+    with pytest.raises(media_service.MediaInUse, match="서비스 「외주 서비스」"):
+        media_service.delete_media(image)
+    assert Media.objects.filter(pk=image.pk).exists()
+
+    setattr(service, field, None)
+    service.save()
+    media_service.delete_media(image)
+    assert not Media.objects.filter(pk=image.pk).exists()
+
+
+def test_bulk_delete_success_message_counts_only_what_was_deleted(
+    admin_client: HttpClient, fake_storage: FakeObjectStorage
+) -> None:
+    kept = stored(private(), fake_storage)
+    published_with(audio_compare(kept.pk, kept.pk))
+    gone = stored(private(), fake_storage)
+
+    only_protected = delete_bulk(admin_client, kept)
+    assert "지울 수 없습니다" in only_protected and "삭제했습니다" not in only_protected
+    assert "Successfully deleted" not in only_protected
+
+    mixed = delete_bulk(admin_client, kept, gone)
+    assert "1개의 미디어를 삭제했습니다." in mixed
+    assert "2개" not in mixed
+
+
+def test_refusal_label_is_not_called_public_for_private_pages(
+    fake_storage: FakeObjectStorage,
+) -> None:
+    cover = stored(private("image/png", public=True), fake_storage)
+    PortfolioItem.objects.create(slug="s", title="비공개작", cover=cover, is_public=False)
+
+    with pytest.raises(media_service.MediaInUse) as caught:
+        media_service.delete_media(cover)
+
+    assert "비공개작" in str(caught.value) and "공개 페이지" not in str(caught.value)

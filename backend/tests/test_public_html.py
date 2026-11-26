@@ -90,6 +90,7 @@ def test_work_page_draws_title_and_block_document(client: Client) -> None:
     assert "<strong>세 시간</strong>" in body
     assert '<div class="sc-prose-table-scroll"><table>' in body
     assert "<td>오류</td>" in body and "<td>10분</td>" in body
+    assert '<a class="back-link" href="/#home-portfolio">← 포트폴리오 목록</a>' in body
     assert (
         '<a href="https://example.com" target="_blank" rel="noopener noreferrer">사이트</a>' in body
     )
@@ -390,3 +391,69 @@ def test_server_html_uses_the_app_body_classes(tsx: str, classes: str) -> None:
         t.read_text() for t in (Path(public_html.__file__).parent / "templates").rglob("*.html")
     )
     assert f'class="{classes}"' in server
+
+
+def test_a_block_that_draws_nothing_has_no_contents_line() -> None:
+    document: dict[str, JSON] = {
+        "tabs": [
+            {
+                "id": "main",
+                "title": "본문",
+                "blocks": [
+                    {"id": "m", "type": "markdown", "title": "개요", "body": "본문"},
+                    {"id": "c", "type": "case-ref", "title": "빈 사례", "items": [{"item_id": 5}]},
+                    {
+                        "id": "g",
+                        "type": "gallery",
+                        "title": "빈 그림",
+                        "images": [{"media_id": 1, "alt": "a"}],
+                    },
+                ],
+            }
+        ]
+    }
+    html = public_html.document_html(document, "d-")
+
+    toc = html.split("</nav>")[0]
+    assert "개요" in toc
+    assert "빈 사례" not in html and "빈 그림" not in html
+
+
+def test_the_server_toc_lists_the_same_block_types_as_the_app_registry() -> None:
+    registry = (Path(__file__).resolve().parents[2] / "frontend/src/blocks/registry.ts").read_text()
+    body = registry[registry.index("export const registry") :]
+    with_toc: set[str] = set()
+    current = ""
+    for line in body.splitlines():
+        entry = re.match(r'^  "?([a-z-]+)"?: \{', line)
+        if entry:
+            current = entry.group(1)
+        if "toc:" in line and current:
+            with_toc.add(current)
+    assert with_toc == public_html.TOC_BLOCK_TYPES
+
+
+def test_titled_blocks_without_a_registry_toc_get_no_contents_line() -> None:
+    document: dict[str, JSON] = {
+        "tabs": [
+            {
+                "id": "t",
+                "title": "T",
+                "blocks": [
+                    {"id": "m", "type": "markdown", "title": "개요", "body": "본문"},
+                    {
+                        "id": "e",
+                        "type": "embed",
+                        "title": "체험",
+                        "src": "https://flow.sandcorp.co.kr/x",
+                    },
+                    {"id": "c", "type": "callout", "kind": "info", "title": "주의", "body": "x"},
+                ],
+            }
+        ]
+    }
+    html = public_html.document_html(document, "d-")
+    toc = html.split("</nav>")[0]
+    assert "개요" in toc
+    for title in ("체험", "주의"):
+        assert title not in toc

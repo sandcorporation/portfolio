@@ -12,7 +12,7 @@ export function WorkPage({ data }: { data: WorkData }) {
       </Masthead>
       <SiteNav current="work" />
       <main className="page work">
-        <a className="back-link" href="/">
+        <a className="back-link" href="/#home-portfolio">
           ← 포트폴리오 목록
         </a>
         <article aria-labelledby="work-title">

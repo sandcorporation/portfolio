@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { linkAttrs } from "../links";
+import { readPageData } from "../pageData";
 import type { Availability, Business, SiteVisits } from "../home/types";
 import { Wordmark } from "./Logo";
 
@@ -96,12 +97,21 @@ const SITE_NAV = [
   { key: "inquiry", href: "/#home-inquiry", label: "문의" },
 ] as const;
 
+/** The shell says the home shows no service card, so 「서비스」 (and 「← 서비스」) has no target. */
+export function servicesNavHidden(): boolean {
+  const data = readPageData();
+  return typeof data === "object" && data !== null && (data as { services_nav?: unknown }).services_nav === false;
+}
+
 /** The mono row under the masthead; the current item carries the accent square. */
 export function SiteNav({ current }: { current?: "company" | "services" | "blog" | "tips" | "work" | "inquiry" }) {
+  // Without a visible service card 「서비스」 has nowhere to go (issue 50, 67): not even on a service page.
+  const hide = servicesNavHidden();
+  const items = SITE_NAV.filter((item) => item.key !== "services" || !hide);
   return (
     <nav className="site-nav" aria-label="사이트">
       <ul>
-        {SITE_NAV.map((item) => (
+        {items.map((item) => (
           <li key={item.key}>
             <a
               href={item.href}

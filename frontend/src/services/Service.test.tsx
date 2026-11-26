@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { App } from "../App";
 import { exampleDocument } from "../blocks/testing";
 import type { HomeData } from "../home/types";
@@ -29,6 +30,15 @@ test("미리보기 주소(/preview/services/…)도 서비스 화면을 그린�
 
   expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("사내 MCP 연동");
   expect(screen.queryByText("사이트를 준비하고 있습니다")).toBeNull();
+});
+
+test("사례가 없으면 사례 절이 빠지고 문의가 04로 당겨진다", () => {
+  render(<App path="/services/mcp-integration" data={{ offering: offering({ cases: [] }) }} />);
+
+  const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+  expect(titles).toEqual(["이런 분께 맞습니다", "해 드리는 일", "진행 방식", "문의"]);
+  expect(screen.queryByText("실제 사례")).toBeNull();
+  expect(screen.getByText(/Contact/)).toHaveTextContent("04 — Contact");
 });
 
 test("서비스 화면은 제목·리드 → 대상 → 할 일 → 진행 방식 → 사례 → 견적 문의 순으로 보여 준다", () => {
@@ -215,7 +225,47 @@ test("상세 그림을 누르면 원본 크기로 열고 Esc로 닫으며 포커
   expect(opener).toHaveFocus();
 });
 
+test("원본 크기 보기는 단추가 닫기뿐이어도 Tab이 그림 영역에 닿고 창 밖으로 나가지 않는다 (issue 76)", async () => {
+  const user = userEvent.setup();
+  const data: ServiceData = {
+    offering: offering({ figure: image("https://img.example/fig.png", { alt: "호출 순서" }) }),
+  };
+  render(<App path="/services/mcp-integration" data={data} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "호출 순서 크게 보기" }));
+  const viewer = screen.getByRole("dialog");
+  const close = within(viewer).getByRole("button", { name: "닫기" });
+  const frame = viewer.querySelector<HTMLElement>(".gallery-figure") as HTMLElement;
+  expect(frame).toHaveAttribute("tabindex", "0");
+  expect(close).toHaveFocus();
+
+  await user.tab();
+  expect(frame).toHaveFocus();
+  await user.tab();
+  expect(close).toHaveFocus();
+  await user.tab({ shift: true });
+  expect(frame).toHaveFocus();
+  await user.tab({ shift: true });
+  expect(close).toHaveFocus();
+
+  fireEvent.keyDown(viewer, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
 test("그림이 없으면 크게 보기 단추도 없다", () => {
   render(<App path="/services/mcp-integration" data={page()} />);
   expect(screen.queryByRole("button", { name: /크게 보기/ })).toBeNull();
+});
+
+test("카드가 하나도 안 보이면 상세에서도 내비 「서비스」가 없고 「← 서비스」는 홈으로 간다 (issue 67)", () => {
+  document.body.innerHTML = '<script id="page-data" type="application/json">{"services_nav": false}</script>';
+  try {
+    render(<App path="/services/mcp-integration" data={page()} />);
+
+    const nav = within(screen.getByRole("navigation", { name: "사이트" }));
+    expect(nav.queryByRole("link", { name: "서비스" })).toBeNull();
+    expect(screen.getByRole("link", { name: "← 서비스" })).toHaveAttribute("href", "/");
+  } finally {
+    document.body.innerHTML = "";
+  }
 });

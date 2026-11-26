@@ -68,3 +68,6 @@ urlpatterns = [
         name="proposal_print_media",
     ),
 ]
+
+handler404 = "core.errors.not_found"
+handler500 = "core.errors.server_error"

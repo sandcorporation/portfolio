@@ -1,5 +1,4 @@
-import { useState, type FormEvent } from "react";
-import type { OfferingCard } from "../services/types";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 type Status = "idle" | "sending" | "done" | "error";
 
@@ -8,18 +7,31 @@ const ERRORS: Record<number, string> = {
   422: "입력을 확인해 주세요. 이름, 연락처, 내용은 꼭 필요합니다.",
 };
 
+/** What the form needs of a service: its slug and Inquiry.Kind. */
+export interface KindOption {
+  slug: string;
+  inquiry_kind: string;
+}
+
 const PLAIN_KINDS = ["신규 개발", "유지보수"];
 
 /** The 구분 to preselect: `?inquiry=<offering slug>` (the service pages' 「견적 문의」 link) picks that
  * offering, whose `inquiry_kind` is its Inquiry.Kind value; anything else keeps the default. */
-function initialKind(offerings: OfferingCard[]): string {
+function initialKind(offerings: KindOption[]): string {
   const slug = new URLSearchParams(window.location.search).get("inquiry");
   return offerings.find((o) => o.slug === slug)?.inquiry_kind ?? "신규 개발";
 }
 
-export function InquiryForm({ offerings = [] }: { offerings?: OfferingCard[] }) {
+export function InquiryForm({ offerings = [] }: { offerings?: KindOption[] }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+  const done = useRef<HTMLParagraphElement>(null);
+
+  // The form (and the focused button) is gone once sent: move focus to the confirmation so keyboard
+  // and screen-reader users land on it and hear it.
+  useEffect(() => {
+    if (status === "done") done.current?.focus();
+  }, [status]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,7 +58,7 @@ export function InquiryForm({ offerings = [] }: { offerings?: OfferingCard[] }) 
 
   if (status === "done") {
     return (
-      <p className="inquiry-done" role="status">
+      <p className="inquiry-done" role="status" tabIndex={-1} ref={done}>
         접수되었습니다. 확인 후 남겨 주신 연락처로 답변드리겠습니다.
       </p>
     );
@@ -57,7 +69,7 @@ export function InquiryForm({ offerings = [] }: { offerings?: OfferingCard[] }) 
       <label>
         구분
         <select name="kind" defaultValue={initialKind(offerings)}>
-          {[...PLAIN_KINDS, ...offerings.map((o) => o.inquiry_kind), "제안", "기타"].map((kind) => (
+          {[...new Set([...PLAIN_KINDS, ...offerings.map((o) => o.inquiry_kind), "제안", "기타"])].map((kind) => (
             <option key={kind} value={kind}>
               {kind}
             </option>

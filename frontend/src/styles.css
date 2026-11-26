@@ -965,8 +965,13 @@ h3.block-heading {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* a long value wraps inside its tile at every width (a short number still fits one line) */
+.evidence-row .kpi-card {
+  min-width: 0;
+}
+
 .evidence-row .kpi-value {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* five tiles are narrower than four: shrink the big numbers so 「38,523명」 fits one line */

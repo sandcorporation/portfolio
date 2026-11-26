@@ -128,6 +128,9 @@ def render_shell(
 
     `body` is the public page's server HTML for #root, drawn from the same `data` (#109,
     core/public_html.py); React renders over it. Proposal, preview and print pages leave it out."""
+    if data is not None and "availability" in data:
+        # A public page (it carries the masthead): tell the nav whether 「서비스」 has a target.
+        data = {**data, "services_nav": offerings.has_cards()}
     context = {
         "site_name": meta.site_name,
         "data": data,
@@ -521,8 +524,9 @@ def privacy(request: HttpRequest) -> HttpResponse:
 
 
 def services_hub(request: HttpRequest) -> HttpResponse:
-    """/services has no page of its own: the rows are the home's section (issue 163)."""
-    return HttpResponsePermanentRedirect("/#home-services")
+    """/services has no page of its own: the rows are the home's section (issue 163). Without
+    any visible card the section is not there, so it goes to the home's top (issue 50)."""
+    return HttpResponsePermanentRedirect("/#home-services" if offerings.has_cards() else "/")
 
 
 def service(request: HttpRequest, slug: str) -> HttpResponse:

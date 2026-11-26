@@ -300,6 +300,8 @@ def _gallery(block: GalleryBlock, anchor: str) -> SafeString:
             if image.url
         ),
     )
+    if not images:
+        return SafeString("")
     return format_html(
         '<section class="block-gallery">{}'
         '<ul class="gallery-grid sc-prose-gallery">{}</ul></section>',
@@ -408,12 +410,22 @@ def block_html(block: Block, prefix: str) -> SafeString:
     return format_html('<div class="block-slot" data-block-id="{}">{}</div>', block.id, inner)
 
 
+# The block types with a contents line: exactly the registry entries that have `toc`
+# (frontend/src/blocks/registry.ts; tests/test_public_html.py compares the two). The others
+# (cover, callout, details, cta, embed) draw no heading anchor, so a link to them goes nowhere.
+TOC_BLOCK_TYPES = frozenset(
+    {"kpi", "markdown", "table", "gallery", "case-ref", "audio-compare", "video", "steps", "html"}
+)
+
+
 def _toc_title(block: Block) -> tuple[str, int] | None:
     """The table-of-contents line of a block (registry.ts `toc`)."""
+    if block.type not in TOC_BLOCK_TYPES:
+        return None
     if isinstance(block, MarkdownBlock | HtmlBlock):
         return (block.title, block.level) if block.title else None
     title = getattr(block, "title", None)
-    if isinstance(block, CoverBlock | CalloutBlock) or not isinstance(title, str) or not title:
+    if not isinstance(title, str) or not title:
         return None
     return title, 3
 
@@ -433,9 +445,10 @@ def document_html(document: Mapping[str, JSON], prefix: str, toc: bool = True) -
         if several:
             parts.append(format_html('<h2 class="print-tab-title">{}</h2>', tab.title))
         for block in tab.blocks:
-            parts.append(block_html(block, prefix))
+            drawn = block_html(block, prefix)
+            parts.append(drawn)
             title = _toc_title(block)
-            if title:
+            if title and drawn:  # a block that draws nothing has no contents line either
                 entries.append((title[1], f"#{prefix}{block.id}", title[0]))
     nav = (
         format_html(
@@ -505,7 +518,7 @@ HERO_LEAD = (  # home/HomePage.tsx HERO_LEAD
 )
 # The home's meta/og/twitter description and the JSON-LD WebSite description (core/shell.py).
 HOME_DESCRIPTION = (
-    "Flow·Codemit·Daypage·Foresight와 이 사이트까지 서비스 다섯 개를 직접 만들어 운영하는 "
+    "Flow·Codemit·Daypage·Foresight와 이 사이트를 직접 만들어 운영하는 "
     "1인 개발사. 웹·AI 제품 개발, RAG 상담 챗봇, MCP 연동을 외주로 맡습니다. "
     "재하청 없이 대표가 직접 합니다."
 )

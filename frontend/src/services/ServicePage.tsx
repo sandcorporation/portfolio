@@ -1,4 +1,4 @@
-import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
+import { Masthead, SiteFooter, SiteMeta, SiteNav, servicesNavHidden } from "../brand/Masthead";
 import { linkAttrs } from "../links";
 import { ZoomImage } from "./ZoomImage";
 import type { OfferingImage, ServiceData } from "./types";
@@ -35,7 +35,7 @@ export function ServicePage({ data }: { data: ServiceData }) {
       </Masthead>
       <SiteNav current="services" />
       <main className="page work service">
-        <a className="back-link" href="/#home-services">
+        <a className="back-link" href={servicesNavHidden() ? "/" : "/#home-services"}>
           ← 서비스
         </a>
         <article aria-labelledby="service-title">
@@ -92,26 +92,28 @@ export function ServicePage({ data }: { data: ServiceData }) {
               </ol>
             </div>
           </section>
-          <section className="page-section" aria-labelledby="service-cases">
-            <Head index="04" label="Cases" id="service-cases" title="실제 사례" />
-            <ul className="work-list feed-list">
-              {o.cases.map((item) => (
-                <li key={item.href}>
-                  <a className="work-row" href={item.href} {...linkAttrs(item.href)}>
-                    <span className="work-row-body">
-                      <span className="work-row-title">{item.title} →</span>
-                      <span className="work-row-meta feed-meta">
-                        <span>{item.kind}</span>
+          {o.cases.length > 0 && (
+            <section className="page-section" aria-labelledby="service-cases">
+              <Head index="04" label="Cases" id="service-cases" title="실제 사례" />
+              <ul className="work-list feed-list">
+                {o.cases.map((item) => (
+                  <li key={item.href}>
+                    <a className="work-row" href={item.href} {...linkAttrs(item.href)}>
+                      <span className="work-row-body">
+                        <span className="work-row-title">{item.title} →</span>
+                        <span className="work-row-meta feed-meta">
+                          <span>{item.kind}</span>
+                        </span>
+                        <span className="work-row-summary">{item.note}</span>
                       </span>
-                      <span className="work-row-summary">{item.note}</span>
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <section className="page-section" aria-labelledby="service-contact">
-            <Head index="05" label="Contact" id="service-contact" title="문의" />
+            <Head index={o.cases.length > 0 ? "05" : "04"} label="Contact" id="service-contact" title="문의" />
             <p className="section-lead">{o.contact}</p>
             <p className="post-cta">
               <a className="cta-button" data-style="primary" href={`/?inquiry=${o.slug}#home-inquiry`}>

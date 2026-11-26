@@ -117,3 +117,18 @@ describe("#<블록 id>로 들어오면", () => {
     expect(scrolled).toEqual([]);
   });
 });
+
+test("그려지지 않는 case-ref·gallery는 목차에도 없다", () => {
+  render(
+    <DocumentView
+      document={documentOf(
+        { id: "m", type: "markdown", title: "개요", body: "본문" },
+        { id: "c", type: "case-ref", title: "빈 사례", items: [{ item_id: 5 }] },
+        { id: "g", type: "gallery", title: "빈 그림", images: [{ media_id: 1, alt: "a" }] },
+      )}
+    />,
+  );
+
+  const toc = screen.getByRole("navigation", { name: "목차" });
+  expect(within(toc).getAllByRole("link").map((l) => l.textContent)).toEqual(["개요"]);
+});
