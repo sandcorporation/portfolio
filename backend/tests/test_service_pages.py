@@ -110,6 +110,20 @@ def test_without_a_visible_card_the_nav_drops_services_and_the_bare_path_goes_ho
     assert (response.status_code, response["Location"]) == (301, "/")
 
 
+def test_a_service_page_without_a_visible_card_has_no_nav_service_and_backs_to_home(
+    client: Client,
+) -> None:
+    slug = SLUGS[0]
+    html = client.get(f"/services/{slug}").content.decode()
+    assert 'href="/#home-services"' in html
+    assert '<a class="back-link" href="/#home-services">← 서비스</a>' in html
+    Service.objects.update(is_visible=False)  # the detail pages stay published
+    html = client.get(f"/services/{slug}").content.decode()
+    assert page_data(html)["services_nav"] is False
+    assert 'href="/#home-services"' not in html
+    assert '<a class="back-link" href="/">← 서비스</a>' in html
+
+
 def test_the_sitemap_lists_both_pages_with_the_copy_date(
     client: Client, settings: Settings
 ) -> None:

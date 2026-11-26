@@ -228,3 +228,16 @@ test("그림이 없으면 크게 보기 단추도 없다", () => {
   render(<App path="/services/mcp-integration" data={page()} />);
   expect(screen.queryByRole("button", { name: /크게 보기/ })).toBeNull();
 });
+
+test("카드가 하나도 안 보이면 상세에서도 내비 「서비스」가 없고 「← 서비스」는 홈으로 간다 (issue 67)", () => {
+  document.body.innerHTML = '<script id="page-data" type="application/json">{"services_nav": false}</script>';
+  try {
+    render(<App path="/services/mcp-integration" data={page()} />);
+
+    const nav = within(screen.getByRole("navigation", { name: "사이트" }));
+    expect(nav.queryByRole("link", { name: "서비스" })).toBeNull();
+    expect(screen.getByRole("link", { name: "← 서비스" })).toHaveAttribute("href", "/");
+  } finally {
+    document.body.innerHTML = "";
+  }
+});
