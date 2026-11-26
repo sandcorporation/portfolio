@@ -53,4 +53,4 @@ RUN DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinpu
  && useradd --uid 1000 --no-create-home app
 USER app
 EXPOSE 8000
-CMD ["sh", "-c", "exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-2} --timeout 30 --access-logfile -"]
+CMD ["sh", "-c", "exec env DB_READ_TIMEOUT=${WEB_DB_READ_TIMEOUT:-5} gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-2} --timeout 30 --access-logfile -"]
