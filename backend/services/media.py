@@ -251,7 +251,7 @@ class MediaUsage:
         if self.revisions:
             parts.append("발행 리비전 " + ", ".join(self.revisions))
         if self.pages:
-            parts.append("공개 페이지 " + ", ".join(self.pages))
+            parts.append("페이지 " + ", ".join(self.pages))
         return "다음에서 쓰고 있어 지울 수 없습니다: " + " / ".join(parts)
 
 

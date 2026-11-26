@@ -303,6 +303,9 @@ else:
     _MediaAdmin = admin.ModelAdmin
 
 
+_BULK_DELETED = "portfolio.media_bulk_deleted"
+
+
 @admin.register(Media)
 class MediaAdmin(_MediaAdmin):
     list_display = ("original_filename", "is_public", "content_type", "size", "uploaded_at")
@@ -369,13 +372,33 @@ class MediaAdmin(_MediaAdmin):
     def delete_queryset(self, request: HttpRequest, queryset: QuerySet[Media]) -> None:
         """Bulk delete goes through the service too (bucket objects included); media still in use
         stays and is named in an error."""
+        deleted = 0
         for media in queryset:
             try:
                 media_service.delete_media(media)
+                deleted += 1
             except media_service.MediaInUse as exc:
                 self.message_user(request, f"{media}: {exc.errors[0].reason}", messages.ERROR)
             except StorageNotConfigured as exc:
                 self.message_user(request, f"{media}: {exc}", messages.ERROR)
+        # delete_selected announces success for every picked row; the real count replaces it.
+        request.META[_BULK_DELETED] = deleted
+
+    def message_user(
+        self,
+        request: HttpRequest,
+        message: Any,
+        level: int | str = messages.INFO,
+        extra_tags: str = "",
+        fail_silently: bool = False,
+    ) -> None:
+        deleted = request.META.get(_BULK_DELETED)
+        if deleted is not None and level == messages.SUCCESS:
+            del request.META[_BULK_DELETED]
+            if not deleted:
+                return
+            message = f"{deleted}개의 미디어를 삭제했습니다."
+        super().message_user(request, message, level, extra_tags, fail_silently)
 
     @admin.display(description="사용처")
     def used_by(self, obj: Media) -> str:
