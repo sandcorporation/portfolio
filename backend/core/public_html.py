@@ -410,12 +410,22 @@ def block_html(block: Block, prefix: str) -> SafeString:
     return format_html('<div class="block-slot" data-block-id="{}">{}</div>', block.id, inner)
 
 
+# The block types with a contents line: exactly the registry entries that have `toc`
+# (frontend/src/blocks/registry.ts; tests/test_public_html.py compares the two). The others
+# (cover, callout, details, cta, embed) draw no heading anchor, so a link to them goes nowhere.
+TOC_BLOCK_TYPES = frozenset(
+    {"kpi", "markdown", "table", "gallery", "case-ref", "audio-compare", "video", "steps", "html"}
+)
+
+
 def _toc_title(block: Block) -> tuple[str, int] | None:
     """The table-of-contents line of a block (registry.ts `toc`)."""
+    if block.type not in TOC_BLOCK_TYPES:
+        return None
     if isinstance(block, MarkdownBlock | HtmlBlock):
         return (block.title, block.level) if block.title else None
     title = getattr(block, "title", None)
-    if isinstance(block, CoverBlock | CalloutBlock) or not isinstance(title, str) or not title:
+    if not isinstance(title, str) or not title:
         return None
     return title, 3
 

@@ -417,3 +417,43 @@ def test_a_block_that_draws_nothing_has_no_contents_line() -> None:
     toc = html.split("</nav>")[0]
     assert "개요" in toc
     assert "빈 사례" not in html and "빈 그림" not in html
+
+
+def test_the_server_toc_lists_the_same_block_types_as_the_app_registry() -> None:
+    registry = (Path(__file__).resolve().parents[2] / "frontend/src/blocks/registry.ts").read_text()
+    body = registry[registry.index("export const registry") :]
+    with_toc: set[str] = set()
+    current = ""
+    for line in body.splitlines():
+        entry = re.match(r'^  "?([a-z-]+)"?: \{', line)
+        if entry:
+            current = entry.group(1)
+        if "toc:" in line and current:
+            with_toc.add(current)
+    assert with_toc == public_html.TOC_BLOCK_TYPES
+
+
+def test_titled_blocks_without_a_registry_toc_get_no_contents_line() -> None:
+    document: dict[str, JSON] = {
+        "tabs": [
+            {
+                "id": "t",
+                "title": "T",
+                "blocks": [
+                    {"id": "m", "type": "markdown", "title": "개요", "body": "본문"},
+                    {
+                        "id": "e",
+                        "type": "embed",
+                        "title": "체험",
+                        "src": "https://flow.sandcorp.co.kr/x",
+                    },
+                    {"id": "c", "type": "callout", "kind": "info", "title": "주의", "body": "x"},
+                ],
+            }
+        ]
+    }
+    html = public_html.document_html(document, "d-")
+    toc = html.split("</nav>")[0]
+    assert "개요" in toc
+    for title in ("체험", "주의"):
+        assert title not in toc
