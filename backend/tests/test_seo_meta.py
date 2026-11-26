@@ -196,3 +196,8 @@ def test_the_default_image_keeps_its_fixed_size(client: Client) -> None:
     html = client.get("/work/n").content.decode()
 
     assert tags(html, "og:image:width") == ["1200"] and tags(html, "og:image:height") == ["630"]
+
+
+def test_home_description_has_no_service_count() -> None:
+    assert "다섯" not in HOME_DESCRIPTION
+    assert "개를" not in HOME_DESCRIPTION
