@@ -135,6 +135,21 @@ def test_the_server_html_draws_every_section_cases_and_one_quote_button(
     assert not re.search(r"\d[\d,]*\s*만?\s*원", text)  # only the starting price (issue 13)
 
 
+def test_a_service_without_cases_drops_the_cases_section_and_renumbers_contact(
+    client: Client,
+) -> None:
+    service = Service.objects.get(slug="mcp-integration")
+    full = root(client.get("/services/mcp-integration").content.decode())
+    assert "실제 사례" in full and "05 — Contact" in full
+
+    service.cases = []
+    service.save()
+    html = root(client.get("/services/mcp-integration").content.decode())
+
+    assert "실제 사례" not in html and "service-cases" not in html and "04 — Cases" not in html
+    assert "04 — Contact" in html and "05 — Contact" not in html
+
+
 def test_every_case_links_to_a_page_of_this_site() -> None:
     for service in Service.objects.all():
         for case in service.cases:
