@@ -5,6 +5,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -90,3 +91,92 @@ def test_a_reused_connection_that_stops_answering_fails_after_the_read_timeout()
             with pytest.raises(OperationalError), wrapper.cursor() as cursor:
                 cursor.execute("SELECT 1")
             assert 0.8 <= time.monotonic() - started < 4
+
+
+@pytest.mark.django_db
+def test_a_warm_connection_that_stalls_fails_its_health_check_and_the_reconnect_fails_in_time() -> (
+    None
+):
+    """The health-check ping stalls, then the reconnect must be capped too."""
+    real = connections["default"].settings_dict
+    with _pausable_proxy(str(real["HOST"]), int(real["PORT"])) as (port, stall):
+        config: dict[str, Any] = {**real, "HOST": "127.0.0.1", "PORT": str(port)}
+        config["OPTIONS"] = db_options("1", "1")
+        wrapper = DatabaseWrapper(config, alias="warm")
+        wrapper.connect()
+        try:
+            with wrapper.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            wrapper.health_check_done = False  # a new request on a reused connection
+            stall.set()
+            started = time.monotonic()
+            wrapper.close_if_health_check_failed()  # ping stalls → read_timeout → closed
+            assert wrapper.connection is None
+            with pytest.raises(OperationalError), wrapper.wrap_database_errors:
+                wrapper.connect()  # nobody accepts the second connection → connect_timeout
+            assert 1.5 <= time.monotonic() - started < 5
+        finally:
+            wrapper.close()
+
+
+# --- the real path: DATABASES reads the env, the Dockerfile CMD sets it (web only) ---
+
+
+def _load_settings(monkeypatch: pytest.MonkeyPatch, **env: str | None) -> Any:
+    import importlib.util
+
+    from config import settings as real_settings
+
+    for name in ("DB_CONNECT_TIMEOUT", "DB_READ_TIMEOUT"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        if value is not None:
+            monkeypatch.setenv(name, value)
+    spec = importlib.util.spec_from_file_location("settings_under_test", real_settings.__file__)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_databases_setting_reads_the_timeouts_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    web = _load_settings(monkeypatch, DB_READ_TIMEOUT="5")
+    assert web.DATABASES["default"]["OPTIONS"]["read_timeout"] == 5
+    assert web.DATABASES["default"]["OPTIONS"]["write_timeout"] == 5
+    assert web.DATABASES["default"]["OPTIONS"]["connect_timeout"] == 3
+    custom = _load_settings(monkeypatch, DB_READ_TIMEOUT="7", DB_CONNECT_TIMEOUT="2")
+    assert custom.DATABASES["default"]["OPTIONS"]["read_timeout"] == 7
+    assert custom.DATABASES["default"]["OPTIONS"]["connect_timeout"] == 2
+
+
+def test_without_the_environment_only_new_connections_are_capped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    other = _load_settings(monkeypatch)  # worker, migrate and management commands
+    options = other.DATABASES["default"]["OPTIONS"]
+    assert options["connect_timeout"] == 3
+    assert "read_timeout" not in options and "write_timeout" not in options
+    assert other.DATABASES["default"]["CONN_HEALTH_CHECKS"] is True
+
+
+def test_only_the_gunicorn_cmd_sets_the_read_timeout() -> None:
+    root = Path(__file__).resolve().parents[2]
+    cmd = [
+        line for line in (root / "Dockerfile").read_text().splitlines() if line.startswith("CMD ")
+    ]
+    assert len(cmd) == 1
+    assert "DB_READ_TIMEOUT=${WEB_DB_READ_TIMEOUT:-5}" in cmd[0]
+    assert cmd[0].index("DB_READ_TIMEOUT=") < cmd[0].index("gunicorn")
+    # nothing else (worker command, compose files, env example) hands it to other processes
+    for name in (
+        "docker-compose.yml",
+        "docker-compose.prod.yml",
+        "docker-compose.local.yml",
+        "docker-compose.oracle.yml",
+    ):
+        text = (root / name).read_text()
+        assert "DB_READ_TIMEOUT:" not in text and "DB_READ_TIMEOUT=" not in text.replace(
+            "WEB_DB_READ_TIMEOUT", ""
+        )
