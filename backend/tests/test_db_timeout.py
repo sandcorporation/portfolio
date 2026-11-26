@@ -107,7 +107,7 @@ def test_a_warm_connection_that_stalls_fails_its_health_check_and_the_reconnect_
         try:
             with wrapper.cursor() as cursor:
                 cursor.execute("SELECT 1")
-            wrapper.health_check_done = False  # a new request on a reused connection
+            vars(wrapper)["health_check_done"] = False  # a new request on a reused connection
             stall.set()
             started = time.monotonic()
             wrapper.close_if_health_check_failed()  # ping stalls → read_timeout → closed
