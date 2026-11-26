@@ -965,7 +965,7 @@ h3.block-heading {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* a long value wraps inside its tile (390px: two columns); only the wide one-line row keeps it on one line */
+/* a long value wraps inside its tile at every width (a short number still fits one line) */
 .evidence-row .kpi-card {
   min-width: 0;
 }
@@ -998,10 +998,6 @@ h3.block-heading {
 
   .evidence-row {
     grid-template-columns: repeat(var(--evidence-count, 4), minmax(0, 1fr));
-  }
-
-  .evidence-row .kpi-value {
-    white-space: nowrap;
   }
 }
 
