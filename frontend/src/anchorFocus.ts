@@ -2,7 +2,13 @@
  * happened against the old DOM, so the target may have moved and focus stays at the document start.
  * Scroll to the `location.hash` target again and move focus there so the next Tab continues inside it. */
 export function focusHashTarget(): boolean {
-  const id = decodeURIComponent(window.location.hash.slice(1));
+  const raw = window.location.hash.slice(1);
+  let id = raw;
+  try {
+    id = decodeURIComponent(raw);
+  } catch {
+    // A malformed escape (`#%`, `#%E0`) must not take the page down: look the raw text up instead.
+  }
   if (!id) return false;
   const target = document.getElementById(id);
   if (!target) return false;

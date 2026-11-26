@@ -32,3 +32,14 @@ test("HashFocus는 마운트 뒤 hash 대상에 초점을 둔다", async () => {
   render(<HashFocus />);
   expect(document.activeElement?.id).toBe("home-services");
 });
+
+test("잘못 인코딩된 hash도 던지지 않고, 원문 id가 있으면 그곳에 초점을 둔다", () => {
+  document.body.innerHTML = '<h2 id="%E0" tabindex="-1">원문</h2>';
+  for (const hash of ["#%", "#%E0", "#%E0%A4%A"]) {
+    window.location.hash = hash;
+    expect(() => focusHashTarget()).not.toThrow();
+  }
+  window.location.hash = "#%E0";
+  expect(focusHashTarget()).toBe(true);
+  expect(document.activeElement?.id).toBe("%E0");
+});
