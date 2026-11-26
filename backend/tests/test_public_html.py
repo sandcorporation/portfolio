@@ -90,6 +90,7 @@ def test_work_page_draws_title_and_block_document(client: Client) -> None:
     assert "<strong>세 시간</strong>" in body
     assert '<div class="sc-prose-table-scroll"><table>' in body
     assert "<td>오류</td>" in body and "<td>10분</td>" in body
+    assert '<a class="back-link" href="/#home-portfolio">← 포트폴리오 목록</a>' in body
     assert (
         '<a href="https://example.com" target="_blank" rel="noopener noreferrer">사이트</a>' in body
     )
