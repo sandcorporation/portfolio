@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { App } from "../App";
 import { exampleDocument } from "../blocks/testing";
 import type { HomeData } from "../home/types";
@@ -222,6 +223,33 @@ test("상세 그림을 누르면 원본 크기로 열고 Esc로 닫으며 포커
   fireEvent.keyDown(viewer, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(opener).toHaveFocus();
+});
+
+test("원본 크기 보기는 단추가 닫기뿐이어도 Tab이 그림 영역에 닿고 창 밖으로 나가지 않는다 (issue 76)", async () => {
+  const user = userEvent.setup();
+  const data: ServiceData = {
+    offering: offering({ figure: image("https://img.example/fig.png", { alt: "호출 순서" }) }),
+  };
+  render(<App path="/services/mcp-integration" data={data} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "호출 순서 크게 보기" }));
+  const viewer = screen.getByRole("dialog");
+  const close = within(viewer).getByRole("button", { name: "닫기" });
+  const frame = viewer.querySelector<HTMLElement>(".gallery-figure") as HTMLElement;
+  expect(frame).toHaveAttribute("tabindex", "0");
+  expect(close).toHaveFocus();
+
+  await user.tab();
+  expect(frame).toHaveFocus();
+  await user.tab();
+  expect(close).toHaveFocus();
+  await user.tab({ shift: true });
+  expect(frame).toHaveFocus();
+  await user.tab({ shift: true });
+  expect(close).toHaveFocus();
+
+  fireEvent.keyDown(viewer, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 test("그림이 없으면 크게 보기 단추도 없다", () => {
