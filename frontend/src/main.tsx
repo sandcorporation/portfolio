@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { HashFocus } from "./HashFocus";
 import { startErrorReporting } from "./observability";
 import { readPageData } from "./pageData";
 // Shared design first (tokens, base, .sc-prose; issue 150), then portfolio tokens and components
@@ -19,6 +20,7 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
+      <HashFocus />
       <App path={window.location.pathname} data={readPageData()} />
     </StrictMode>,
   );
