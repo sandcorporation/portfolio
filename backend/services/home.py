@@ -1,5 +1,6 @@
 """What the public home page shows, read from the site profile."""
 
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import TypedDict
@@ -8,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
+from adapters import foresight as foresight_adapter
+from adapters import metrics as metrics_adapter
 from adapters.foresight import ForesightArticle, ForesightStats, fetch_recent
 from adapters.foresight import fetch_stats as fetch_foresight_stats
 from adapters.metrics import Stats, fetch_stats
@@ -131,10 +134,40 @@ def news_item(article: ForesightArticle, now: datetime) -> NewsItem:
     )
 
 
-def recent_news(limit: int = RECENT_NEWS) -> list[NewsItem]:
+def recent_news(
+    limit: int = RECENT_NEWS, articles: list[ForesightArticle] | None = None
+) -> list[NewsItem]:
     """The home page's Foresight rows. Never raises: a dead news site is just no rows."""
     now = timezone.now()
-    return [news_item(a, now) for a in fetch_recent(limit)]
+    return [news_item(a, now) for a in (fetch_recent(limit) if articles is None else articles)]
+
+
+def external_reads(
+    limit: int = RECENT_NEWS,
+) -> tuple[Stats | None, list[ForesightArticle], ForesightStats | None]:
+    """The three external reads of the home page (metrics, Foresight articles, Foresight stats).
+
+    Whatever the cache lacks is asked of the services side by side, so a cold first request
+    waits for the slowest one (each is bounded by its own timeout), not for the sum. Only the
+    gateway calls run in threads: gateways, cache and settings are touched in this thread (the
+    DB connection and a test's transaction stay here), and the adapters keep the caching and
+    the fall-back-to-last-good rules."""
+    metrics_gw = metrics_adapter.get_gateway()
+    foresight_gw = foresight_adapter.get_gateway()
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        m: Future[Stats | None] | None = None
+        r: Future[list[ForesightArticle]] | None = None
+        s: Future[ForesightStats | None] | None = None
+        if not metrics_adapter.is_cached():
+            m = pool.submit(metrics_gw.stats)
+        if not foresight_adapter.recent_cached(limit):
+            r = pool.submit(foresight_gw.recent, limit)
+        if not foresight_adapter.stats_cached():
+            s = pool.submit(foresight_gw.stats)
+        stats = fetch_stats(call=m.result if m else None)
+        articles = fetch_recent(limit, call=(lambda n: r.result()) if r else None)
+        fstats = fetch_foresight_stats(call=s.result if s else None)
+    return stats, articles, fstats
 
 
 def site_visits(stats: Stats | None) -> SiteVisits | None:
@@ -251,7 +284,7 @@ class HomePage:
 def home_page() -> HomePage:
     # Reading never creates the profile row; an unsaved default stands in until admin saves one.
     profile = SiteProfile.objects.filter(pk=1).first() or SiteProfile()
-    stats = fetch_stats()  # one read for both the masthead and the rows (cached 60 s anyway)
+    stats, articles, foresight_stats = external_reads()  # side by side when cold
     portfolio = [card_of(item, stats) for item in public_items()]
     return HomePage(
         description=profile.tagline or DEFAULT_DESCRIPTION,
@@ -268,13 +301,11 @@ def home_page() -> HomePage:
             posts=recent_posts(),
             tips=tips.public_cards(limit=TIP_POOL),
             shorts=shorts.public_cards(),
-            news=recent_news(),
+            news=recent_news(articles=articles),
             visits=site_visits(stats),
             availability=availability_of(profile),
             business=business_of(profile),
-            evidence=evidence_of(
-                profile, portfolio, fetch_foresight_stats(), timezone.localdate(), stats
-            ),
+            evidence=evidence_of(profile, portfolio, foresight_stats, timezone.localdate(), stats),
             services=offerings.cards(),
             inquiry_options=offerings.inquiry_options(),
         ),
