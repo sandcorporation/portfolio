@@ -97,3 +97,13 @@ test("카드에 없는 서비스의 slug도 구분을 미리 고르고, 같은 �
   expect(select).toHaveValue("MCP 연동");
   window.history.pushState({}, "", "/");
 });
+
+test("접수 뒤 초점이 접수 안내로 간다", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 201 }));
+  render(<InquiryForm />);
+
+  await fillAndSend();
+
+  const done = await screen.findByRole("status");
+  expect(done).toHaveFocus();
+});
