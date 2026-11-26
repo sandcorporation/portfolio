@@ -1,4 +1,4 @@
-import { Masthead, SiteFooter, SiteMeta, SiteNav } from "../brand/Masthead";
+import { Masthead, SiteFooter, SiteMeta, SiteNav, servicesNavHidden } from "../brand/Masthead";
 import { linkAttrs } from "../links";
 import { ZoomImage } from "./ZoomImage";
 import type { OfferingImage, ServiceData } from "./types";
@@ -35,7 +35,7 @@ export function ServicePage({ data }: { data: ServiceData }) {
       </Masthead>
       <SiteNav current="services" />
       <main className="page work service">
-        <a className="back-link" href="/#home-services">
+        <a className="back-link" href={servicesNavHidden() ? "/" : "/#home-services"}>
           ← 서비스
         </a>
         <article aria-labelledby="service-title">

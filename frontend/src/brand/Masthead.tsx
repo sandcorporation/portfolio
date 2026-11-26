@@ -97,13 +97,17 @@ const SITE_NAV = [
   { key: "inquiry", href: "/#home-inquiry", label: "문의" },
 ] as const;
 
+/** The shell says the home shows no service card, so 「서비스」 (and 「← 서비스」) has no target. */
+export function servicesNavHidden(): boolean {
+  const data = readPageData();
+  return typeof data === "object" && data !== null && (data as { services_nav?: unknown }).services_nav === false;
+}
+
 /** The mono row under the masthead; the current item carries the accent square. */
 export function SiteNav({ current }: { current?: "company" | "services" | "blog" | "tips" | "work" | "inquiry" }) {
-  const data = readPageData();
-  // Without a visible service card 「서비스」 has nowhere to go (issue 50); the service page itself keeps it.
-  const hide =
-    typeof data === "object" && data !== null && (data as { services_nav?: unknown }).services_nav === false;
-  const items = SITE_NAV.filter((item) => item.key !== "services" || !hide || current === "services");
+  // Without a visible service card 「서비스」 has nowhere to go (issue 50, 67): not even on a service page.
+  const hide = servicesNavHidden();
+  const items = SITE_NAV.filter((item) => item.key !== "services" || !hide);
   return (
     <nav className="site-nav" aria-label="사이트">
       <ul>
