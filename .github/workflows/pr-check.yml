@@ -9,6 +9,8 @@ name: PR 검사
 
 on:
   pull_request:
+    # base가 staging인 PR(개선 루프)은 돌리지 않는다. main으로 가는 PR과 workflow_call(release)은 전체 검사.
+    branches-ignore: [staging]
   workflow_call:
 
 permissions:
