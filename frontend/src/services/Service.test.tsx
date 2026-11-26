@@ -31,6 +31,15 @@ test("미리보기 주소(/preview/services/…)도 서비스 화면을 그린�
   expect(screen.queryByText("사이트를 준비하고 있습니다")).toBeNull();
 });
 
+test("사례가 없으면 사례 절이 빠지고 문의가 04로 당겨진다", () => {
+  render(<App path="/services/mcp-integration" data={{ offering: offering({ cases: [] }) }} />);
+
+  const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+  expect(titles).toEqual(["이런 분께 맞습니다", "해 드리는 일", "진행 방식", "문의"]);
+  expect(screen.queryByText("실제 사례")).toBeNull();
+  expect(screen.getByText(/Contact/)).toHaveTextContent("04 — Contact");
+});
+
 test("서비스 화면은 제목·리드 → 대상 → 할 일 → 진행 방식 → 사례 → 견적 문의 순으로 보여 준다", () => {
   render(<App path="/services/mcp-integration" data={page()} />);
 
