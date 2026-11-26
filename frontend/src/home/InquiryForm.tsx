@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 type Status = "idle" | "sending" | "done" | "error";
 
@@ -25,6 +25,13 @@ function initialKind(offerings: KindOption[]): string {
 export function InquiryForm({ offerings = [] }: { offerings?: KindOption[] }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+  const done = useRef<HTMLParagraphElement>(null);
+
+  // The form (and the focused button) is gone once sent: move focus to the confirmation so keyboard
+  // and screen-reader users land on it and hear it.
+  useEffect(() => {
+    if (status === "done") done.current?.focus();
+  }, [status]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,7 +58,7 @@ export function InquiryForm({ offerings = [] }: { offerings?: KindOption[] }) {
 
   if (status === "done") {
     return (
-      <p className="inquiry-done" role="status">
+      <p className="inquiry-done" role="status" tabIndex={-1} ref={done}>
         접수되었습니다. 확인 후 남겨 주신 연락처로 답변드리겠습니다.
       </p>
     );
